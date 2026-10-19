@@ -41,9 +41,13 @@ Ajustes ofrece audio, movimiento reducido y exportación/importación de respald
 
 `src/core/storage.ts` define `StorageAdapter`, con implementación local y versión de datos. `supabase/schema.sql` prepara perfiles, figuras, partidas y eventos con RLS por usuario y FK compuesta que impide vincular eventos a partidas ajenas. No se ha conectado ni ejecutado Supabase. Un futuro adaptador debe proporcionar transacciones y concurrencia por revisión. No hay claves requeridas ni secretos en el cliente.
 
-## GitHub Pages (preparado, sin publicar)
+## GitHub Pages
 
-Vite usa base relativa `./`, y la navegación se resuelve en memoria sin rutas que dependan del servidor. La configuración de ejemplo permite base `/FIGUREMANIA/`. Para Pages se publicaría el contenido de `dist/` tras `npm run build`, usando GitHub Actions o un despliegue configurado. **No se ha creado un despliegue ni publicado nada.** Solo hacerlo cuando el propietario configure el destino y lo solicite. Al recargar, se vuelve a Inicio y el botón Continuar restaura la fase exacta del combate.
+El workflow `.github/workflows/pages.yml` instala, prueba, compila y publica automáticamente al subir cambios a `main`, o al ejecutarlo manualmente desde Actions. En Settings → Pages, Source debe ser **GitHub Actions**. Publicación solicitada por el propietario.
+
+El destino exclusivo es `https://maccmotorservice-rgb.github.io/FIGUREMANIA/`. Antes de compilar, el workflow consulta Pages y rechaza un dominio personalizado o una URL distinta. Solo actúa dentro de `maccmotorservice-rgb/FIGUREMANIA`; no modifica otros repositorios ni sitios. El estado real de publicación se comprueba en la pestaña Actions.
+
+Vite compila con `VITE_BASE_PATH=/FIGUREMANIA/`. La navegación se resuelve en memoria sin rutas que dependan del servidor. Al recargar, Inicio ofrece Continuar para restaurar la fase exacta del combate. No hacen falta claves adicionales: Actions usa su token temporal de GitHub con permisos limitados.
 
 Las fuentes se incluyen en el bundle mediante `@fontsource`; no dependen de Google Fonts ni de recursos externos. El combate funciona sin red después de cargar todos los recursos. No hay service worker ni garantía de arranque sin conexión desde una pestaña nueva.
 

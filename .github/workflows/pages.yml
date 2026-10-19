@@ -1,0 +1,67 @@
+name: Publicar FIGUREMANIA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: figuremania-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'maccmotorservice-rgb/FIGUREMANIA'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - name: Obtener FIGUREMANIA
+        uses: actions/checkout@v4
+      - name: Verificar destino exclusivo del juego
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const expected = 'https://maccmotorservice-rgb.github.io/FIGUREMANIA/';
+            const { data: site } = await github.rest.repos.getPages({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            if (site.cname || site.html_url?.toLowerCase().replace(/\/$/, '') !== expected.toLowerCase().replace(/\/$/, '')) {
+              core.setFailed('Destino inesperado. Solo se permite publicar FIGUREMANIA en su propia ruta, sin dominio personalizado. No se ha desplegado nada.');
+            }
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Instalar dependencias
+        run: npm ci --no-audit --no-fund
+      - name: Comprobar reglas y guardado
+        run: npm test
+      - name: Compilar el juego
+        run: npm run build
+        env:
+          VITE_BASE_PATH: /FIGUREMANIA/
+      - name: Preparar archivos de Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar solo FIGUREMANIA
+        id: deployment
+        uses: actions/deploy-pages@v4
