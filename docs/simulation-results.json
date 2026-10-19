@@ -1,0 +1,637 @@
+{
+  "seedFormula": "123456789 + imul(i+1, 2654435761), uint32; same seeds for paired policies",
+  "matchesPerScenario": 10000,
+  "technicalLimit": 500,
+  "results": [
+    {
+      "ratings": "84 vs 84",
+      "strategyA": "daño",
+      "strategyB": "daño",
+      "pinA": "siempre",
+      "pinB": "siempre",
+      "matches": 10000,
+      "winsA": 5005,
+      "winsB": 4995,
+      "censored": 0,
+      "median": 4,
+      "p90": 8,
+      "reversalAttempts": 35546,
+      "reversalSuccess": 8871,
+      "reversalSuccessPercent": 24.96,
+      "reversalAttemptsPerExchange": 0.764,
+      "finishers": 0,
+      "finishersPer100Attacks": 0,
+      "pins": 37674,
+      "positions": [
+        {
+          "a": 2503,
+          "b": 2497
+        },
+        {
+          "a": 2502,
+          "b": 2498
+        }
+      ]
+    },
+    {
+      "ratings": "84 vs 84",
+      "strategyA": "remate",
+      "strategyB": "remate",
+      "pinA": "siempre",
+      "pinB": "siempre",
+      "matches": 10000,
+      "winsA": 4966,
+      "winsB": 5034,
+      "censored": 0,
+      "median": 5,
+      "p90": 8,
+      "reversalAttempts": 17448,
+      "reversalSuccess": 4300,
+      "reversalSuccessPercent": 24.64,
+      "reversalAttemptsPerExchange": 0.374,
+      "finishers": 4073,
+      "finishersPer100Attacks": 8.72,
+      "pins": 42382,
+      "positions": [
+        {
+          "a": 2520,
+          "b": 2480
+        },
+        {
+          "a": 2446,
+          "b": 2554
+        }
+      ]
+    },
+    {
+      "ratings": "84 vs 84",
+      "strategyA": "conservadora",
+      "strategyB": "conservadora",
+      "pinA": "siempre",
+      "pinB": "siempre",
+      "matches": 10000,
+      "winsA": 4995,
+      "winsB": 5005,
+      "censored": 0,
+      "median": 3,
+      "p90": 7,
+      "reversalAttempts": 3720,
+      "reversalSuccess": 906,
+      "reversalSuccessPercent": 24.35,
+      "reversalAttemptsPerExchange": 0.096,
+      "finishers": 0,
+      "finishersPer100Attacks": 0,
+      "pins": 37927,
+      "positions": [
+        {
+          "a": 2523,
+          "b": 2477
+        },
+        {
+          "a": 2472,
+          "b": 2528
+        }
+      ]
+    },
+    {
+      "ratings": "84 vs 84",
+      "strategyA": "daño",
+      "strategyB": "remate",
+      "pinA": "siempre",
+      "pinB": "siempre",
+      "matches": 10000,
+      "winsA": 5675,
+      "winsB": 4325,
+      "censored": 0,
+      "median": 4,
+      "p90": 8,
+      "reversalAttempts": 25995,
+      "reversalSuccess": 6521,
+      "reversalSuccessPercent": 25.09,
+      "reversalAttemptsPerExchange": 0.566,
+      "finishers": 1778,
+      "finishersPer100Attacks": 3.87,
+      "pins": 39398,
+      "positions": [
+        {
+          "a": 2841,
+          "b": 2159
+        },
+        {
+          "a": 2834,
+          "b": 2166
+        }
+      ]
+    },
+    {
+      "ratings": "84 vs 84",
+      "strategyA": "remate",
+      "strategyB": "conservadora",
+      "pinA": "siempre",
+      "pinB": "siempre",
+      "matches": 10000,
+      "winsA": 5087,
+      "winsB": 4913,
+      "censored": 0,
+      "median": 4,
+      "p90": 7,
+      "reversalAttempts": 8478,
+      "reversalSuccess": 2094,
+      "reversalSuccessPercent": 24.7,
+      "reversalAttemptsPerExchange": 0.2,
+      "finishers": 1772,
+      "finishersPer100Attacks": 4.18,
+      "pins": 40325,
+      "positions": [
+        {
+          "a": 2579,
+          "b": 2421
+        },
+        {
+          "a": 2508,
+          "b": 2492
+        }
+      ]
+    },
+    {
+      "ratings": "84 vs 84",
+      "strategyA": "conservadora",
+      "strategyB": "daño",
+      "pinA": "siempre",
+      "pinB": "siempre",
+      "matches": 10000,
+      "winsA": 4296,
+      "winsB": 5704,
+      "censored": 0,
+      "median": 4,
+      "p90": 8,
+      "reversalAttempts": 18990,
+      "reversalSuccess": 4729,
+      "reversalSuccessPercent": 24.9,
+      "reversalAttemptsPerExchange": 0.45,
+      "finishers": 0,
+      "finishersPer100Attacks": 0,
+      "pins": 37457,
+      "positions": [
+        {
+          "a": 2150,
+          "b": 2850
+        },
+        {
+          "a": 2146,
+          "b": 2854
+        }
+      ]
+    },
+    {
+      "ratings": "84 vs 84",
+      "strategyA": "daño",
+      "strategyB": "daño",
+      "pinA": "siempre",
+      "pinB": "≥50%",
+      "matches": 10000,
+      "winsA": 7838,
+      "winsB": 2162,
+      "censored": 0,
+      "median": 7,
+      "p90": 11,
+      "reversalAttempts": 44006,
+      "reversalSuccess": 11000,
+      "reversalSuccessPercent": 25,
+      "reversalAttemptsPerExchange": 0.67,
+      "finishers": 0,
+      "finishersPer100Attacks": 0,
+      "pins": 31062,
+      "positions": [
+        {
+          "a": 3904,
+          "b": 1096
+        },
+        {
+          "a": 3934,
+          "b": 1066
+        }
+      ]
+    },
+    {
+      "ratings": "93 vs 84",
+      "strategyA": "daño",
+      "strategyB": "daño",
+      "pinA": "siempre",
+      "pinB": "siempre",
+      "matches": 10000,
+      "winsA": 5625,
+      "winsB": 4375,
+      "censored": 0,
+      "median": 4,
+      "p90": 8,
+      "reversalAttempts": 35555,
+      "reversalSuccess": 8916,
+      "reversalSuccessPercent": 25.08,
+      "reversalAttemptsPerExchange": 0.765,
+      "finishers": 0,
+      "finishersPer100Attacks": 0,
+      "pins": 37578,
+      "positions": [
+        {
+          "a": 2820,
+          "b": 2180
+        },
+        {
+          "a": 2805,
+          "b": 2195
+        }
+      ]
+    },
+    {
+      "ratings": "93 vs 84",
+      "strategyA": "remate",
+      "strategyB": "remate",
+      "pinA": "siempre",
+      "pinB": "siempre",
+      "matches": 10000,
+      "winsA": 5497,
+      "winsB": 4503,
+      "censored": 0,
+      "median": 5,
+      "p90": 8,
+      "reversalAttempts": 17366,
+      "reversalSuccess": 4329,
+      "reversalSuccessPercent": 24.93,
+      "reversalAttemptsPerExchange": 0.373,
+      "finishers": 3989,
+      "finishersPer100Attacks": 8.56,
+      "pins": 42269,
+      "positions": [
+        {
+          "a": 2782,
+          "b": 2218
+        },
+        {
+          "a": 2715,
+          "b": 2285
+        }
+      ]
+    },
+    {
+      "ratings": "93 vs 84",
+      "strategyA": "conservadora",
+      "strategyB": "conservadora",
+      "pinA": "siempre",
+      "pinB": "siempre",
+      "matches": 10000,
+      "winsA": 5598,
+      "winsB": 4402,
+      "censored": 0,
+      "median": 3,
+      "p90": 7,
+      "reversalAttempts": 3846,
+      "reversalSuccess": 972,
+      "reversalSuccessPercent": 25.27,
+      "reversalAttemptsPerExchange": 0.099,
+      "finishers": 0,
+      "finishersPer100Attacks": 0,
+      "pins": 38011,
+      "positions": [
+        {
+          "a": 2798,
+          "b": 2202
+        },
+        {
+          "a": 2800,
+          "b": 2200
+        }
+      ]
+    },
+    {
+      "ratings": "93 vs 84",
+      "strategyA": "daño",
+      "strategyB": "remate",
+      "pinA": "siempre",
+      "pinB": "siempre",
+      "matches": 10000,
+      "winsA": 6293,
+      "winsB": 3707,
+      "censored": 0,
+      "median": 4,
+      "p90": 8,
+      "reversalAttempts": 24860,
+      "reversalSuccess": 6230,
+      "reversalSuccessPercent": 25.06,
+      "reversalAttemptsPerExchange": 0.552,
+      "finishers": 1664,
+      "finishersPer100Attacks": 3.69,
+      "pins": 38816,
+      "positions": [
+        {
+          "a": 3142,
+          "b": 1858
+        },
+        {
+          "a": 3151,
+          "b": 1849
+        }
+      ]
+    },
+    {
+      "ratings": "93 vs 84",
+      "strategyA": "remate",
+      "strategyB": "conservadora",
+      "pinA": "siempre",
+      "pinB": "siempre",
+      "matches": 10000,
+      "winsA": 5648,
+      "winsB": 4352,
+      "censored": 0,
+      "median": 4,
+      "p90": 7,
+      "reversalAttempts": 7786,
+      "reversalSuccess": 1931,
+      "reversalSuccessPercent": 24.8,
+      "reversalAttemptsPerExchange": 0.183,
+      "finishers": 1849,
+      "finishersPer100Attacks": 4.34,
+      "pins": 40666,
+      "positions": [
+        {
+          "a": 2822,
+          "b": 2178
+        },
+        {
+          "a": 2826,
+          "b": 2174
+        }
+      ]
+    },
+    {
+      "ratings": "93 vs 84",
+      "strategyA": "conservadora",
+      "strategyB": "daño",
+      "pinA": "siempre",
+      "pinB": "siempre",
+      "matches": 10000,
+      "winsA": 4892,
+      "winsB": 5108,
+      "censored": 0,
+      "median": 4,
+      "p90": 8,
+      "reversalAttempts": 20361,
+      "reversalSuccess": 5132,
+      "reversalSuccessPercent": 25.21,
+      "reversalAttemptsPerExchange": 0.475,
+      "finishers": 0,
+      "finishersPer100Attacks": 0,
+      "pins": 37706,
+      "positions": [
+        {
+          "a": 2460,
+          "b": 2540
+        },
+        {
+          "a": 2432,
+          "b": 2568
+        }
+      ]
+    },
+    {
+      "ratings": "93 vs 84",
+      "strategyA": "daño",
+      "strategyB": "daño",
+      "pinA": "siempre",
+      "pinB": "≥50%",
+      "matches": 10000,
+      "winsA": 8436,
+      "winsB": 1564,
+      "censored": 0,
+      "median": 6,
+      "p90": 11,
+      "reversalAttempts": 42919,
+      "reversalSuccess": 10769,
+      "reversalSuccessPercent": 25.09,
+      "reversalAttemptsPerExchange": 0.679,
+      "finishers": 0,
+      "finishersPer100Attacks": 0,
+      "pins": 31486,
+      "positions": [
+        {
+          "a": 4196,
+          "b": 804
+        },
+        {
+          "a": 4240,
+          "b": 760
+        }
+      ]
+    },
+    {
+      "ratings": "95 vs 70",
+      "strategyA": "daño",
+      "strategyB": "daño",
+      "pinA": "siempre",
+      "pinB": "siempre",
+      "matches": 10000,
+      "winsA": 6180,
+      "winsB": 3820,
+      "censored": 0,
+      "median": 4,
+      "p90": 8,
+      "reversalAttempts": 35452,
+      "reversalSuccess": 8918,
+      "reversalSuccessPercent": 25.16,
+      "reversalAttemptsPerExchange": 0.767,
+      "finishers": 0,
+      "finishersPer100Attacks": 0,
+      "pins": 37276,
+      "positions": [
+        {
+          "a": 3076,
+          "b": 1924
+        },
+        {
+          "a": 3104,
+          "b": 1896
+        }
+      ]
+    },
+    {
+      "ratings": "95 vs 70",
+      "strategyA": "remate",
+      "strategyB": "remate",
+      "pinA": "siempre",
+      "pinB": "siempre",
+      "matches": 10000,
+      "winsA": 6033,
+      "winsB": 3967,
+      "censored": 0,
+      "median": 5,
+      "p90": 8,
+      "reversalAttempts": 17438,
+      "reversalSuccess": 4341,
+      "reversalSuccessPercent": 24.89,
+      "reversalAttemptsPerExchange": 0.373,
+      "finishers": 3954,
+      "finishersPer100Attacks": 8.46,
+      "pins": 42382,
+      "positions": [
+        {
+          "a": 3042,
+          "b": 1958
+        },
+        {
+          "a": 2991,
+          "b": 2009
+        }
+      ]
+    },
+    {
+      "ratings": "95 vs 70",
+      "strategyA": "conservadora",
+      "strategyB": "conservadora",
+      "pinA": "siempre",
+      "pinB": "siempre",
+      "matches": 10000,
+      "winsA": 6221,
+      "winsB": 3779,
+      "censored": 0,
+      "median": 3,
+      "p90": 7,
+      "reversalAttempts": 3935,
+      "reversalSuccess": 996,
+      "reversalSuccessPercent": 25.31,
+      "reversalAttemptsPerExchange": 0.101,
+      "finishers": 0,
+      "finishersPer100Attacks": 0,
+      "pins": 37831,
+      "positions": [
+        {
+          "a": 3123,
+          "b": 1877
+        },
+        {
+          "a": 3098,
+          "b": 1902
+        }
+      ]
+    },
+    {
+      "ratings": "95 vs 70",
+      "strategyA": "daño",
+      "strategyB": "remate",
+      "pinA": "siempre",
+      "pinB": "siempre",
+      "matches": 10000,
+      "winsA": 6784,
+      "winsB": 3216,
+      "censored": 0,
+      "median": 4,
+      "p90": 8,
+      "reversalAttempts": 23745,
+      "reversalSuccess": 6003,
+      "reversalSuccessPercent": 25.28,
+      "reversalAttemptsPerExchange": 0.536,
+      "finishers": 1619,
+      "finishersPer100Attacks": 3.65,
+      "pins": 38336,
+      "positions": [
+        {
+          "a": 3379,
+          "b": 1621
+        },
+        {
+          "a": 3405,
+          "b": 1595
+        }
+      ]
+    },
+    {
+      "ratings": "95 vs 70",
+      "strategyA": "remate",
+      "strategyB": "conservadora",
+      "pinA": "siempre",
+      "pinB": "siempre",
+      "matches": 10000,
+      "winsA": 6246,
+      "winsB": 3754,
+      "censored": 0,
+      "median": 4,
+      "p90": 7,
+      "reversalAttempts": 7090,
+      "reversalSuccess": 1788,
+      "reversalSuccessPercent": 25.22,
+      "reversalAttemptsPerExchange": 0.167,
+      "finishers": 1825,
+      "finishersPer100Attacks": 4.29,
+      "pins": 40789,
+      "positions": [
+        {
+          "a": 3114,
+          "b": 1886
+        },
+        {
+          "a": 3132,
+          "b": 1868
+        }
+      ]
+    },
+    {
+      "ratings": "95 vs 70",
+      "strategyA": "conservadora",
+      "strategyB": "daño",
+      "pinA": "siempre",
+      "pinB": "siempre",
+      "matches": 10000,
+      "winsA": 5513,
+      "winsB": 4487,
+      "censored": 0,
+      "median": 4,
+      "p90": 8,
+      "reversalAttempts": 21805,
+      "reversalSuccess": 5495,
+      "reversalSuccessPercent": 25.2,
+      "reversalAttemptsPerExchange": 0.503,
+      "finishers": 0,
+      "finishersPer100Attacks": 0,
+      "pins": 37893,
+      "positions": [
+        {
+          "a": 2755,
+          "b": 2245
+        },
+        {
+          "a": 2758,
+          "b": 2242
+        }
+      ]
+    },
+    {
+      "ratings": "95 vs 70",
+      "strategyA": "daño",
+      "strategyB": "daño",
+      "pinA": "siempre",
+      "pinB": "≥50%",
+      "matches": 10000,
+      "winsA": 8891,
+      "winsB": 1109,
+      "censored": 0,
+      "median": 6,
+      "p90": 11,
+      "reversalAttempts": 41961,
+      "reversalSuccess": 10562,
+      "reversalSuccessPercent": 25.17,
+      "reversalAttemptsPerExchange": 0.687,
+      "finishers": 0,
+      "finishersPer100Attacks": 0,
+      "pins": 32078,
+      "positions": [
+        {
+          "a": 4439,
+          "b": 561
+        },
+        {
+          "a": 4452,
+          "b": 548
+        }
+      ]
+    }
+  ]
+}
