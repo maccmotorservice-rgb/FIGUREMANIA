@@ -32,6 +32,10 @@ import {
   type Action,
 } from "./core/engine";
 import { demos } from "./core/demo";
+import { roster, registerTemplate, type RosterEntry } from "./core/roster";
+import { Avatar, FigureCard } from "./components/FigurePortrait";
+import { RosterCatalog } from "./components/RosterCatalog";
+import { RetroSelection } from "./components/RetroSelection";
 import { LocalAdapter, validateSaveData, type SaveData } from "./core/storage";
 import { replayAvailability } from "./core/integrations";
 type Page =
@@ -65,107 +69,15 @@ function load() {
     };
   }
 }
-function Avatar({
-  figure,
-  large = false,
-}: {
-  figure: Figure;
-  large?: boolean;
-}) {
-  const color = figure.id.includes("rey")
-    ? "#bdff43"
-    : figure.id === "titan"
-      ? "#81a6d8"
-      : "#fa637d";
-  return figure.photo ? (
-    <img
-      className="figure-photo"
-      src={figure.photo}
-      alt={`${figure.wrestler}, ${figure.edition}`}
-    />
-  ) : (
-    <svg
-      className={`avatar ${large ? "large" : ""}`}
-      viewBox="0 0 300 330"
-      role="img"
-      aria-label={`Ilustración original de luchador; ${figure.wrestler} sin foto`}
-    >
-      <defs>
-        <linearGradient id={`g${figure.id}`} x2="1" y2="1">
-          <stop stopColor={color} />
-          <stop offset="1" stopColor="#20232b" />
-        </linearGradient>
-      </defs>
-      <circle cx="150" cy="130" r="110" fill={color} opacity=".035" />
-      <path
-        d="M45 330 65 220 106 192 122 179 176 179 194 194 235 220 256 330"
-        fill={`url(#g${figure.id})`}
-      />
-      <path d="m100 330 10-103 40 35 40-35 14 103" fill="#141720" />
-      <path d="m120 180 5-33h50l6 33-31 36z" fill="#96785f" />
-      <path
-        d="M107 103q2-57 43-59 43 3 44 59l-8 56-36 27-36-27z"
-        fill={`url(#g${figure.id})`}
-      />
-      <path d="m113 97 29 16-6 12-18-9zm74 0-29 16 6 12 18-9z" fill="#10121b" />
-      <path d="m141 141 9 8 9-8 9 18-18 9-18-9z" fill="#10121b" />
-      <path
-        d="m148 51 2 45 9-45m-46 21 29 24m45-24-29 24"
-        fill="none"
-        stroke="#e4ffb8"
-        strokeWidth="4"
-        opacity=".8"
-      />
-      <path d="m67 227 39 15-9 48-41-9m177-54-39 15 9 48 41-9" fill="#262b32" />
-      <path d="m112 287 38-12 38 12-5 28h-66z" fill={color} />
-      <path d="m139 289 11-6 11 6-2 14h-18z" fill="#181b24" />
-    </svg>
-  );
-}
-function FigureCard({
-  figure,
-  selected,
-  onClick,
-  index = 0,
-}: {
-  figure: Figure;
-  selected?: boolean;
-  onClick: () => void;
-  index?: number;
-}) {
-  return (
-    <button
-      className={`figure-card tone-${index % 4} ${selected ? "selected" : ""}`}
-      onClick={onClick}
-    >
-      <div className="card-top">
-        <span className="tiny">{figure.style}</span>
-        <span className="rating">
-          {rating(figure)}
-          <small>VAL</small>
-        </span>
-      </div>
-      <Avatar figure={figure} />
-      <div className="card-caption">
-        <small>{figure.era}</small>
-        <h3>{figure.wrestler}</h3>
-        <span>{figure.edition}</span>
-      </div>
-      {selected && (
-        <span className="selected-mark">
-          <Check size={16} />
-        </span>
-      )}
-    </button>
-  );
-}
 function App() {
   const loaded = useRef(load());
   const [data, setData] = useState(loaded.current.data);
   const state = useRef(data);
   const [error, setError] = useState(loaded.current.error);
   const [page, setPage] = useState<Page>("home");
-  const [picks, setPicks] = useState<string[]>([]);
+  const [collectionView, setCollectionView] = useState<"figures" | "roster">(
+    "figures",
+  );
   const [entry, setEntry] = useState(0);
   const [editor, setEditor] = useState<Figure | null>(null);
   const [detail, setDetail] = useState<Match | null>(null);
@@ -264,12 +176,9 @@ function App() {
       if (!commit({ ...data, active: m, history: [m, ...data.history] }))
         return;
     }
-    setPicks([]);
     navigate("select");
   };
-  const start = () => {
-    const [a, b] = picks.map((id) => data.figures.find((f) => f.id === id)!);
-    if (!a || !b) return;
+  const start = (a: Figure, b: Figure) => {
     if (commit({ ...data, active: createMatch(a, b) })) {
       setEntry(0);
       navigate("entrance");
@@ -315,7 +224,7 @@ function App() {
           </span>
           <span>
             FIGURE<span>MANIA</span>
-            <small>EL RING COBRA VIDA</small>
+            <small>SISTEMA DE LUCHA RETRO</small>
           </span>
         </button>
         <nav aria-label="Principal">
@@ -440,32 +349,50 @@ function App() {
                   </span>
                 </div>
               </div>
-              <div className="hero-art" aria-hidden="true">
-                <div className="arena-lights" />
-                <div className="arena-word">
-                  MAIN
-                  <br />
-                  EVENT
-                </div>
-                <div className="hero-fighter">
-                  <Avatar figure={demos[0]} large />
-                </div>
-                <div className="ring-rope rope-1" />
-                <div className="ring-rope rope-2" />
-                <div className="ring-rope rope-3" />
-                <div className="hero-sticker">
-                  <Zap size={21} />
+              <div className="hero-art retro-title-art" aria-hidden="true">
+                <div className="wireframe w-one" />
+                <div className="wireframe w-two" />
+                <span className="console-tag">
+                  FIGURAS FÍSICAS / COMBATE DIGITAL
+                </span>
+                <div className="title-lockup">
                   <span>
-                    EL COMBATE
-                    <br />
-                    <b>ESTÁ EN TUS MANOS</b>
+                    FIGURE<span className="title-mark">!</span>
+                  </span>
+                  <strong>MANIA</strong>
+                  <small>ESCRIBE TU RIVALIDAD</small>
+                </div>
+                <div className="mini-versus">
+                  <span className="player-one">
+                    1P <b>LISTO</b>
+                  </span>
+                  <i>VS</i>
+                  <span className="player-two">
+                    2P <b>LISTO</b>
                   </span>
                 </div>
-                <span className="art-caption">
-                  FIGURAS REALES. RIVALIDADES SIN LÍMITES.
+                <span className="insert-text">
+                  DOS FIGURAS. UN SOLO CAMPEÓN.
                 </span>
               </div>
             </section>
+            <div className="roster-spotlight">
+              <div>
+                <span className="eyebrow">ROSTER CARGADO</span>
+                <strong>
+                  {roster.length} CONTENDIENTES <span>· 4 DIVISIONES</span>
+                </strong>
+              </div>
+              <button
+                className="text-button"
+                onClick={() => {
+                  setCollectionView("roster");
+                  navigate("collection");
+                }}
+              >
+                EXPLORAR ROSTER <ArrowRight size={18} />
+              </button>
+            </div>
             <section className="steps">
               <div>
                 <span>01</span>
@@ -552,100 +479,79 @@ function App() {
               title="TU COLECCIÓN"
               description="No es solo un luchador. Es tu edición, tu historia y tus cinco movimientos."
             />
-            <div className="toolbar">
-              <span>
-                {data.figures.length} figuras · valoraciones internas del juego
-              </span>
-              <button className="primary" onClick={() => setEditor(blank())}>
-                <Plus size={18} /> Añadir figura
+            <div className="roster-tabs" aria-label="Vista de colección">
+              <button
+                className={collectionView === "figures" ? "active" : ""}
+                onClick={() => setCollectionView("figures")}
+              >
+                MIS FIGURAS <span>{data.figures.length}</span>
+              </button>
+              <button
+                className={collectionView === "roster" ? "active" : ""}
+                onClick={() => setCollectionView("roster")}
+              >
+                ROSTER WWE <span>{roster.length}</span>
               </button>
             </div>
-            <div className="figure-grid">
-              {data.figures.map((f, i) => (
-                <div key={f.id}>
-                  <FigureCard
-                    figure={f}
-                    index={i}
-                    onClick={() => setEditor(structuredClone(f))}
-                  />
-                  <div className="figure-info">
-                    {f.demo ? "DEMO FICTICIA" : "TU FIGURA"} · {f.collection}
-                    <button
-                      className="text-button"
-                      onClick={() => setEditor(structuredClone(f))}
-                    >
-                      Editar <ChevronRight size={14} />
-                    </button>
-                  </div>
+            {collectionView === "roster" ? (
+              <RosterCatalog
+                onRegister={(entry: RosterEntry) =>
+                  setEditor(registerTemplate(entry))
+                }
+              />
+            ) : (
+              <>
+                <div className="toolbar">
+                  <span>
+                    {data.figures.length} figuras · valoraciones internas del
+                    juego
+                  </span>
+                  <button
+                    className="primary"
+                    onClick={() => setEditor(blank())}
+                  >
+                    <Plus size={18} /> Añadir figura
+                  </button>
                 </div>
-              ))}
-            </div>
-            <div className="info-box">
-              <Camera size={20} />
-              <p>
-                Fotografía tu figura o sube una imagen en su ficha. El
-                reconocimiento automático aún no está disponible; la selección
-                es manual.
-              </p>
-            </div>
+                <div className="figure-grid">
+                  {data.figures.map((f, i) => (
+                    <div key={f.id}>
+                      <FigureCard
+                        figure={f}
+                        index={i}
+                        onClick={() => setEditor(structuredClone(f))}
+                      />
+                      <div className="figure-info">
+                        {f.demo ? "DEMO FICTICIA" : "TU FIGURA"} ·{" "}
+                        {f.collection}
+                        <button
+                          className="text-button"
+                          onClick={() => setEditor(structuredClone(f))}
+                        >
+                          Editar <ChevronRight size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="info-box">
+                  <Camera size={20} />
+                  <p>
+                    Fotografía tu figura o sube una imagen en su ficha. El
+                    reconocimiento automático aún no está disponible; la
+                    selección es manual.
+                  </p>
+                </div>
+              </>
+            )}
           </section>
         )}
         {page === "select" && (
-          <section className="section">
-            <PageTitle
-              eyebrow="PREPARA EL EVENTO"
-              title="CARA A CARA"
-              description="Selecciona dos figuras. El orden marca jugador 1 y jugador 2; no concede ventajas."
-            />
-            <div className="selection-strip">
-              {[0, 1].map((i) => {
-                const f = data.figures.find((f) => f.id === picks[i]);
-                return (
-                  <div key={i}>
-                    <span className="eyebrow">JUGADOR {i + 1}</span>
-                    <h3>
-                      {f ? `${f.wrestler} · ${rating(f)}` : "Elige una figura"}
-                    </h3>
-                    <p>
-                      {f ? f.moves.join(" · ") : "Toca una tarjeta del roster"}
-                    </p>
-                  </div>
-                );
-              })}
-              <span className="versus">VS</span>
-            </div>
-            <div className="figure-grid">
-              {data.figures.map((f, i) => (
-                <FigureCard
-                  key={f.id}
-                  figure={f}
-                  index={i}
-                  selected={picks.includes(f.id)}
-                  onClick={() =>
-                    setPicks(
-                      picks.includes(f.id)
-                        ? picks.filter((id) => id !== f.id)
-                        : picks.length < 2
-                          ? [...picks, f.id]
-                          : [picks[0], f.id],
-                    )
-                  }
-                />
-              ))}
-            </div>
-            <div className="selection-actions">
-              <button className="secondary" onClick={() => navigate("home")}>
-                <ArrowLeft size={16} /> Volver
-              </button>
-              <button
-                className="primary big"
-                disabled={picks.length !== 2}
-                onClick={start}
-              >
-                HACER LAS ENTRADAS <ArrowRight size={20} />
-              </button>
-            </div>
-          </section>
+          <RetroSelection
+            figures={data.figures}
+            onStart={start}
+            onBack={() => navigate("home")}
+          />
         )}
         {page === "entrance" && active && (
           <section className="entrance">
@@ -898,7 +804,7 @@ function App() {
       </main>
       <footer>
         <span className="footer-brand">
-          FIGUREMANIA <small>v0.1 · PRIMER ASALTO</small>
+          FIGUREMANIA <small>v0.2 · EDICIÓN RETRO</small>
         </span>
         <p>Hecho para jugar con lo que ya tienes.</p>
         <span>*Una vez cargada la app · datos solo en este navegador</span>

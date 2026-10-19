@@ -1,4 +1,4 @@
-# FIGUREMANIA · Primer asalto
+# FIGUREMANIA · Edición retro
 
 Juego de lucha libre para dos personas con figuras físicas y un dispositivo compartido. React + TypeScript + Vite. Motor matemático independiente; todas las decisiones y tiradas se guardan en el navegador.
 
@@ -24,7 +24,7 @@ Las pruebas de navegador usan `/usr/bin/chromium` en este entorno. Para otro equ
 
 ## Circuito jugable
 
-1. Nueva lucha → elige dos figuras distintas de la colección.
+1. Nueva lucha → elige **Mis figuras** o **Roster WWE**. Selecciona un contendiente en cada panel y confirma **1P** y **2P** antes de hacer las entradas.
 2. Entradas: cada figura presenta su edición y su imagen. El audio opcional se reproduce con un toque tras activar el sonido.
 3. Tira ambos d20. El total incluye `floor(valoración / 10)`; los empates repiten sin recursos.
 4. El atacante paga una de sus cinco cartas. El defensor elige recibir o arriesgar reversal.
@@ -34,6 +34,18 @@ Las pruebas de navegador usan `/usr/bin/chromium` en este entorno. Para otro equ
 Colección permite crear, editar y borrar figuras, sus cinco nombres de movimiento, bonos, foto (cámara o archivo) y audio aportado por el usuario. Incluye cuatro demos marcadas como ficticias, entre ellas Rey con 93 y 84. Las ilustraciones de luchadores son SVG originales, no fotografías oficiales.
 
 Ajustes ofrece audio, movimiento reducido y exportación/importación de respaldo. Los archivos se guardan como data URL con deduplicación en el almacenamiento local; límites 3 MB por foto y 2 MB por audio. La cuota total depende del navegador: si se llena se informa y la transición no se aplica. Para colecciones grandes conviene un futuro adaptador IndexedDB y blobs. No borrar almacenamiento sin respaldo. No hay sincronización entre dispositivos. Evita usar varias pestañas simultáneas: esta versión está diseñada para un dispositivo y una pestaña.
+
+## Roster y estética retro (v0.2)
+
+Catálogo de **107 entradas** en cuatro divisiones a partir del listado compartido por el propietario: 27 leyendas, 29 modernas, 25 femeniles y 26 en ascenso/NXT/ex-alumnos. «Roddy Piper» es alias de «Rowdy Roddy Piper» y no se duplica. Rey clásico/moderno y Mankind/Mick Foley se conservan como entradas distintas. No se afirma que sea un inventario Mattel verificado.
+
+- **Colección → Roster WWE:** busca sin tildes o filtra por división. **Registrar figura** abre una ficha nueva con ID único para especificar edición, colección, rareza, foto, audio y valores. Puedes registrar varias ediciones de un mismo personaje.
+- **Nueva lucha → Roster WWE:** permite jugar directamente con cualquier plantilla. Todas empiezan con valoración **80 provisional**, sin bonos, rareza ni edición oficial. Los cinco movimientos son editables al registrar tu edición; Rey incluye 619 y Splash. No se inventaron ratings oficiales.
+- Cada jugador puede buscar y filtrar por separado. Toca los nombres o usa ↑/↓ en la lista; después confirma cada lado. El mismo ID no se puede elegir dos veces, pero dos ediciones distintas sí.
+- El catálogo está separado del guardado: no añade 107 figuras a tu colección ni reemplaza partidas, fotos o preferencias existentes. Se conserva la clave `figuremania.v1` y el formato anterior. Los combates siguen guardando instantáneas completas.
+- La identidad original está inspirada en interfaces de lucha de finales de los 90: paneles azul/fucsia, circuitos turquesa, cromo y scanlines sutiles. No se incluyen logos, capturas, música ni retratos oficiales de los juegos de referencia. Las imágenes son ilustraciones genéricas hasta que añadas tus fotos.
+
+No cambia ninguna regla matemática ni parámetro de balance. Las 210 000 simulaciones previas siguen documentando las reglas iniciales; no se repitieron para este cambio de presentación y catálogo.
 
 ## Motor y guardado
 
