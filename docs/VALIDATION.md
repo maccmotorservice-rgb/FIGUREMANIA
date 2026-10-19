@@ -19,4 +19,4 @@ Se verificó una partida completa usando golpes rápidos sin reversals para ejer
 
 Fuentes y recursos se empaquetan localmente. Se usó Chromium ya instalado después de que el CDN de descarga de Playwright devolviera 403; no se desactivaron verificaciones TLS ni se amplió la política de red.
 
-No se ha publicado la app ni subido el código a GitHub. No se ejecutó ni verificó una migración remota de Supabase, un proveedor de reconocimiento o un proveedor IA. No hay video generado. El esquema y las interfaces son preparación documentada. El balance requiere pruebas humanas; ver `FINDINGS.md`.
+El código se ha subido a la rama main de GitHub por solicitud del propietario. La web no se ha publicado. No se ejecutó ni verificó una migración remota de Supabase, un proveedor de reconocimiento o un proveedor IA. No hay video generado. El esquema y las interfaces son preparación documentada. El balance requiere pruebas humanas; ver `FINDINGS.md`.
