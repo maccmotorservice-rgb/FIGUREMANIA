@@ -909,3 +909,24 @@ test("Un firmware sin reproducción HTML5 muestra una alternativa sin bloquear l
   assert.ok(await page.locator("#hero-title").isVisible());
   assert.deepEqual(errors, []);
 });
+
+test("Iconos locales en navegación, herramientas y ajustes; logos originales en las apps", async () => {
+  for (const view of ["home", "tools", "settings", "apps"]) {
+    await go(view);
+    const images = await page.locator(".nav-icon").evaluateAll(nodes => nodes.map(n => getComputedStyle(n).backgroundImage));
+    assert.ok(images.length >= 10);
+    assert.ok(images.every(src => /assets\/icons\/.*\.png/.test(src)));
+    const loaded = await page.evaluate(async urls => Promise.all(urls.map(src => new Promise(resolve => {
+      const img = new Image(); img.onload = () => resolve(img.naturalWidth > 0); img.onerror = () => resolve(false);
+      img.src = src.slice(5, -2);
+    }))), images);
+    assert.ok(loaded.every(Boolean));
+    if (view === "tools") assert.equal(await page.locator("#view .card-icon").count(), 6);
+    if (view === "settings") assert.ok(await page.locator("#view .card-icon").count() >= 10);
+    if (view === "apps") {
+      assert.equal(await page.locator("#view .brand-logo").count(), 7);
+      assert.ok(await page.locator("#view .brand-logo").evaluateAll(nodes => nodes.every(n => n.complete && n.naturalWidth > 0)));
+    }
+  }
+  assert.deepEqual(errors, []);
+});

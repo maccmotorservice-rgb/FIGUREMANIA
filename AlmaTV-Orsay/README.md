@@ -157,3 +157,7 @@ Los enlaces guardados siguen disponibles desde Buscar y la vista de enlaces.
 El Inicio conserva el encabezado al reproducir. Arriba/abajo recorren el
 encabezado, apps, zona de reproducción sin botones y herramientas. La imagen
 se recorta al área visible al desplazarse, sin superponer la cabecera o el pie.
+
+Los iconos de navegación y tarjetas de herramientas/ajustes usan PNG locales,
+sin depender de glifos de la fuente del televisor. Multimedia tiene icono de
+reproducción propio. Los logotipos originales de las apps se conservan.

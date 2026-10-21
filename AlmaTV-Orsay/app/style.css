@@ -1856,3 +1856,12 @@ body,
 
 #view.home-scroll { overflow-y: auto; overflow-x: hidden; padding: 4px 6px 12px 0; }
 .home-player.focus { outline: 3px solid #438d80; outline-offset: -3px; }
+
+.icon-media { background-image: url(assets/icons/media.png); }
+.icon-saver { background-image: url(assets/icons/saver.png); }
+.icon-network { background-image: url(assets/icons/network.png); }
+.icon-browser { background-image: url(assets/icons/browser.png); }
+.card .card-icon { float: left; margin: 4px 10px 16px 0; background-position: -24px 0; }
+.card.tool:before { content: none; }
+.card.tool .card-icon { margin: 8px 8px 10px 0; }
+.app-symbol.nav-icon { width: 48px; height: 48px; background-size: 96px 48px; background-position: -48px 0; margin: 0; }

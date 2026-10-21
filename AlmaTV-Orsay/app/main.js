@@ -337,6 +337,9 @@ var Alma = (function () {
   }
   function button(id, title, small, fn, cls) {
     actions[id] = fn;
+    var icons = { calibrate: "hub", "tv-ip": "hub", "mac-ip": "network", bridge: "network", relay: "apps", motion: "media", "saver-frame": "saver", location: "weather", links: "browser", diagnostic: "network", reset: "settings" };
+    var match = /^tool-(\d+)$/.exec(id);
+    var icon = match && tools[Number(match[1])] ? tools[Number(match[1])].id : icons[id];
     return (
       '<button type="button" id="' +
       id +
@@ -344,8 +347,9 @@ var Alma = (function () {
       (cls || "card") +
       '" data-focus="' +
       id +
-      '"><strong>' +
-      esc(title) +
+      '">' +
+      (icon ? '<span aria-hidden="true" class="card-icon nav-icon icon-' + icon + '"></span>' : "") +
+      '<strong>' + esc(title) +
       "</strong>" +
       (small ? "<small>" + esc(small) + "</small>" : "") +
       "</button>"
@@ -406,7 +410,7 @@ var Alma = (function () {
         "home",
         "search",
         "apps",
-        "apps",
+        "media",
         "hub",
         "clock",
         "weather",
@@ -470,7 +474,7 @@ var Alma = (function () {
       '<span class="app-mark">' +
       (a.logo
         ? '<img class="brand-logo" src="' + a.logo + '" alt="">'
-        : esc(a.mark)) +
+        : '<span aria-hidden="true" class="app-symbol nav-icon icon-' + (a.id === "browser" ? "browser" : "apps") + '"></span>') +
       "</span><strong>" +
       esc(a.name) +
       "</strong><small>" +
