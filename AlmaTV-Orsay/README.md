@@ -190,3 +190,13 @@ Se instala por separado para aislar la actualización de la identidad anterior.
 El instalador envía no-store e ignora validadores antiguos de caché.
 La lista de la Mac se conserva; las preferencias locales de la TV pueden estar
 separadas por identificador. Conservar la app anterior hasta verificar la nueva.
+
+### Puente YouTube: inicio-2 (sin reinstalar la TV)
+
+Añade confirmación de órdenes, carga explícita, tamaño en píxeles y diagnóstico
+tras 12 segundos sin progreso. Reconoce variantes antiguas de origen file con
+ventana y sesión validadas. El panel /enlaces muestra Estado del reproductor y
+permite abrir /youtube/prueba para comparar con una interacción directa en la Mac.
+Solo hay que actualizar el puente y volver a abrir el vídeo en Alma TV. El ZIP
+8.3.1 se mantiene idéntico y los enlaces guardados se conservan. La reproducción
+real en Orsay sigue pendiente de verificar. Detalles: docs/YOUTUBE.md.

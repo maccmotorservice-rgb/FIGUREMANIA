@@ -17,6 +17,7 @@
 <button id="save" type="submit">Guardar enlaces</button><p class="status" id="status" role="status" aria-live="polite"></p>
 </form></section>
 <section class="box"><div class="list-header"><h2>Tu lista <span id="count"></span></h2><button class="quiet" id="refresh" type="button">Actualizar</button></div><div id="list"></div></section>
+<section class="box"><h2>Estado del reproductor</h2><p id="player-status" role="status">Todavía no se ha consultado el estado.</p><button id="player-refresh" type="button">Actualizar estado</button> <a href="/youtube/prueba" target="_blank" rel="noopener">Probar YouTube en esta Mac</a></section>
 <footer>Hasta 50 vídeos. Mantén la Mac encendida y despierta. La reproducción integrada de YouTube requiere compatibilidad con tu TV.</footer>
 </main>
 <script>
@@ -60,6 +61,21 @@
   }
   document.getElementById("add-form").onsubmit = function (event) { event.preventDefault(); mutate({action:"add",urls:document.getElementById("urls").value,name:document.getElementById("name").value}, "Guardado. La TV actualizará la lista al abrir Multimedia; también puedes pulsar Enlaces de la Mac."); };
   function load() { if (busy) return; request("GET", null, function (error, data) { if (error) message(error,true); else render(data.items); }); }
-  document.getElementById("refresh").onclick = load; load();
+  function playerState() {
+    var xhr = new XMLHttpRequest(); xhr.open("GET", "/youtube/diagnostic", true); xhr.timeout = 5000;
+    xhr.onload = function () {
+      var node = document.getElementById("player-status");
+      try {
+        var data = JSON.parse(xhr.responseText), report = (data.reports && data.reports["alma-tv"]) || data.report;
+        if (xhr.status !== 200) throw new Error();
+        if (!report) { node.textContent = "Aún no hay una prueba. Abre un vídeo en la TV, pulsa Reproducir y espera 12 segundos antes de actualizar el estado."; return; }
+        node.textContent = (report.source === "directo" ? "Prueba directa: " : "Desde Alma TV: ") + report.status + " · Estado: " + (report.state === null || typeof report.state === "undefined" ? "sin datos" : report.state) + " · Tiempo: " + (typeof report.seconds === "number" ? Math.round(report.seconds) + " s" : "sin datos") + " · Imagen: " + (report.width || 0) + " × " + (report.height || 0) + " · Hora: " + new Date(report.received_at * 1000).toLocaleTimeString();
+      } catch (e) { node.textContent = "No se pudo leer el diagnóstico. Comprueba que el puente esté actualizado."; }
+    };
+    xhr.onerror = xhr.ontimeout = function () { document.getElementById("player-status").textContent = "No se pudo conectar con el puente."; };
+    xhr.send(null);
+  }
+  document.getElementById("player-refresh").onclick = playerState;
+  document.getElementById("refresh").onclick = load; load(); playerState();
 })();
 </script></body></html>

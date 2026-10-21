@@ -106,3 +106,43 @@ se abre el router. Sigue siendo un servicio para la LAN de confianza.
 Las pruebas del panel usan un servidor HTTP local real, guardan y eliminan enlaces,
 recargan la página y verifican que el widget recibe los cambios sin modificar su
 ZIP. La reproducción de YouTube en esas pruebas continúa usando la API simulada.
+
+## Puente: corrección de inicio y diagnóstico «inicio-2»
+
+El propietario informa que la TV muestra «YouTube está listo. Pulsa Reproducir»,
+pero el área queda negra al pulsar tanto con el ejemplo como con un enlace propio.
+Esto confirma el callback onReady en su TV; no confirma reproducción ni demuestra
+por sí solo que el firmware sea incompatible.
+
+Esta corrección cambia **solo el puente**. El widget y ZIP 8.3.1 son idénticos.
+Actualizar el puente con configurar_puente_mac.py y volver a abrir el vídeo en la
+TV carga la página nueva, sin sincronizar Samsung Apps ni reinstalar el widget.
+
+- Las órdenes válidas confirman su recepción. Si el vídeo sigue sin iniciar,
+  después de 12 segundos se muestra YT-INICIO con el estado y tiempo que reporta
+  la API. onReady se describe como API lista, no como reproducción confirmada.
+- Si el estado es -1, se usa loadVideoById explícito; cuando ya está preparado,
+  se conserva playVideo. No se fuerza silencio ni se simula reproducción.
+- Se establecen dimensiones en píxeles con setSize para motores antiguos, además
+  de los estilos del iframe. El proveedor conserva todos sus controles.
+- Cuando el padre esperado es opaco «null», se reconocen las representaciones
+  locales antiguas file://, file:/// y cadena vacía, manteniendo el requisito de
+  ventana padre exacta y token de sesión. Orígenes HTTP distintos, otras ventanas
+  y sesiones incorrectas continúan rechazándose.
+- YT-ORIGEN, YT-FUENTE, YT-ORDEN y YT-ACTIVACION distinguen controles rechazados,
+  excepciones y bloqueo de activación. No se relajan controles para otros orígenes.
+- /youtube/prueba carga una prueba directa con botones y teclado en el mismo
+  documento que llama a la API. Sirve para comparar la Mac con la ruta del widget;
+  no añade un extractor, proxy multimedia ni conversión de vídeo.
+- El panel /enlaces incorpora Estado del reproductor. Los últimos informes de
+  Alma TV y de la prueba directa se conservan por separado en memoria, con hora,
+  estado, segundos y dimensiones. Se muestra primero el de Alma TV. Los informes
+  no contienen URLs, títulos, cookies o token de sesión. El endpoint solo admite
+  escritura desde el origen/Host del puente, con JSON pequeño y sesión válida.
+
+Las pruebas de origen, recepción, carga explícita, watchdog, activación directa
+son simulaciones de la API. La prueba del endpoint y panel usa HTTP real local.
+La corrección requiere comprobar de nuevo en la TV; no se afirma que el vídeo
+real ya funcione. Si el contador avanza y sigue negro, puede ser un problema de
+representación/composición distinto de una orden perdida. Si no avanza, se
+necesita el mensaje y código para distinguir bloqueo, carga y compatibilidad.

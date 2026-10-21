@@ -162,14 +162,45 @@ class Handler(BaseHTTPRequestHandler):
         token=json.dumps(self.server.admin_token)
         page=(Path(__file__).resolve().parent/'link_panel.html').read_text(encoding='utf-8').replace('__ALMA_PANEL_TOKEN__',token)
         self.reply(200,page.encode('utf-8'),'text/html; charset=utf-8',{'X-Frame-Options':'DENY','Content-Security-Policy':"frame-ancestors 'none'"})
-    def serve_youtube(self,query):
-        video=query.get('video',[''])[0]
-        token=query.get('token',[''])[0]
-        parent=query.get('parent',['null'])[0]
-        if not re.fullmatch(r'[A-Za-z0-9_-]{11}',video) or not re.fullmatch(r'[a-f0-9]{32}',token) or parent not in self.server.origins:
+    def youtube_diagnostic(self,method):
+        if not self.panel_host_allowed():
+            self.reply(403,{'error':'Dirección del puente no autorizada'})
+            return
+        if method=='GET':
+            self.reply(200,{'revision':'inicio-2','report':getattr(self.server,'youtube_diagnostic',None),'reports':getattr(self.server,'youtube_diagnostics',{})})
+            return
+        if self.headers.get('Origin')!=self.panel_origin() or self.headers.get('Content-Type','').split(';')[0].strip()!='application/json':
+            self.reply(403,{'error':'Origen de diagnóstico no autorizado'})
+            return
+        try:
+            size=int(self.headers.get('Content-Length','0'))
+            if not 0<size<=4096: raise ValueError()
+            self.connection.settimeout(5)
+            data=json.loads(self.rfile.read(size).decode('utf-8'))
+            if not isinstance(data,dict) or not re.fullmatch(r'[a-f0-9]{32}',str(data.get('token',''))): raise ValueError()
+            report={'status':str(data.get('status',''))[:300],'phase':str(data.get('phase',''))[:24],'received_at':int(time.time())}
+            for key in ('state','seconds','width','height'):
+                value=data.get(key)
+                if value is None or isinstance(value,(int,float)) and -1<=value<=1000000000: report[key]=value
+            report['h264']=str(data.get('h264',''))[:16]
+            report['mse']=data.get('mse') is True
+            report['muted']=data.get('muted') if isinstance(data.get('muted'),bool) else None
+            report['source']='directo' if data.get('source')=='directo' else 'alma-tv'
+            reports=getattr(self.server,'youtube_diagnostics',{})
+            reports[report['source']]=report
+            self.server.youtube_diagnostics=reports
+            self.server.youtube_diagnostic=report
+            self.reply(200,{'ok':True})
+        except (ValueError,UnicodeError):
+            self.reply(400,{'error':'Diagnóstico no válido'})
+    def serve_youtube(self,query,standalone=False):
+        video=query.get('video',['M7lc1UVf-VE' if standalone else ''])[0]
+        token=secrets.token_hex(16) if standalone else query.get('token',[''])[0]
+        parent=self.panel_origin() if standalone else query.get('parent',['null'])[0]
+        if not re.fullmatch(r'[A-Za-z0-9_-]{11}',video) or not re.fullmatch(r'[a-f0-9]{32}',token) or (not standalone and parent not in self.server.origins):
             self.reply(400,{'error':'Vídeo, sesión u origen del reproductor no válido'})
             return
-        config=json.dumps({'video':video,'token':token,'parent':parent},ensure_ascii=True).replace('<','\\u003c')
+        config=json.dumps({'video':video,'token':token,'parent':parent,'standalone':standalone},ensure_ascii=True).replace('<','\\u003c')
         template=(Path(__file__).resolve().parent/'youtube_player.html').read_text(encoding='utf-8')
         body=template.replace('__ALMA_YT_CONFIG__',config).encode('utf-8')
         self.reply(200,body,'text/html; charset=utf-8')
@@ -194,6 +225,10 @@ class Handler(BaseHTTPRequestHandler):
                 self.serve_panel()
             elif parsed.path=='/youtube/library' and method in ('GET','POST'):
                 self.panel(method)
+            elif parsed.path=='/youtube/diagnostic' and method in ('GET','POST'):
+                self.youtube_diagnostic(method)
+            elif method=='GET' and parsed.path=='/youtube/prueba':
+                self.serve_youtube(query,standalone=True)
             elif method=='GET' and parsed.path=='/youtube/player':
                 self.serve_youtube(query)
             elif method=='GET' and parsed.path=='/media/library':

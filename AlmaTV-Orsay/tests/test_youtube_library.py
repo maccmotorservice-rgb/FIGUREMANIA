@@ -92,6 +92,28 @@ class PanelTests(unittest.TestCase):
         with self.post({'action': 'remove', 'id': 'M7lc1UVf-VE'}) as response:
             self.assertEqual(json.load(response)['items'], [])
 
+    def test_direct_player_and_diagnostic_use_bridge_without_playlist_changes(self):
+        with urlopen(self.base+'/youtube/prueba') as response:
+            body=response.read().decode('utf-8')
+            self.assertIn('"standalone": true',body)
+            self.assertIn('"parent": "'+self.base+'"',body)
+            self.assertIn('direct-play',body)
+        with urlopen(self.base+'/youtube/diagnostic') as response:
+            self.assertIsNone(json.load(response)['report'])
+        data=json.dumps({'token':'a'*32,'phase':'timeout','status':'YT-INICIO','state':-1,'seconds':0,'width':900,'height':300,'h264':'probably','mse':False}).encode('utf-8')
+        headers={'Origin':self.base,'Content-Type':'application/json'}
+        with urlopen(Request(self.base+'/youtube/diagnostic',data=data,headers=headers,method='POST')) as response:
+            self.assertTrue(json.load(response)['ok'])
+        with urlopen(self.base+'/youtube/diagnostic') as response:
+            report=json.load(response)['report']
+            self.assertEqual(report['state'],-1)
+            self.assertEqual(report['phase'],'timeout')
+            self.assertNotIn('token',report)
+        headers['Origin']='https://evil.example'
+        with self.assertRaises(HTTPError) as error:urlopen(Request(self.base+'/youtube/diagnostic',data=data,headers=headers,method='POST'))
+        self.assertEqual(error.exception.code,403)
+        self.assertEqual(self.server.youtube_library.read(),[])
+
     def test_writes_require_own_origin_valid_token_and_json(self):
         data = {'action': 'add', 'urls': 'https://youtu.be/M7lc1UVf-VE'}
         for options, code in [({'origin': 'null'}, 403), ({'origin': 'https://evil.example'}, 403), ({'token': 'wrong'}, 403), ({'token': ''}, 403), ({'host': 'evil.example'}, 403), ({'content_type': 'text/plain'}, 415)]:
