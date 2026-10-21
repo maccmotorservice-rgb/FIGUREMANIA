@@ -107,6 +107,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Headers','Content-Type')
         self.send_header('Content-Type',content_type)
         self.send_header('Cache-Control','no-store')
+        self.send_header('Referrer-Policy','origin')
+        self.send_header('X-Content-Type-Options','nosniff')
         self.send_header('Content-Length',str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -116,6 +118,17 @@ class Handler(BaseHTTPRequestHandler):
         self.dispatch('GET')
     def do_POST(self):
         self.dispatch('POST')
+    def serve_youtube(self,query):
+        video=query.get('video',[''])[0]
+        token=query.get('token',[''])[0]
+        parent=query.get('parent',['null'])[0]
+        if not re.fullmatch(r'[A-Za-z0-9_-]{11}',video) or not re.fullmatch(r'[a-f0-9]{32}',token) or parent not in self.server.origins:
+            self.reply(400,{'error':'Vídeo, sesión u origen del reproductor no válido'})
+            return
+        config=json.dumps({'video':video,'token':token,'parent':parent},ensure_ascii=True).replace('<','\\u003c')
+        template=(Path(__file__).resolve().parent/'youtube_player.html').read_text(encoding='utf-8')
+        body=template.replace('__ALMA_YT_CONFIG__',config).encode('utf-8')
+        self.reply(200,body,'text/html; charset=utf-8')
     def serve_media(self,ident):
         directory=getattr(self.server,'media_dir',None)
         files=media_files(directory)
@@ -133,6 +146,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if method=='GET' and parsed.path=='/health':
                 self.reply(200,{'service':'alma-lan-bridge','dial_launch_enabled':self.server.allow_launch})
+            elif method=='GET' and parsed.path=='/youtube/player':
+                self.serve_youtube(query)
             elif method=='GET' and parsed.path=='/media/library':
                 directory=getattr(self.server,'media_dir',None)
                 files=media_files(directory)
@@ -162,6 +177,8 @@ class Handler(BaseHTTPRequestHandler):
                     self.reply(response.status,response.read(65536),'application/xml; charset=utf-8')
             else:
                 self.reply(404,{'error':'Ruta no disponible'})
+        except (BrokenPipeError, ConnectionResetError):
+            return
         except HTTPError as error:
             self.reply(error.code,{'error':'HTTP del servicio remoto','status':error.code})
         except Exception:

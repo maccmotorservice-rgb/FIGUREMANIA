@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="origin">
+<title>YouTube - Alma TV</title>
+<style>html,body{margin:0;width:100%;height:100%;background:#000;overflow:hidden}#player,iframe{display:block;width:100%;height:100%;border:0}</style>
+</head>
+<body>
+<div id="player"></div>
+<script>
+(function () {
+  "use strict";
+  var config = __ALMA_YT_CONFIG__, player = null, ready = false;
+  function tell(type, status, state) {
+    var title = "";
+    if (ready && player && typeof player.getVideoData === "function") {
+      try { title = String(player.getVideoData().title || ""); } catch (e) {}
+    }
+    window.parent.postMessage(JSON.stringify({ channel: "alma-youtube", token: config.token, type: type, status: status, state: state, title: title }), config.parent === "null" ? "*" : config.parent);
+  }
+  function failure(code) {
+    var reasons = {
+      2: "El enlace no identifica un v\u00eddeo v\u00e1lido.",
+      5: "YouTube no puede reproducir este v\u00eddeo en el navegador del televisor.",
+      100: "El v\u00eddeo no est\u00e1 disponible o es privado.",
+      101: "El propietario no permite reproducir este v\u00eddeo fuera de YouTube.",
+      150: "El propietario no permite reproducir este v\u00eddeo fuera de YouTube.",
+      153: "YouTube no pudo verificar el origen del reproductor (153)."
+    };
+    tell("error", reasons[code] || "YouTube devolvi\u00f3 un error de reproducci\u00f3n (" + code + ").", -1);
+  }
+  window.onYouTubeIframeAPIReady = function () {
+    try {
+      player = new YT.Player("player", {
+        width: "100%", height: "100%", videoId: config.video,
+        playerVars: { controls: 1, autoplay: 0, playsinline: 1, fs: 1, origin: window.location.protocol + "//" + window.location.host },
+        events: {
+          onReady: function () { ready = true; tell("ready", "YouTube est\u00e1 listo. Pulsa Reproducir.", -1); },
+          onStateChange: function (e) {
+            var labels = { "-1": "Pulsa Reproducir.", 0: "Finalizado", 1: "Reproduciendo en YouTube", 2: "En pausa", 3: "Cargando v\u00eddeo de YouTube\u2026", 5: "V\u00eddeo preparado" };
+            tell("state", labels[e.data] || "YouTube", e.data);
+          },
+          onError: function (e) { failure(e.data); },
+          onAutoplayBlocked: function () { tell("status", "YouTube pide una interacci\u00f3n con su reproductor. Si el control no lo permite, utiliza la app nativa.", -1); }
+        }
+      });
+    } catch (e) { tell("error", "El navegador no pudo iniciar el reproductor oficial de YouTube.", -1); }
+  };
+  window.addEventListener("message", function (event) {
+    if (event.source !== window.parent || event.origin !== config.parent) return;
+    var data;
+    try { data = typeof event.data === "string" ? JSON.parse(event.data) : event.data; } catch (e) { return; }
+    if (!ready || !data || data.channel !== "alma-youtube" || data.token !== config.token) return;
+    try {
+      if (data.command === "play") player.playVideo();
+      else if (data.command === "pause") player.pauseVideo();
+      else if (data.command === "toggle") {
+        if (player.getPlayerState() === 1) player.pauseVideo(); else player.playVideo();
+      } else if (data.command === "back") player.seekTo(Math.max(0, player.getCurrentTime() - 10), true);
+      else if (data.command === "forward") player.seekTo(player.getCurrentTime() + 10, true);
+    } catch (e) { tell("error", "El navegador no pudo enviar el control a YouTube.", -1); }
+  }, false);
+  var script = document.createElement("script");
+  script.src = "https://www.youtube.com/iframe_api";
+  script.onerror = function () { tell("error", "No se pudo cargar YouTube. Comprueba internet y la compatibilidad HTTPS del televisor.", -1); };
+  document.head.appendChild(script);
+})();
+</script>
+</body>
+</html>

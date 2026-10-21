@@ -1,0 +1,76 @@
+# YouTube integrado experimental · Alma TV 8.2
+
+## Resultado de la investigación
+
+Existe una integración oficial: **YouTube IFrame Player API**. Permite insertar
+el reproductor y enviar play/pause/seek por su API, sin abrir la aplicación nativa.
+No convierte un enlace watch en una URL MP4 para el reproductor HTML5 de Alma TV.
+
+Se revisaron los ejemplos oficiales de `youtube/api-samples`, revisión
+`07263305b59a7c3275bc7e925f9ce6cabf774022`, especialmente
+[player/player_control.js](https://github.com/youtube/api-samples/blob/07263305b59a7c3275bc7e925f9ce6cabf774022/player/player_control.js),
+[player/index.html](https://github.com/youtube/api-samples/blob/07263305b59a7c3275bc7e925f9ce6cabf774022/player/index.html)
+y `player/demo.js`. El código de Alma TV se escribió para esta integración; no se
+copió el código de esos ejemplos.
+
+Referencias del proveedor:
+
+- [IFrame Player API](https://developers.google.com/youtube/iframe_api_reference)
+- [Parámetros del reproductor](https://developers.google.com/youtube/player_parameters)
+- [Requisitos de reproductores integrados](https://developers.google.com/youtube/terms/required-minimum-functionality)
+- [Dispositivos compatibles](https://support.google.com/youtube/answer/6098135?hl=es)
+
+En este entorno el proxy devolvió 403 al acceder a la documentación actual y a
+`youtube.com/embed`. Los ejemplos oficiales sí se pudieron descargar de GitHub.
+No se ha comprobado una reproducción real de YouTube desde la nube ni la
+compatibilidad del Samsung UN50J5200: requiere prueba en el televisor. Que la
+app nativa funcione no demuestra que el reproductor web actual lo haga.
+
+## Implementación
+
+- Multimedia → **YouTube en línea** guarda un enlace individual. Se aceptan watch,
+  youtu.be, Shorts, live y embed con ID válido de 11 caracteres. Las listas sin un
+  vídeo individual no se aceptan. Los dominios similares no se consideran YouTube.
+- El enlace también se reconoce en **Añadir enlace**, conservando el nombre que
+  el usuario escribió. Los archivos propios siguen en su lista independiente.
+- La Mac sirve `/youtube/player` con un ID y sesión validados. Esa página carga
+  **directamente desde YouTube** la API y el reproductor oficial. La Mac no extrae,
+  descarga, recodifica ni retransmite los vídeos. La TV necesita acceso HTTPS a
+  YouTube y compatibilidad con su JavaScript y formatos actuales.
+- El documento HTTP de la Mac aporta un origen real. Se usa Referrer-Policy origin
+  y el parámetro origin corresponde a ese documento. No se falsifican cabeceras.
+  Esto no garantiza que YouTube acepte todos los entornos: el error 153 se muestra.
+- Se conservan controles y funciones del proveedor. No se ocultan anuncios,
+  branding ni opciones del reproductor. El área visible es mayor de 200×200.
+- Los controles de Alma TV envían comandos a la API. Pantalla completa amplía el
+  mismo iframe: no lo mueve de padre ni lo recarga. Volver lo reduce.
+- Al salir de esta pantalla, ocultarse el documento o abrir una app nativa, se
+  destruye el iframe. **YouTube no continúa en Inicio ni en segundo plano.** Los
+  archivos propios conservan la reproducción y el Inicio que ya funcionan.
+- Un vídeo privado, eliminado o con embedding desactivado puede fallar aunque
+  otro funcione. Los errores 2, 5, 100, 101, 150 y 153 tienen explicación visible.
+  Si el proveedor bloquea autoplay se indica que requiere interacción.
+- Si el puente es antiguo, falta internet o no carga la API, se muestra un error
+  tras 25 segundos, con Reintentar, Volver y la alternativa explícita de app nativa.
+  No se cambia a la app nativa automáticamente ni se presenta un fallo como éxito.
+
+## Puente automático
+
+Actualizar tanto el widget como el puente. `configurar_puente_mac.py` copia también
+`youtube_player.html` a Application Support y reinicia el LaunchAgent del usuario.
+La Mac debe permanecer encendida y despierta. No se necesita una cuenta de API ni
+una clave de YouTube para insertar un vídeo público que permita embedding.
+
+## Verificación y prueba física
+
+Las pruebas de interfaz interceptan la API con una **respuesta simulada**. Comprueban
+el enrutamiento, origen/sesión de postMessage, controles, errores, persistencia,
+pausa de archivos propios y cierre del iframe. No prueban DRM, anuncios, edad,
+acceso regional, certificados ni reproducción real del proveedor. La captura
+`26-youtube-integrado-api-simulada.png` lleva un aviso visible de simulación.
+
+En la TV: abrir Multimedia, pegar un enlace público y abrirlo. Esperar «YouTube
+está listo» y pulsar Reproducir. Comprobar vídeo, audio, pausa, salto, pantalla
+completa y Volver. Si falla, anotar el mensaje y código exactos; conservar el
+acceso nativo. Solo después de esta prueba se puede afirmar compatibilidad de
+esta integración con el firmware de este televisor.

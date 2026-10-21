@@ -31,7 +31,7 @@ def main():
         return
     target = home / 'Library/Application Support/AlmaTV'
     target.mkdir(parents=True, exist_ok=True)
-    for name in ('puente.py', 'preparar.py'):
+    for name in ('puente.py', 'preparar.py', 'youtube_player.html'):
         shutil.copy2(Path(__file__).resolve().parent / name, target / name)
     media = home / 'Music/AlmaTV'
     media.mkdir(parents=True, exist_ok=True)

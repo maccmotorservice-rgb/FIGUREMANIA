@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="8.1.0"'))
+      if (!html.includes('name="alma-build" content="8.2.0"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -929,4 +929,151 @@ test("Iconos locales en navegación, herramientas y ajustes; logos originales en
     }
   }
   assert.deepEqual(errors, []);
+});
+
+async function officialYouTubeFixture(code = 0) {
+  const referers = [];
+  await page.route("http://192.168.1.30:8088/youtube/player?**", async r => {
+    const url = new URL(r.request().url());
+    const config = {video:url.searchParams.get("video"),token:url.searchParams.get("token"),parent:url.searchParams.get("parent")};
+    const html = fs.readFileSync(path.join(ROOT,"youtube_player.html"),"utf8").replace("__ALMA_YT_CONFIG__", JSON.stringify(config));
+    await r.fulfill({status:200,contentType:"text/html; charset=utf-8",headers:{"Referrer-Policy":"origin"},body:html});
+  });
+  await page.route("https://www.youtube.com/embed/**", r => {
+    referers.push(r.request().headers().referer);
+    return r.fulfill({status:200,contentType:"text/html; charset=utf-8",body:'<html lang="es"><head><meta charset="utf-8"></head><body style="background:#182d3b;color:white;font:24px Arial;text-align:center;padding:70px">API de YouTube simulada para pruebas.<br>No es una reproducción real de YouTube.</body></html>'});
+  });
+  await page.route("https://www.youtube.com/iframe_api", r => r.fulfill({status:200,contentType:"application/javascript",body:`
+    window.YT={Player:function(id,options){
+      var iframe=document.createElement('iframe');iframe.src='https://www.youtube.com/embed/'+options.videoId;
+      var node=document.getElementById(id);node.parentNode.replaceChild(iframe,node);
+      var state=-1,time=20;window.testYoutube={play:0,pause:0,seek:0,options:options};
+      this.getPlayerState=function(){return state;}; this.getCurrentTime=function(){return time;};
+      this.getVideoData=function(){return {title:'Vídeo de prueba · API simulada'};};
+      this.playVideo=function(){window.testYoutube.play++;${code ? `options.events.onError({data:${code}});` : "state=1;options.events.onStateChange({data:1});"}};
+      this.pauseVideo=function(){window.testYoutube.pause++;state=2;options.events.onStateChange({data:2});};
+      this.seekTo=function(value){window.testYoutube.seek++;time=value;};
+      setTimeout(function(){options.events.onReady();},0);
+    }};window.onYouTubeIframeAPIReady();
+  `}));
+  return referers;
+}
+async function savedYouTube() {
+  await go("media");
+  await click("media-youtube");
+  await editor("https://youtu.be/M7lc1UVf-VE");
+  await click("youtube-item-0");
+  await page.waitForFunction(() => AlmaYouTube.snapshot().ready);
+}
+
+test("YouTube acepta enlaces individuales y rechaza dominios falsos, listas e IDs inválidos", async () => {
+  const results = await page.evaluate(() => [
+    "https://www.youtube.com/watch?v=M7lc1UVf-VE&list=ABC",
+    "https://youtu.be/M7lc1UVf-VE?t=10",
+    "https://m.youtube.com/shorts/M7lc1UVf-VE",
+    "https://www.youtube.com/live/M7lc1UVf-VE",
+    "https://www.youtube.com/embed/M7lc1UVf-VE",
+    "https://www.youtube.com/playlist?list=123",
+    "https://youtube.com.evil.example/watch?v=M7lc1UVf-VE",
+    "https://youtube.com@evil.example/watch?v=M7lc1UVf-VE",
+    "https://youtu.be/123", "javascript:alert(1)"
+  ].map(AlmaYouTube.parseUrl));
+  assert.deepEqual(results.slice(0,5), Array(5).fill("M7lc1UVf-VE"));
+  assert.deepEqual(results.slice(5), Array(5).fill(""));
+});
+
+test("YouTube integrado: enlace guardado, controles y pantalla completa sin recargar (API simulada)", async () => {
+  const referers = await officialYouTubeFixture();
+  await savedYouTube();
+  const frame = page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
+  assert.ok(frame);
+  assert.match(await page.locator("#youtube-state").innerText(), /listo/);
+  assert.ok(await page.locator("#youtube-host").evaluate(n => n.getBoundingClientRect().height) >= 300);
+  await click("youtube-play");
+  await page.waitForFunction(() => AlmaYouTube.snapshot().state === 1);
+  assert.equal(await frame.evaluate(() => testYoutube.play), 1);
+  await click("youtube-pause");
+  await page.waitForFunction(() => AlmaYouTube.snapshot().state === 2);
+  await click("youtube-forward");
+  assert.equal(await frame.evaluate(() => testYoutube.seek), 1);
+  await page.locator("#youtube-frame").evaluate(n => { n.dataset.testIdentity = "same-frame"; });
+  await click("youtube-full");
+  assert.equal(await page.locator("#youtube-host").evaluate(n => n.getBoundingClientRect().width),1280);
+  await key(88);
+  assert.equal(await page.locator("#youtube-frame").getAttribute("data-test-identity"),"same-frame");
+  assert.equal(await frame.evaluate(() => testYoutube.play),1);
+  await shot("26-youtube-integrado-api-simulada");
+  assert.deepEqual(referers,["http://192.168.1.30:8088/"]);
+  assert.equal(await frame.evaluate(() => testYoutube.options.playerVars.origin),"http://192.168.1.30:8088");
+  await go("home");
+  assert.equal(await page.locator("#youtube-frame").count(),0);
+  assert.equal(await page.evaluate(() => AlmaYouTube.snapshot().ready),false);
+  await page.reload();
+  await go("media");
+  assert.equal(await page.locator("#youtube-item-0").count(),1);
+  assert.deepEqual(errors,[]);
+});
+
+for (const [code, expected] of [[5,/navegador/],[101,/propietario/],[153,/origen/]]) {
+  test("YouTube muestra el error " + code + " sin fingir reproducción (API simulada)", async () => {
+    await officialYouTubeFixture(code);
+    await savedYouTube();
+    await click("youtube-play");
+    await page.waitForFunction(() => !AlmaYouTube.snapshot().ready);
+    assert.match(await page.locator("#youtube-state").innerText(), expected);
+    assert.equal(await page.evaluate(() => AlmaYouTube.snapshot().state),-1);
+    await click("youtube-native");
+    assert.equal(await page.locator("#youtube-frame").count(),0);
+    assert.match(commands[0].url,/YouTube$/);
+    assert.deepEqual(errors,[]);
+  });
+}
+
+test("YouTube no acepta estados falsos y el puente ausente da un error con salida", async () => {
+  await page.route("http://192.168.1.30:8088/youtube/player?**", r => r.fulfill({status:404,body:"Puente antiguo"}));
+  await go("media");
+  await click("media-youtube");
+  await editor("https://youtu.be/M7lc1UVf-VE");
+  await click("youtube-item-0");
+  await page.evaluate(() => {
+    const frame = document.getElementById("youtube-frame");
+    const token = new URL(frame.src).searchParams.get("token");
+    for (const options of [
+      {origin:"http://192.168.1.30:8088",source:window,token},
+      {origin:"https://evil.example",source:frame.contentWindow,token},
+      {origin:"http://192.168.1.30:8088",source:frame.contentWindow,token:"fake"}
+    ]) window.dispatchEvent(new MessageEvent("message", {origin:options.origin,source:options.source,data:JSON.stringify({channel:"alma-youtube",token:options.token,type:"ready",status:"Falso"})}));
+  });
+  assert.equal(await page.evaluate(() => AlmaYouTube.snapshot().ready),false);
+  await page.clock.runFor(26000);
+  assert.match(await page.locator("#youtube-state").innerText(),/no respondió/);
+  await click("youtube-return");
+  assert.equal(await page.locator("#youtube-frame").count(),0);
+  assert.ok(await page.locator("#media-play").isVisible());
+  assert.deepEqual(errors,[]);
+});
+
+test("Abrir YouTube integrado pausa el archivo propio y no lo reproduce en Inicio", async () => {
+  await officialYouTubeFixture();
+  await go("media"); await click("media-play");
+  await savedYouTube();
+  assert.equal(await page.locator("#media-audio").evaluate(n => n.paused),true);
+  await click("youtube-play");
+  await page.waitForFunction(() => AlmaYouTube.snapshot().state === 1);
+  await key(20);
+  assert.equal(await page.locator("#youtube-frame").count(),0);
+  assert.equal(await page.locator("#media-audio").evaluate(n => n.paused),true);
+  assert.deepEqual(errors,[]);
+});
+
+
+test("Probar YouTube abre la prueba oficial sin escribir enlaces (API simulada)", async () => {
+  await officialYouTubeFixture();
+  await go("media");
+  await click("media-youtube-test");
+  await page.waitForFunction(() => AlmaYouTube.snapshot().ready);
+  assert.match(await page.locator("#youtube-frame").getAttribute("src"),/video=M7lc1UVf-VE/);
+  await key(20);
+  assert.equal(await page.locator("#youtube-frame").count(),0);
+  assert.deepEqual(errors,[]);
 });

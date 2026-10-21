@@ -9,4 +9,6 @@ function check(directory) {
   }
 }
 check(path.join(__dirname,'../app'));
+const template = fs.readFileSync(path.join(__dirname,'../youtube_player.html'),'utf8');
+for (const script of template.matchAll(/<script>([\s\S]*?)<\/script>/g)) acorn.parse(script[1],{ecmaVersion:5});
 console.log('Todos los JS de la aplicación parseados estrictamente como ECMAScript 5');

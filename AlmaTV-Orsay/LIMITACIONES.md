@@ -37,3 +37,11 @@ Los encabezados de Netflix, YouTube, Prime Video, Disney+, Max y Xbox son mensaj
 El reproductor multimedia propio decodifica MP3/MP4 reales en Chromium y controla reproducción nativa HTML5. La compatibilidad de formatos, códecs y resolución en el firmware Orsay sigue pendiente; no se integra ni simula el catálogo de Spotify ni se garantiza el iframe actual de YouTube. Ver MULTIMEDIA.md. Los archivos de la Mac necesitan el puente activo con una carpeta dedicada; no se copian a la TV.
 
 El instalador 7.1 se conserva en respaldo/version-7.1 sin modificar su ZIP. La opción --rollback lo ofrece; --rollback-7 ofrece 7.0 y --rollback-6 ofrece la base 6.0. No se publica ni sincroniza automáticamente en la TV.
+
+## Actualización 8.2
+
+El propietario confirmó reproducción propia y funcionamiento de Alma TV 8 en su
+TV. La versión 8.2 añade YouTube oficial integrado experimental mediante el
+puente HTTP, con pruebas de API simulada. Su compatibilidad real sigue pendiente.
+No es reproducción de YouTube como MP4, ni un servicio de extracción/transcodificación.
+Ver docs/YOUTUBE.md. El acceso nativo y los archivos propios se conservan.

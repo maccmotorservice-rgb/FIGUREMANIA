@@ -20,7 +20,8 @@ var Alma = (function () {
       saverFrame: true,
       city: "Tuxtla Gutiérrez, Chiapas, México",
       links: [],
-      media: []
+      media: [],
+      youtubeLinks: []
     };
   var prefs = {},
     interval = null,
@@ -32,7 +33,10 @@ var Alma = (function () {
     lastRenderedView = null,
     heroIndex = 0,
     sidebarIndex = 0,
-    videoFull = false;
+    videoFull = false,
+    youtubeFull = false,
+    youtubeSelection = null,
+    youtubeLoaded = "";
   var net = { YouTube: "Sin comprobar", Netflix: "Sin comprobar" },
     query = "",
     edit = null,
@@ -252,6 +256,10 @@ var Alma = (function () {
         validUrl(t.url) &&
         (t.kind === "audio" || t.kind === "video")
       );
+    });
+    if (Object.prototype.toString.call(prefs.youtubeLinks) !== "[object Array]") prefs.youtubeLinks = [];
+    prefs.youtubeLinks = prefs.youtubeLinks.slice(0, 20).filter(function (item) {
+      return item && /^[A-Za-z0-9_-]{11}$/.test(item.id) && typeof item.name === "string";
     });
   }
   function mediaTracks() {
@@ -1098,6 +1106,67 @@ var Alma = (function () {
     }
     return h + "</div>";
   }
+  function youtubeFullscreen(enabled) {
+    youtubeFull = enabled;
+    var host = el("youtube-host");
+    host.className = enabled ? "youtube-full" : "";
+    host.style.left = ""; host.style.top = "";
+    host.style.width = ""; host.style.height = "";
+    if (!enabled) updateYoutube();
+  }
+  function closeYoutube() {
+    AlmaYouTube.close();
+    youtubeLoaded = "";
+    if (youtubeFull) youtubeFullscreen(false);
+  }
+  function updateYoutube() {
+    var value = AlmaYouTube.snapshot(), host = el("youtube-host"), slot = el("youtube-slot");
+    htmlIfChanged(el("youtube-state"), esc(value.status));
+    if (value.title) htmlIfChanged(el("youtube-title"), esc(value.title));
+    if (!youtubeFull && state.view === "youtube" && slot) {
+      var box = slot.getBoundingClientRect(), safeBox = el("stage").getBoundingClientRect();
+      var scale = el("stage").offsetWidth / safeBox.width;
+      host.style.left = (box.left - safeBox.left) * scale + "px";
+      host.style.top = (box.top - safeBox.top) * scale + "px";
+      host.style.width = box.width * scale + "px";
+      host.style.height = box.height * scale + "px";
+    }
+  }
+  function openYoutube(item) {
+    youtubeSelection = item;
+    closeYoutube();
+    AlmaPlayer.pause();
+    go("youtube");
+  }
+  function saveYoutube(url, name) {
+    var id = AlmaYouTube.parseUrl(url);
+    if (!id) { notice("Usa un enlace de YouTube a un vídeo individual. Para otros archivos, usa un enlace directo MP3 o MP4."); return false; }
+    if (prefs.youtubeLinks.length >= 20) { notice("Puedes guardar hasta 20 enlaces de YouTube."); return false; }
+    prefs.youtubeLinks.push({ id: id, name: name || "YouTube · " + id });
+    save();
+    return true;
+  }
+  function youtubeView() {
+    var h = head("YOUTUBE INTEGRADO · EXPERIMENTAL", youtubeSelection ? youtubeSelection.name : "YouTube", "Reproductor oficial · requiere el puente actualizado e internet en la TV.");
+    h = h.replace("<h1>", '<h1 id="youtube-title">');
+    h += '<div id="youtube-slot"></div><p id="youtube-state" class="youtube-state"></p><div class="youtube-controls">';
+    var controls = [
+      ["youtube-play", "Reproducir", function () { AlmaYouTube.send("play"); }],
+      ["youtube-pause", "Pausar", function () { AlmaYouTube.send("pause"); }],
+      ["youtube-back", "−10 s", function () { AlmaYouTube.send("back"); }],
+      ["youtube-forward", "+10 s", function () { AlmaYouTube.send("forward"); }],
+      ["youtube-full", "Pantalla completa", function () { youtubeFullscreen(true); }],
+      ["youtube-retry", "Reintentar", function () { openYoutube(youtubeSelection); }]
+    ], ids = [];
+    for (var i = 0; i < controls.length; i++) {
+      h += pill(controls[i][0], controls[i][1], controls[i][2]); ids.push(controls[i][0]);
+    }
+    row(ids);
+    h += '</div><div class="youtube-options">' + pill("youtube-native", "Abrir app de YouTube", function () { launch(apps[1]); }) + pill("youtube-return", "Volver a Multimedia", function () { go("media"); }) + '</div>';
+    row(["youtube-native", "youtube-return"]);
+    return h;
+  }
+  function youtubeHidden() { if (document.hidden) closeYoutube(); }
   function mediaClock(seconds) {
     seconds = Math.max(0, Math.floor(seconds || 0));
     return pad(Math.floor(seconds / 60)) + ":" + pad(seconds % 60);
@@ -1212,8 +1281,8 @@ var Alma = (function () {
     var h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor · Alma TV 8",
-        "Archivos propios o enlaces directos. YouTube se abre en su aplicación; no se reproduce el catálogo de Spotify."
+        "Tu reproductor · Alma TV 8.2",
+        "Archivos propios, enlaces directos y YouTube integrado experimental mediante el puente de la Mac."
       ) +
       '<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +
       esc(player.title) +
@@ -1263,6 +1332,8 @@ var Alma = (function () {
         editor("mediaName", "Nombre del archivo", "", "text");
       }) +
       pill("media-mac", "Archivos de la Mac", loadMacMedia) +
+      pill("media-youtube", "YouTube en línea", function () { editor("youtubeUrl", "Pega un enlace de YouTube", "", "text"); }) +
+      pill("media-youtube-test", "Probar YouTube", function () { openYoutube({ id: "M7lc1UVf-VE", name: "Prueba de compatibilidad de YouTube" }); }) +
       pill("media-vol-down", "− Volumen", function () {
         AlmaPlayer.volume(-0.1);
       }) +
@@ -1272,7 +1343,7 @@ var Alma = (function () {
       '<span id="media-volume">Volumen: ' +
       Math.round(player.volume * 100) +
       ' %</span></div><div class="media-list">';
-    row(["media-add", "media-mac", "media-vol-down", "media-vol-up"]);
+    row(["media-add", "media-mac", "media-youtube", "media-youtube-test", "media-vol-down", "media-vol-up"]);
     for (var i = 0; i < player.tracks.length; i++)
       (function (i) {
         h += button(
@@ -1298,9 +1369,17 @@ var Alma = (function () {
         row(ids);
         h += "<br>";
       })(i);
+    for (var y = 0; y < prefs.youtubeLinks.length; y++) {
+      (function (y) {
+        var item = prefs.youtubeLinks[y];
+        h += button("youtube-item-" + y, item.name, "YouTube integrado · experimental", function () { openYoutube(item); }, "card media-item") + pill("youtube-remove-" + y, "Quitar", function () { prefs.youtubeLinks.splice(y, 1); save(); render(); });
+        row(["youtube-item-" + y, "youtube-remove-" + y]); h += "<br>";
+      })(y);
+    }
     return h + "</div>";
   }
   function render() {
+    if (state.view !== "youtube") closeYoutube();
     rows = [];
     actions = {};
     nav();
@@ -1312,6 +1391,9 @@ var Alma = (function () {
         break;
       case "media":
         h = mediaView();
+        break;
+      case "youtube":
+        h = youtubeView();
         break;
       case "apps":
         h = catalog("apps");
@@ -1387,6 +1469,14 @@ var Alma = (function () {
     if (state.view === "home") updateHero(heroIndex);
     updateCal();
     updatePlayer();
+    if (state.view === "youtube" && youtubeSelection) {
+      if (youtubeLoaded !== youtubeSelection.id) {
+        youtubeLoaded = youtubeSelection.id;
+        AlmaYouTube.open(el("youtube-host"), prefs.macIp, youtubeSelection.id, updateYoutube);
+      }
+      updateYoutube();
+      setTimeout(function () { if (state.view === "youtube") updateYoutube(); }, 250);
+    }
     tick();
     if (!modal) focus();
   }
@@ -1463,6 +1553,7 @@ var Alma = (function () {
     if (view === "saver" && prefs.bridge && prefs.city) getWeather(true);
   }
   function back() {
+    if (youtubeFull) { youtubeFullscreen(false); return; }
     if (videoFull) { fullscreenVideo(false); return; }
     if (modal) {
       closeDialog();
@@ -1613,7 +1704,7 @@ var Alma = (function () {
       if (edit)
         edit.value = this.value.slice(
           0,
-          edit.field === "mediaUrl" || edit.field === "linkUrl"
+          (edit.field === "mediaUrl" || edit.field === "youtubeUrl") || edit.field === "linkUrl"
             ? 1000
             : edit.type === "ip"
               ? 15
@@ -1628,7 +1719,7 @@ var Alma = (function () {
   }
   function append(s) {
     var max =
-      edit.field === "linkUrl" || edit.field === "mediaUrl"
+      edit.field === "linkUrl" || (edit.field === "mediaUrl" || edit.field === "youtubeUrl")
         ? 1000
         : edit.type === "ip"
           ? 15
@@ -1645,6 +1736,10 @@ var Alma = (function () {
       v = edit.value.replace(/^\s+|\s+$/g, "");
     if ((f === "tvIp" || f === "macIp") && !privateIp(v)) {
       notice("Usa una dirección IPv4 privada válida");
+      return;
+    }
+    if (f === "youtubeUrl") {
+      if (saveYoutube(v, "")) closeDialog();
       return;
     }
     if (f === "mediaName") {
@@ -1665,6 +1760,10 @@ var Alma = (function () {
     if (f === "mediaUrl") {
       if (!validUrl(v)) {
         notice("Introduce una dirección http:// o https:// válida.");
+        return;
+      }
+      if (AlmaYouTube.parseUrl(v)) {
+        if (saveYoutube(v, mediaName)) closeDialog();
         return;
       }
       if (/youtube\.com|youtu\.be|spotify\.com/i.test(v)) {
@@ -1807,6 +1906,7 @@ var Alma = (function () {
     updateNetwork();
   }
   function launch(a) {
+    closeYoutube();
     if (a.dial) {
       if (pending) {
         notice("Solicitud en curso…");
@@ -2099,6 +2199,7 @@ var Alma = (function () {
     }
   }
   function exit() {
+    closeYoutube();
     AlmaPlayer.pause();
     if (api) {
       try {
@@ -2135,6 +2236,14 @@ var Alma = (function () {
         return true;
       }
       return false;
+    }
+    if (youtubeFull) {
+      if (k === "back" || k === "exit") youtubeFullscreen(false);
+      else if (k === "ok") AlmaYouTube.send("toggle");
+      else if (k === "left") AlmaYouTube.send("back");
+      else if (k === "right") AlmaYouTube.send("forward");
+      else if (k === "home" || k === "settings") { go(k === "home" ? "home" : "settings"); }
+      return true;
     }
     if (videoFull) {
       if (k === "back" || k === "exit") fullscreenVideo(false);
@@ -2242,6 +2351,9 @@ var Alma = (function () {
       api.sendReadyEvent();
     } catch (e) {}
     window.onresize = fitScreen;
+    el("stage").appendChild(el("youtube-host"));
+    AlmaYouTube.init();
+    document.addEventListener("visibilitychange", youtubeHidden, false);
     AlmaPlayer.init(el("media-audio"), el("media-video"), updatePlayer);
     AlmaPlayer.setTracks(mediaTracks());
     document.onkeydown = function (e) {
@@ -2307,6 +2419,8 @@ var Alma = (function () {
   };
   A.destroy = function () {
     window.onresize = null;
+    AlmaYouTube.destroy();
+    document.removeEventListener("visibilitychange", youtubeHidden, false);
     AlmaPlayer.destroy();
     clearInterval(interval);
     clearTimeout(toastTimer);

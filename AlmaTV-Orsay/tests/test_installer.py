@@ -26,7 +26,7 @@ class InstallerTests(unittest.TestCase):
         self.files={str(p.relative_to(ROOT/'app')):p.read_bytes() for p in (ROOT/'app').rglob('*') if p.is_file()}
     def test_manifest_identity_plain_info_and_relative_resources(self):
         ident,version,_=preparar.validate(self.files)
-        self.assertEqual((ident,version),('AlmaTV80','8.1.0'))
+        self.assertEqual((ident,version),('AlmaTV80','8.2.0'))
         self.assertNotIn(b'<',self.files['widget.info'])
         self.assertIn(b'1280x720',self.files['widget.info'])
         with tempfile.TemporaryDirectory() as directory:
@@ -122,6 +122,25 @@ class BridgeTests(unittest.TestCase):
         for route,origin,code in [('/health','https://evil.example',403),('/unknown','null',404),('/dial/PrimeVideo','null',404),('/weather','null',400)]:
             with self.assertRaises(HTTPError) as error:self.req(route,origin=origin)
             self.assertEqual(error.exception.code,code)
+    def test_youtube_wrapper_uses_official_player_and_actual_http_origin(self):
+        route='/youtube/player?video=M7lc1UVf-VE&token='+'a'*32+'&parent=null'
+        with patch('puente.urlopen') as network:
+            with self.req(route) as response:
+                self.assertEqual(response.status,200)
+                self.assertEqual(response.headers['Referrer-Policy'],'origin')
+                self.assertIn('text/html',response.headers['Content-Type'])
+                body=response.read().decode('utf-8')
+                self.assertIn('https://www.youtube.com/iframe_api',body)
+                self.assertIn('"video": "M7lc1UVf-VE"',body)
+                self.assertIn('"parent": "null"',body)
+                self.assertNotIn('__ALMA_YT_CONFIG__',body)
+                self.assertIn('controls: 1',body)
+                self.assertIn('autoplay: 0',body)
+            network.assert_not_called()
+        for query in ['video=../../etc/passwd&token='+'a'*32,'video=M7lc1UVf-VE&token=bad','video=M7lc1UVf-VE&token='+'a'*32+'&parent=https://evil.example']:
+            with self.assertRaises(HTTPError) as error:self.req('/youtube/player?'+query)
+            self.assertEqual(error.exception.code,400)
+
     def test_launch_is_opt_in_and_tv_target_fixed(self):
         with self.assertRaises(HTTPError) as error:self.req('/dial/Netflix','POST')
         self.assertEqual(error.exception.code,403)

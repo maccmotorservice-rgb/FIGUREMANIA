@@ -161,3 +161,12 @@ se recorta al área visible al desplazarse, sin superponer la cabecera o el pie.
 Los iconos de navegación y tarjetas de herramientas/ajustes usan PNG locales,
 sin depender de glifos de la fuente del televisor. Multimedia tiene icono de
 reproducción propio. Los logotipos originales de las apps se conservan.
+
+### 8.2: YouTube integrado (experimental)
+
+Multimedia permite guardar enlaces de vídeos individuales de YouTube y abrir
+el reproductor oficial dentro de Alma TV mediante el puente Mac actualizado.
+Controles, pantalla completa, errores claros y acceso nativo conservado.
+La compatibilidad real con Orsay queda pendiente de prueba física; no se afirma
+que cualquier vídeo funcione. YouTube se detiene al salir de su vista.
+Ver [investigación, límites y prueba física](docs/YOUTUBE.md).
