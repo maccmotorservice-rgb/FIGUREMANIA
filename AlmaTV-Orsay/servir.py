@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """HTTP installer server. Only catalogue and widget ZIPs are exposed."""
 import argparse
+import json
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -9,11 +10,19 @@ from preparar import private_ipv4
 
 ROOT=Path(__file__).resolve().parent
 class Handler(SimpleHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header('Cache-Control','no-store, no-cache, max-age=0')
+        self.send_header('Pragma','no-cache')
+        self.send_header('Expires','0')
+        super().end_headers()
     def do_GET(self):
         path=urlsplit(self.path).path
         if path!='/widgetlist.xml' and not (path.startswith('/Widget/') and path.endswith('.zip') and path.count('/')==2 and '..' not in path):
             self.send_error(404)
             return
+        # Some legacy clients retain validators from earlier installations.
+        for name in ('If-Modified-Since','If-None-Match'):
+            if name in self.headers: del self.headers[name]
         super().do_GET()
     def do_HEAD(self):
         self.send_error(405)
@@ -31,6 +40,8 @@ def main():
     directory=ROOT/('respaldo/version-7.1' if a.rollback else 'respaldo/version-7.0' if a.rollback_7 else 'respaldo/servidor' if a.rollback_6 else 'servidor')
     if not (directory/'widgetlist.xml').exists():
         p.error('Ejecuta preparar.py primero')
+    manifest=json.loads((directory/'manifest.json').read_text(encoding='utf-8'))
+    print('Instalador: %s · versión %s · %s' % (manifest['id'],manifest['version'],manifest['archive']),flush=True)
     print('Solo red local: http://%s:%s/widgetlist.xml · Ctrl+C detiene' % (bind,a.port),flush=True)
     try:
         ThreadingHTTPServer((bind,a.port),partial(Handler,directory=str(directory))).serve_forever()

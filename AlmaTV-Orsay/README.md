@@ -180,3 +180,13 @@ Una actualización inicial instala el panel y el soporte del widget; las siguien
 ediciones de la lista no requieren instalar nada. Se conservan los enlaces de la TV.
 El puente automático mantiene la lista en Application Support, separada del código.
 El reproductor de YouTube sigue siendo experimental en Orsay. Ver docs/YOUTUBE.md.
+
+### 8.3.1: identidad de instalación independiente
+
+El propietario informa que el icono 8.3 ejecuta la interfaz 8.2. El ZIP 8.3
+contiene el código correcto, pero ambas versiones usaban cpname AlmaTV80.
+La 8.3.1 usa **AlmaTV83**, nombre **Alma TV 8.3.1** y número visible dentro.
+Se instala por separado para aislar la actualización de la identidad anterior.
+El instalador envía no-store e ignora validadores antiguos de caché.
+La lista de la Mac se conserva; las preferencias locales de la TV pueden estar
+separadas por identificador. Conservar la app anterior hasta verificar la nueva.
