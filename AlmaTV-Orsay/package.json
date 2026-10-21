@@ -1,0 +1,19 @@
+{
+  "name": "alma-tv-orsay",
+  "version": "7.0.0",
+  "private": true,
+  "description": "Alma TV para Samsung Orsay; aplicación ES5 sin dependencias en runtime",
+  "scripts": {
+    "preview": "python3 -m http.server 8765 --bind 127.0.0.1 --directory app",
+    "build": "python3 preparar.py",
+    "check": "node --check app/main.js && node tests/es5.cjs",
+    "test:package": "python3 -m unittest discover -s tests -p 'test_*.py' -v",
+    "test:ui": "node --test tests/browser.cjs",
+    "test": "npm run check && npm run build && npm run test:package && npm run test:ui"
+  },
+  "engines": { "node": ">=22" },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "acorn": "8.15.0"
+  }
+}

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=1280, user-scalable=no" />
+    <meta name="alma-build" content="7.0.0" />
+    <title>Alma TV</title>
+    <link rel="stylesheet" href="style.css" />
+    <script
+      type="text/javascript"
+      src="$MANAGER_WIDGET/Common/API/Widget.js"
+    ></script>
+    <script type="text/javascript" src="assets/media.js"></script>
+    <script type="text/javascript" src="main.js"></script>
+  </head>
+  <body onload="Alma.init()" onunload="Alma.destroy()">
+    <div id="stage">
+      <div id="safe">
+        <header id="header">
+          <div class="brand">alma<span>tv</span></div>
+          <nav id="nav"></nav>
+          <div id="status">
+            <span id="network">DIAL sin verificar</span><b id="time"></b>
+          </div>
+        </header>
+        <main id="view"></main>
+        <footer id="footer">
+          Flechas · mover &nbsp; OK · abrir &nbsp; RETURN · volver &nbsp; Verde
+          · Inicio &nbsp; Amarillo · Ajustes
+        </footer>
+        <div
+          id="dialog"
+          role="dialog"
+          aria-modal="true"
+          style="display: none"
+        ></div>
+        <div id="toast" role="status" style="display: none"></div>
+      </div>
+    </div>
+  </body>
+</html>
