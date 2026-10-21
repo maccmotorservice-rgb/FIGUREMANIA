@@ -3,12 +3,16 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <meta name="viewport" content="width=1280, user-scalable=no" />
-    <meta name="alma-build" content="7.0.0" />
+    <meta name="alma-build" content="7.1.0" />
     <title>Alma TV</title>
     <link rel="stylesheet" href="style.css" />
     <script
       type="text/javascript"
       src="$MANAGER_WIDGET/Common/API/Widget.js"
+    ></script>
+    <script
+      type="text/javascript"
+      src="$MANAGER_WIDGET/Common/webapi/1.0/webapis.js"
     ></script>
     <script type="text/javascript" src="assets/media.js"></script>
     <script type="text/javascript" src="main.js"></script>
@@ -16,6 +20,8 @@
   <body onload="Alma.init()" onunload="Alma.destroy()">
     <div id="stage">
       <div id="safe">
+        <div id="wallpaper"></div>
+        <div id="wallpaper-shade"></div>
         <header id="header">
           <div class="brand">alma<span>tv</span></div>
           <nav id="nav"></nav>

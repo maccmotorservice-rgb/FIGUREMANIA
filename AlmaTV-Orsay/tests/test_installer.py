@@ -26,7 +26,7 @@ class InstallerTests(unittest.TestCase):
         self.files={str(p.relative_to(ROOT/'app')):p.read_bytes() for p in (ROOT/'app').rglob('*') if p.is_file()}
     def test_manifest_identity_plain_info_and_relative_resources(self):
         ident,version,_=preparar.validate(self.files)
-        self.assertEqual((ident,version),('AlmaTV70','7.0.0'))
+        self.assertEqual((ident,version),('AlmaTV71','7.1.0'))
         self.assertNotIn(b'<',self.files['widget.info'])
         self.assertIn(b'1280x720',self.files['widget.info'])
         with tempfile.TemporaryDirectory() as directory:
@@ -44,6 +44,20 @@ class InstallerTests(unittest.TestCase):
                 self.assertNotIn('app/index.html',z.namelist())
             manifest=json.loads((Path(directory)/'manifest.json').read_text())
             self.assertEqual(manifest['sha256'],hashlib.sha256(first).hexdigest())
+    def test_version_7_installed_backup_is_exact_and_catalogue_can_change_ip(self):
+        archive=ROOT/'respaldo/version-7.0/Widget/AlmaTV70_7.0.0.zip'
+        data=archive.read_bytes()
+        self.assertEqual(hashlib.sha256(data).hexdigest(),'8de13daa70f719364c5e6a5cb966f53c73366b9b8e29424a9a9a35c47a24e9c3')
+        with ZipFile(str(archive)) as z:
+            self.assertIsNone(z.testzip())
+            ident,version,title=preparar.validate({n:z.read(n) for n in z.namelist()})
+        self.assertEqual((ident,version),('AlmaTV70','7.0.0'))
+        with tempfile.TemporaryDirectory() as directory:
+            preparar.catalogue(ident,version,title,archive,Path(directory),'10.0.0.30')
+            tree=ET.parse(str(Path(directory)/'widgetlist.xml'))
+            self.assertEqual(tree.find('.//widget').get('id'),'AlmaTV70')
+            self.assertIn('http://10.0.0.30/Widget/',tree.findtext('.//download'))
+        self.assertEqual(archive.read_bytes(),data)
     def test_invalid_package_rejected(self):
         for name,body in [('widget.info',b'<widget/>'),('config.xml',b'<widget><cpname>bad id</cpname></widget>'),('index.html',b'<script src="https://cdn.example/app.js"></script>')]:
             files=dict(self.files);files[name]=body
@@ -125,6 +139,7 @@ class BridgeTests(unittest.TestCase):
                 result=json.load(response)
             self.assertEqual(result['temperature'],24)
             self.assertEqual(result['description'],'Nublado')
+            self.assertEqual(result['code'],3)
             self.assertIn('Chiapas',result['city'])
             with self.req('/weather?city=Tuxtla') as response:self.assertEqual(json.load(response),result)
             self.assertEqual(reader.call_count,2)

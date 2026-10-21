@@ -1,24 +1,28 @@
-# Validación de Alma TV 7.0
+# Validación de Alma TV 7.1
 
-Entorno de ejecución: Linux de Codex Cloud, Node 24.19.0, npm 11.9.0, Python 3.12.14, Chromium 154 del sistema, Playwright 1.64.1. No se ejecutaron macOS, Python 3.8.9 ni el WebKit de la TV. Se comprobó además la gramática de todos los scripts Python con `ast.parse(feature_version=(3,8))`.
+Ejecutado en Linux Codex Cloud: Node 24.19.0, npm 11.9.0, Python 3.12.14, Chromium 154, Playwright 1.64.1. Todos los scripts Python se comprueban también con gramática 3.8. El propietario ya construyó, sirvió e instaló 7.0 en su Mac/TV y comunicó que la TV en general sigue siendo lenta; no se presenta 7.1 como reparación del sistema.
 
-| Comprobación ejecutada | Resultado |
+| Comprobación | Resultado |
 |---|---|
-| `npm ci --cache /tmp/figuremania-npm-cache --no-audit --no-fund` | Instalación congelada desde lockfile, correcta |
-| `npm run check` | `node --check` y parseo **ECMAScript 5 estricto** de todos los JS de app, correctos |
-| `npm run build` | ZIP y XML actual + respaldo 6.0, sin contactar TV |
-| `npm run test:package` | **12 pruebas aprobadas**: identidad/rutas/widget.info/CRC/SHA, determinismo, respaldo byte a byte, IP privadas, servidor HTTP real, puente/rutas/CORS/opt-in, errores, proveedor/cache e importador de imagen |
-| `npm run test:ui` | **11 pruebas aprobadas** en Chromium, sin errores JS |
-| Configuración visual | Capturas 1280×720, presets 3 %, 5 %, 8 % por borde, bounds horizontales y verticales de paneles comprobados |
-| Imagen de salvapantallas | PNG original 1672×941, bytes conservados y SHA-256 registrado en IMAGEN_USUARIO.json, carga real en navegador y reloj móvil comprobados |
-| Consulta real Open-Meteo desde esta nube | Bloqueada por proxy: tunnel 403; no se presenta como éxito |
-| Netflix/YouTube en TV física | **No ejecutado**; requiere Mac y autorización del propietario |
-| Sincronización Orsay Wi-Fi | **No ejecutada**; paquete/servidor preparados y probados en loopback |
+| `npm run check` | `node --check` y parser ES5 estricto de todos los JS de app: correctos |
+| `npm run build` | Paquete AlmaTV71 7.1.0 y catálogos de respaldo, sin contactar TV |
+| `npm run test:package` | **13 pruebas aprobadas** |
+| `npm run test:ui` | **15 pruebas aprobadas**, sin errores JS |
+| Navegación y composición | Menú lateral, tema claro, vistas distintas, 1280×720, zonas seguras 3/5/8 %, foco y scroll |
+| Rendimiento del widget | Con hora fija, cero mutaciones DOM en reposo; mover foco no reconstruye tarjetas; sin medición física de FPS/RAM |
+| Salvapantallas | PNG original 1672×941, SHA-256 intacto; hora, fecha con año, ciudad y clima se mueven juntos; fondo del bloque transparente |
+| Logotipos | PNG locales a partir de fuentes vectoriales conservadas; licencias incluidas; las capturas esperan a que las imágenes estén cargadas |
+| Xbox / HDMI 2 | API de prueba enumera HDMI1, AV2 y HDMI2; se elige solo HDMI2; fallos por API ausente o fuente no encontrada no se presentan como éxito |
+| Clima | Códigos WMO y día/noche del proveedor; Sin datos ante fallo. Puente del clima no desvía DIAL directo |
+| Respaldo 7.0 | ZIP exacto SHA-256 `8de13daa70f719364c5e6a5cb966f53c73366b9b8e29424a9a9a35c47a24e9c3`; regenerar catálogo no modifica sus bytes |
+| Clima real desde nube | Consulta previa a proveedor bloqueada por proxy 403; validar desde Mac |
+| API Samsung/documentación desde nube | Consulta a documentación bloqueada 403; detección de funciones en runtime y pruebas no prueban soporte del firmware |
+| Instalación y HDMI 2 físicos de 7.1 | **No ejecutados**; validación en Mac/TV pendiente del propietario |
 
-Las 11 pruebas UI verifican: vistas diferenciadas con códigos Samsung, pila RETURN y APIs Orsay; un POST por activación con deduplicación mientras está pendiente; Prime no confirmado; temporizador iniciar/pausar/reanudar/reiniciar/vencer; cambio de mes y reloj móvil; búsqueda/enlaces persistidos; IP inválidas y restauración con cancelar; calibración guardada/cancelada y geometría; GET de ambos DIAL y mensajes de fallo; clima solo con respuesta válida y Sin datos ante error; foco único en recorridos de todas las vistas; desplazamiento correcto hacia resultados fuera del área visible.
+Las 15 pruebas UI cubren los 11 recorridos previos (vistas, DIAL, temporizador, calendario/reloj móvil, búsqueda/enlaces, IP/restauración, calibración, diagnóstico/error, clima, foco y scroll), más selección HDMI 2 con degradación explícita, mutaciones en reposo/foco, salvapantallas con datos completos e icono, e independencia de puente meteorológico y DIAL directo.
 
-El tiempo simulado se instala antes de cargar la aplicación para controlar el intervalo real del temporizador. No se acelera mediante modificar su estado interno. DIAL, APIs Samsung y proveedor meteorológico son sustituidos únicamente en las pruebas: las respuestas de prueba no se incluyen en `app/` ni en el ZIP del widget. Se capturó también la versión original 6.0 con sus peticiones privadas bloqueadas en el navegador de pruebas.
+Las 13 pruebas Python cubren identidad/rutas/widget.info/CRC/SHA y determinismo, rechazo de paquetes inválidos, respaldo 6.0 exacto, respaldo 7.0 instalado exacto y catálogos reconfigurables, IPv4 privada, servidor instalador HTTP real, puente HTTP/CORS/rutas/opt-in/errores, parser/cache de proveedor, rechazo de redirecciones e importación/preservación/rechazo de imágenes.
 
-Se ejercitó el autoarranque del servidor de pruebas sin un preview preexistente. Los servidores creados por tests se cierran al terminar. Se comprobó que el repositorio anterior no tiene modificaciones versionadas: solo existe la carpeta nueva AlmaTV-Orsay en la rama alma-tv/orsay.
+Los tests DIAL, fuentes HDMI, APIs Samsung y proveedor usan sustituciones **solo en tests**. No hay datos de prueba en el widget. La captura `17-salvapantallas-clima-respuesta-de-prueba` contiene deliberadamente un proveedor de prueba y no demuestra una temperatura real. La captura normal de salvapantallas muestra Sin datos cuando no hay puente.
 
-No se reejecutan simulaciones del motor FIGUREMANIA ni pruebas Android, que no corresponden a este proyecto. La siguiente validación útil es física y está descrita en PRUEBA_TV.md, después de revisar las capturas.
+La simulación temporal se instala antes de cargar los intervalos de la app; el test no modifica el estado interno del temporizador. El preview se inicia si falta y sus procesos se cierran al terminar. La versión 7.0 de respaldo y las imágenes anteriores se preservan para comparación. No se ejecutan pruebas del motor FIGUREMANIA porque no se ha modificado ese proyecto.

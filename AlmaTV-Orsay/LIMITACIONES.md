@@ -1,28 +1,29 @@
-# Compatibilidad y límites
+# Compatibilidad y límites · 7.1
 
-| Función | Implementación | Evidencia / pendiente |
-|---|---|---|
-| HTML/CSS/JS local 1280×720 | ES5, posiciones/fila inline-block, transform prefijado | Parseo ES5 y Chromium; WebKit físico pendiente |
-| Netflix/YouTube nativos | POST `/ws/app/Netflix` y `/YouTube`, 8080 | Rutas físicamente confirmadas por el propietario antes; esta versión solo probada con transportes de prueba |
-| Estado DIAL | GET individual, HTTP + state XML | Flujo, fallos y timeout probados; comprobación desde Mac pendiente |
-| Navegador Samsung | `Common.API.Widget.runWebBrowser` | Llamada probada con API de prueba; propietario la había confirmado antes; los servicios web modernos pueden rechazar este navegador |
-| EXIT/ready | sendExitEvent/sendReadyEvent | Integración probada con stub; comportamiento físico pendiente |
-| Prime Video | Estado «Por probar» | Sin acceso nativo confirmado; no se anuncia funcional |
-| Herramientas locales | Date, temporizador, calendario | Pruebas reales del comportamiento en Chromium, incluidos tiempo y persistencia |
-| Salvapantallas personalizado | JPG/PNG local + reloj móvil | Imagen original 1672×941 incorporada sin modificar; carga y movimiento de reloj comprobados en Chromium |
-| Calibración | Escala 76–100 %, X/Y, presets | Geometría y capturas 3/5/8 % por borde; ajuste físico pendiente |
-| Clima | Open-Meteo vía Mac | Parser, cache, HTTP, errores y UI probados con respuestas de prueba. Consulta al proveedor desde nube bloqueada con 403 del proxy; validar en Mac |
-| Instalación Wi-Fi | HTTP 80 + XML/ZIP Orsay | Integridad, identidad y servicio HTTP probados; sincronización física pendiente de decisión del usuario |
-| Python en Mac | stdlib, sintaxis 3.8 compatible | Ejecutado en Python disponible en nube; no se ejecutó macOS 3.8.9 real |
-| Almacenamiento | Clave `alma.orsay.v7` localStorage | Reutiliza guardados de esta versión; no importa datos privados de Netflix ni de otras apps |
-| Smart Hub / Home | Sistema Samsung intacto | Alma TV es un widget; no sustituye HOME ni limpia paquetes Android |
+| Función | Evidencia y límites |
+|---|---|
+| Tema claro, menú lateral, navegación | Probados en Chromium 1280×720 con 3/5/8 % de zona segura; nuevo diseño pendiente de comprobar en WebKit físico |
+| Netflix/YouTube nativos | Mismas rutas DIAL del proyecto anterior; el propietario instaló 7.0 y comunicó mejora. En nube se prueban solicitudes y errores con respuestas de prueba, sin contactar su TV |
+| Disney+ / Prime Video | El propietario informa que faltan en su Orsay; este widget no añade soporte nativo, DRM ni reproductores. Usar app oficial de una Xbox u otro dispositivo compatible si está disponible para su modelo/región |
+| Apple TV / Max | Logotipos y ficha de compatibilidad; ninguna integración nativa verificada. No son reproductores funcionales |
+| Xbox · HDMI 2 | Detección de API `webapis.tv.window`, enumeración y elección del descriptor HDMI 2; probado con API de prueba. Falta validar en firmware real. Si no existe la API, muestra SOURCE → HDMI 2. No envía números de fuente adivinados, no enciende Xbox ni abre sus apps |
+| TV / Smart Hub | Sale del widget con la API existente; no promete sintonizar directamente TV en vivo |
+| Navegador | Usa `Common.API.Widget.runWebBrowser`, previamente confirmado por el propietario; sitios actuales pueden rechazar el WebKit antiguo |
+| Clima | Open-Meteo por puente Mac; datos, código WMO y día/noche reales cuando están disponibles, con observación y atribución. Sin proveedor muestra Sin datos. Consulta real en nube recibió 403 del proxy; probar desde Mac |
+| Ubicación del salvapantallas | Ciudad configurada por el usuario, Tuxtla Gutiérrez, Chiapas, México. No se presenta como localización GPS |
+| Salvapantallas | PNG original intacto; hora, fecha completa, ciudad e icono de clima se mueven como grupo sin recuadro negro; probado en Chromium |
+| Rendimiento | Sin escrituras repetidas de textos invariables en reposo y sin reconstruir tarjetas al mover foco; no equivale a medir CPU/FPS/RAM de la TV ni a acelerar todo Smart Hub |
+| Temporizador | Sigue al cambiar de vista dentro del widget; no se ejecuta en segundo plano después de salir o al usar otra app |
+| Instalación Wi-Fi | ZIP, XML, identidad, servidor y rollback probados localmente; sincronización 7.1 física pendiente de decisión del usuario |
+| Python macOS | Sintaxis 3.8 compatible, stdlib; ejecutado en Linux Python 3.12.14. El propietario ya construyó y sirvió la versión 7.0 en su Mac |
+| Almacenamiento | Conserva la clave `alma.orsay.v7`; distintos IDs de widget pueden tener almacenamiento separado. Comprobar calibración e IP al instalar 7.1 |
 
-Las IP privadas solo tienen sentido en la red local del propietario; no se envían comandos desde la nube. Los tests interceptan esas rutas antes de cualquier petición. Un PID, un puerto abierto o un HTTP simulado no son evidencia de que una app se abrió físicamente.
+No hay acceso al historial privado de Netflix, búsquedas de otros servicios o anuncios personalizados. Inicio usa la imagen del propietario y muestra solo sus enlaces. No se generan temperaturas, películas ni progresos de reproducción ficticios.
 
-El reloj depende de la hora del televisor. El temporizador sigue funcionando al cambiar de vista dentro de Alma TV; se pierde al cerrar el widget. No hay tareas en segundo plano mientras Netflix/YouTube usan el sistema. El clima necesita la Mac despierta y conectada; la app no implementa TLS moderno dentro de Orsay.
+El encabezado indica disponibilidad DIAL, no intensidad Wi-Fi ni acceso a internet. No se muestran RAM libre, limpieza o estado de consola inventados.
 
-El estado del encabezado es DIAL, no una lectura de la interfaz Wi-Fi. No se dibuja un icono que asegure señal Wi-Fi ni acceso a internet sin evidencia. No se usan plugins Samsung desconocidos para inventar ese dato.
+Los logotipos son identificadores locales con sus fuentes y licencias incluidas; no prueban compatibilidad ni afiliación. No se copia código de CleanYourTV. Su limpieza Android/ADB no sirve para este Samsung Orsay.
 
-La ilustración de salvapantallas se recibió finalmente como PNG dentro de un ZIP. Se conserva exactamente, con SHA-256 registrado en docs/IMAGEN_USUARIO.json; no se genera una imitación ni se presume permiso de redistribución pública. El arte y los nombres se mantienen para el uso del propietario; revisa derechos antes de publicar un paquete públicamente.
+El puente es HTTP para LAN de confianza, no un servicio para internet. Relay DIAL es independiente de clima y está desactivado por defecto. No se abren puertos del router ni se ejecutan comandos en la TV desde la nube.
 
-Los servidores son HTTP dentro de la LAN: no los expongas mediante port forwarding, túneles ni redes públicas. El puente solo permite YouTube/Netflix a una TV fija, rechaza redirecciones DIAL y POST requiere `--allow-launch`. No usa root, firmware, menú de servicio, ADB ni cambios de sistema. No realiza limpieza de Smart Hub.
+No se eliminan componentes de Samsung, se cambia firmware, se usa un menú de servicio ni se restablece Smart Hub. Antes de desinstalar apps opcionales mediante menús oficiales hay que acordar cuáles con el propietario.

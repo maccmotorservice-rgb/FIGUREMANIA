@@ -68,6 +68,9 @@ def build(files, output, host):
         if z.testzip() is not None:
             raise ValueError('ZIP dañado')
         validate({name:z.read(name) for name in z.namelist()})
+    return catalogue(ident,version,title,archive,output,host)
+
+def catalogue(ident,version,title,archive,output,host):
     rsp = ET.Element('rsp', stat='ok')
     widget = ET.SubElement(ET.SubElement(rsp,'list'),'widget',id=ident)
     ET.SubElement(widget,'title').text = title
@@ -92,6 +95,17 @@ def main():
         prefix='AlmaTV_6_0_TVOS_Red/app/'
         original={n[len(prefix):]:z.read(n) for n in z.namelist() if n.startswith(prefix) and not n.endswith('/')}
     build(original,ROOT/'respaldo'/'servidor',host)
+    # Preserve the 7.0 ZIP already installed by the owner, without recompression.
+    backup=ROOT/'respaldo'/'version-7.0'
+    archive=backup/'Widget'/'AlmaTV70_7.0.0.zip'
+    saved=json.loads((backup/'manifest.json').read_text())
+    if hashlib.sha256(archive.read_bytes()).hexdigest()!=saved['sha256']:
+        raise ValueError('El respaldo 7.0 no coincide con su SHA-256')
+    with ZipFile(str(archive)) as z:
+        if z.testzip() is not None:raise ValueError('Respaldo 7.0 dañado')
+        ident,version,title=validate({n:z.read(n) for n in z.namelist()})
+    if (ident,version)!=('AlmaTV70','7.0.0'):raise ValueError('Respaldo 7.0 incorrecto')
+    catalogue(ident,version,title,archive,backup,host)
     print('Paquete validado; no se ha contactado ni instalado nada en la TV.')
 
 if __name__=='__main__':

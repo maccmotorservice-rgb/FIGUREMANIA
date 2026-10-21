@@ -9,3 +9,9 @@ Intervalo único a 1 s; no hay recarga de página por reloj, CSS Grid, filtros, 
 Para revisar en Chromium: DevTools → Performance, grabar 30 s navegando y 30 s en reposo. DevTools → Memory, tomar snapshot antes/después de abrir/cerrar 20 veces herramientas y modales. Verificar que no crezca el número de intervalos y que requests finalizados se eliminen. Network debe mostrar solo archivos locales al iniciar. Clima y DIAL solo se piden al activar sus acciones. En dispositivo: observar latencia entre tecla y foco, congelamientos y volver a abrir después de uso de Netflix; registrar fotos y secuencia si falla.
 
 Si el televisor tarda al abrir la imagen: prueba un JPG baseline 1280×720 optimizado desde tu Mac, conservando el original; no desactives verificaciones TLS ni ajustes del sistema. No hay prueba automática que sustituya una sesión prolongada en el WebKit físico.
+
+## Cambios medidos en el software 7.1
+
+Se eliminan ampliación del foco, transiciones de escala, sombras de tarjeta y desenfoques. `htmlIfChanged` escribe en DOM solo si cambia el contenido; el movimiento del grupo del salvapantallas se actualiza una vez por posición de 15 s. Prueba con hora fija: cero mutaciones de DOM en reposo; mover foco no reconstruye `#view` ni las tarjetas. No es una medición de latencia, GPU o memoria del dispositivo.
+
+Los logotipos se rasterizan antes de empaquetar a PNG de 180×100, no durante la ejecución. Los pequeños sprites de navegación y clima son locales. El hero y salvapantallas reutilizan el mismo PNG del usuario; no se descarga publicidad ni se duplica el archivo de fondo.

@@ -1,2 +1,2 @@
 <?xml version='1.0' encoding='utf-8'?>
-<rsp stat="ok"><list><widget id="AlmaTV70"><title>Alma TV 7.0</title><compression type="zip" size="2538971" /><description>Alma TV 7.0 · Samsung Orsay 1280×720</description><download>http://192.168.1.30/Widget/AlmaTV70_7.0.0.zip</download></widget></list></rsp>
+<rsp stat="ok"><list><widget id="AlmaTV71"><title>Alma TV 7.1</title><compression type="zip" size="2586463" /><description>Alma TV 7.1 · Samsung Orsay 1280×720</description><download>http://192.168.1.30/Widget/AlmaTV71_7.1.0.zip</download></widget></list></rsp>

@@ -31,9 +31,9 @@ def weather(city):
     if not data.get('results'):
         raise ValueError('Ciudad no encontrada')
     place=data['results'][0]
-    forecast=read_json('https://api.open-meteo.com/v1/forecast?'+urlencode({'latitude':place['latitude'],'longitude':place['longitude'],'current':'temperature_2m,weather_code','timezone':'auto'}))
+    forecast=read_json('https://api.open-meteo.com/v1/forecast?'+urlencode({'latitude':place['latitude'],'longitude':place['longitude'],'current':'temperature_2m,weather_code,is_day','timezone':'auto'}))
     current=forecast['current']
-    value={'city':', '.join(filter(None,[place.get('name'),place.get('admin1'),place.get('country')])),'temperature':current['temperature_2m'],'observed_at':current['time']+' '+forecast.get('timezone',''),'description':WEATHER_CODES.get(current['weather_code'],'Código meteorológico '+str(current['weather_code'])),'provider':'Open-Meteo','license':'CC BY 4.0'}
+    value={'city':', '.join(filter(None,[place.get('name'),place.get('admin1'),place.get('country')])),'temperature':current['temperature_2m'],'observed_at':current['time']+' '+forecast.get('timezone',''),'code':current['weather_code'],'is_day':current.get('is_day'),'description':WEATHER_CODES.get(current['weather_code'],'Código meteorológico '+str(current['weather_code'])),'provider':'Open-Meteo','license':'CC BY 4.0'}
     CACHE[city]=(time.time(),value)
     return value
 

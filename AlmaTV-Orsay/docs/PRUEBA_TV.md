@@ -30,3 +30,8 @@ No ejecutes una sincronización ni un lanzamiento sin decidir explícitamente ha
 13. Abre el salvapantallas con la imagen local, espera 30 s y confirma movimiento del reloj; cualquier flecha/OK vuelve y EXIT sale. Verifica que no haya bandas o recortes indeseados.
 
 Si hay fallo, anota versión, pantalla, tecla, IP configurada, estado DIAL y mensaje HTTP; incluye foto del televisor. No uses un restablecimiento de fábrica como diagnóstico. Antes de otra instalación, compara con el paquete de respaldo.
+
+14. Xbox: enciende tu consola y activa su tarjeta una vez. Si aparece falta de API, usa SOURCE → HDMI 2 y registra el mensaje; no se presupone que Orsay exponga la selección. No se modifica la Xbox.
+15. Salvapantallas: verifica hora, fecha con año, ciudad y bloque de clima, sin caja negra; el grupo completo debe moverse cada 15 s y permanecer dentro de la zona segura. Prueba con puente activo e inactivo.
+16. Activa solo Puente local para clima y verifica que Netflix/YouTube sigan por DIAL directo. Activa Relay DIAL únicamente si lo necesitas, con el servidor --allow-launch.
+17. Compara navegación física con 7.0. Si toda la TV sigue lenta, realiza el reinicio completo y revisa apps opcionales desde Samsung Apps con el propietario, sin borrar componentes del sistema.

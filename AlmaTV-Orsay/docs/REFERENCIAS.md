@@ -10,3 +10,5 @@
 - Netflix, YouTube, Prime Video y Samsung se usan como nombres identificadores de servicios de sus respectivos titulares. No se incluyen sus logotipos descargados ni se presenta afiliación.
 
 SHA de CleanYourTV inspeccionado: `8de5533c58cf573abb2178754d15c782b65548a6`.
+
+Actualización 7.1: la referencia principal de composición es el menú lateral mostrado por el propietario en el chat, adaptado al tema claro que pidió después. Sus personajes, series, anuncios y catálogos no se copian. Logotipos locales: ver LOGOTIPOS.md y licencias incluidas. El salvapantallas incorpora clima real opcional, hora/fecha y ciudad configurada; el archivo de imagen sigue siendo el mismo.

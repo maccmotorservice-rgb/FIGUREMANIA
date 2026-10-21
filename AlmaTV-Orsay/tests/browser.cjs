@@ -8,8 +8,17 @@ let browser, context, page, commands, errors, previewProcess;
 const key = (code) => page.evaluate((c) => Alma.key(c), code);
 const go = (view) => page.evaluate((v) => Alma.go(v), view);
 const click = (id) => page.locator("#" + id).click();
-const shot = (name) =>
-  page.screenshot({ path: path.join(ROOT, "docs/capturas", name + ".png") });
+const shot = async (name) => {
+  await page.waitForLoadState("networkidle");
+  await page.evaluate(async () => {
+    await Promise.all(
+      Array.from(document.images).map((im) => im.decode().catch(() => {}))
+    );
+  });
+  return page.screenshot({
+    path: path.join(ROOT, "docs/capturas", name + ".png")
+  });
+};
 async function editor(value) {
   await page.evaluate((v) => {
     document.dispatchEvent(new KeyboardEvent("keydown", { keyCode: 8 }));
@@ -17,28 +26,52 @@ async function editor(value) {
   // Type through the application's real keyboard handlers, clearing existing text.
   for (let i = 0; i < 100; i++)
     await page.evaluate(() =>
-      document.onkeydown({ keyCode: 8, preventDefault() {} }),
+      document.onkeydown({ keyCode: 8, preventDefault() {} })
     );
   await page.keyboard.type(value);
   await click("edit-done");
 }
 before(async () => {
   async function available() {
-    try { const response = await fetch('http://127.0.0.1:8765'); const html = await response.text();
-      if (!html.includes('name="alma-build" content="7.0.0"')) throw new Error('Puerto 8765 ocupado por otro proyecto');
+    try {
+      const response = await fetch("http://127.0.0.1:8765");
+      const html = await response.text();
+      if (!html.includes('name="alma-build" content="7.1.0"'))
+        throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
-    } catch (error) { if (error.message.includes('ocupado')) throw error; return false; }
+    } catch (error) {
+      if (error.message.includes("ocupado")) throw error;
+      return false;
+    }
   }
   if (!(await available())) {
-    previewProcess = require('node:child_process').spawn('python3', ['-m','http.server','8765','--bind','127.0.0.1','--directory','app'], {cwd:ROOT,stdio:'ignore'});
+    previewProcess = require("node:child_process").spawn(
+      "python3",
+      [
+        "-m",
+        "http.server",
+        "8765",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "app"
+      ],
+      { cwd: ROOT, stdio: "ignore" }
+    );
     let ready = false;
-    for (let i=0;i<50;i++) { if (await available()) {ready=true;break;} await new Promise(resolve=>setTimeout(resolve,50)); }
-    assert.ok(ready,'No se pudo iniciar el servidor de pruebas');
+    for (let i = 0; i < 50; i++) {
+      if (await available()) {
+        ready = true;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    assert.ok(ready, "No se pudo iniciar el servidor de pruebas");
   }
   browser = await chromium.launch({
     executablePath:
       process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || "/usr/bin/chromium",
-    args: ["--no-sandbox"],
+    args: ["--no-sandbox"]
   });
 });
 after(async () => {
@@ -47,7 +80,7 @@ after(async () => {
 });
 beforeEach(async (t) => {
   context = await browser.newContext({
-    viewport: { width: 1280, height: 720 },
+    viewport: { width: 1280, height: 720 }
   });
   t.after(async () => context.close());
   commands = [];
@@ -60,22 +93,22 @@ beforeEach(async (t) => {
           this.sendReadyEvent = () => platformCalls.push("ready");
           this.sendExitEvent = () => platformCalls.push("exit");
           this.runWebBrowser = (url) => platformCalls.push(url);
-        },
-      },
+        }
+      }
     };
   });
   page = await context.newPage();
   await page.clock.install();
   page.on("pageerror", (e) => errors.push(e.message));
   await page.route("**/$MANAGER_WIDGET/**", (r) =>
-    r.fulfill({ status: 200, body: "", contentType: "application/javascript" }),
+    r.fulfill({ status: 200, body: "", contentType: "application/javascript" })
   );
   await page.route("http://192.168.1.249:8080/**", async (r) => {
     commands.push({ method: r.request().method(), url: r.request().url() });
     await r.fulfill({
       status: 200,
       headers: { "Access-Control-Allow-Origin": "*" },
-      body: "<service><state>running</state></service>",
+      body: "<service><state>running</state></service>"
     });
   });
   await page.goto("http://127.0.0.1:8765");
@@ -83,7 +116,8 @@ beforeEach(async (t) => {
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
-  await key(5);
+  await key(29461);
+  await key(29461);
   await key(29443);
   assert.match(await page.locator("#view").innerText(), /Tus aplicaciones/);
   await shot("02-apps");
@@ -117,7 +151,7 @@ test("Una pulsación inicia cada DIAL; doble pulsación en curso no duplica POST
     await r.fulfill({
       status: 201,
       headers: { "Access-Control-Allow-Origin": "*" },
-      body: "",
+      body: ""
     });
   });
   await go("apps");
@@ -134,13 +168,13 @@ test("Una pulsación inicia cada DIAL; doble pulsación en curso no duplica POST
   assert.match(commands[1].url, /\/YouTube$/);
   await key(5);
   await key(29443);
-  assert.match(await page.locator("#dialog").innerText(), /por probar/);
+  assert.match(await page.locator("#dialog").innerText(), /sin soporte nativo/);
   assert.equal(commands.length, 2);
   await shot("13-prime-por-probar");
   await key(88);
-  await click("app-3");
+  await click("app-7");
   assert.ok(
-    (await page.evaluate(() => platformCalls)).includes("https://example.com"),
+    (await page.evaluate(() => platformCalls)).includes("https://example.com")
   );
   assert.deepEqual(errors, []);
 });
@@ -174,16 +208,27 @@ test("Calendario navegable y salvapantallas con reloj móvil", async () => {
   await click("today");
   assert.equal(await page.locator(".page-head h1").innerText(), current);
   await go("saver");
-  const imageSize = await page.evaluate(() => new Promise((resolve,reject) => {var im=new Image();im.onload=()=>resolve([im.naturalWidth,im.naturalHeight]);im.onerror=reject;im.src=AlmaMedia.saver;}));
-  assert.deepEqual(imageSize,[1672,941]);
-  assert.match(await page.locator('#saver-scene').getAttribute('style'),/salvapantallas.png/);
-  assert.equal(await page.locator('#header').isVisible(),false);
+  const imageSize = await page.evaluate(
+    () =>
+      new Promise((resolve, reject) => {
+        var im = new Image();
+        im.onload = () => resolve([im.naturalWidth, im.naturalHeight]);
+        im.onerror = reject;
+        im.src = AlmaMedia.saver;
+      })
+  );
+  assert.deepEqual(imageSize, [1672, 941]);
+  assert.match(
+    await page.locator("#saver-scene").getAttribute("style"),
+    /salvapantallas.png/
+  );
+  assert.equal(await page.locator("#header").isVisible(), false);
   await shot("09-salvapantallas");
   const position = await page.locator("#saver-clock").getAttribute("style");
   await page.clock.fastForward(16000);
   assert.notEqual(
     await page.locator("#saver-clock").getAttribute("style"),
-    position,
+    position
   );
   await key(37);
   assert.ok(await page.locator(".calendar").isVisible());
@@ -210,7 +255,7 @@ test("Búsqueda local, sin resultados, enlaces persistidos y tratamiento seguro 
   await shot("14-enlaces");
   await click("link-0");
   assert.ok(
-    (await page.evaluate(() => platformCalls)).includes("https://example.org/"),
+    (await page.evaluate(() => platformCalls)).includes("https://example.org/")
   );
   await click("remove-0");
   assert.equal(await page.locator('[id^="link-"]').count(), 0);
@@ -242,7 +287,7 @@ test("Calibración global 3 %, 5 %, 8 %, guardado, cancelación y geometría seg
   for (const [percent, scale] of [
     [3, 94],
     [5, 90],
-    [8, 84],
+    [8, 84]
   ]) {
     await go("settings");
     await click("calibrate");
@@ -252,7 +297,7 @@ test("Calibración global 3 %, 5 %, 8 %, guardado, cancelación y geometría seg
     await page.reload();
     assert.match(
       await page.locator("#safe").getAttribute("style"),
-      new RegExp("scale\\(" + scale / 100 + "\\)"),
+      new RegExp("scale\\(" + scale / 100 + "\\)")
     );
     await go("home");
     await shot("overscan-" + percent);
@@ -269,7 +314,7 @@ test("Calibración global 3 %, 5 %, 8 %, guardado, cancelación y geometría seg
       "clock",
       "calendar",
       "network",
-      "weather",
+      "weather"
     ]) {
       await go(view);
       const limit = await page.locator("#view").boundingBox();
@@ -279,22 +324,22 @@ test("Calibración global 3 %, 5 %, 8 %, guardado, cancelación y geometría seg
           nodes.map((n) => {
             const r = n.getBoundingClientRect();
             return { x: r.x, y: r.y, right: r.right, bottom: r.bottom };
-          }),
+          })
         );
       for (const r of boxes) {
         assert.ok(
           r.x >= rect.x - 1 && r.right <= rect.x + rect.width + 1,
-          view + " horizontal bounds",
+          view + " horizontal bounds"
         );
       }
       for (const r of await page
         .locator("#view > .panel")
         .evaluateAll((nodes) =>
-          nodes.map((n) => n.getBoundingClientRect().bottom),
+          nodes.map((n) => n.getBoundingClientRect().bottom)
         )) {
         assert.ok(
           r <= limit.y + limit.height + 1,
-          view + " panel vertical bounds",
+          view + " panel vertical bounds"
         );
       }
     }
@@ -305,7 +350,7 @@ test("Calibración global 3 %, 5 %, 8 %, guardado, cancelación y geometría seg
   await key(88);
   assert.match(
     await page.locator("#safe").getAttribute("style"),
-    /scale\(0.84\)/,
+    /scale\(0.84\)/
   );
   await click("calibrate");
   await shot("12-calibracion");
@@ -324,7 +369,7 @@ test("Diagnóstico obtiene ambos estados y fallos de red no se presentan como é
   await page.waitForTimeout(100);
   assert.match(
     await page.locator("#dial-youtube").innerText(),
-    /Sin respuesta/,
+    /Sin respuesta/
   );
   await go("apps");
   await click("app-0");
@@ -348,15 +393,21 @@ test("Clima exige puente y usa solo datos del proveedor, degrada a Sin datos", a
         temperature: 24.5,
         city: "Ubicación de prueba",
         observed_at: "2026-10-21T12:00",
-        description: "Respuesta de prueba",
-      }),
-    }),
+        description: "Respuesta de prueba"
+      })
+    })
   );
   await click("refresh-weather");
   await page.waitForTimeout(100);
   assert.match(await page.locator("#weather-value").innerText(), /24.5/);
   assert.match(await page.locator("#weather-detail").innerText(), /Open-Meteo/);
-  await go("settings");await click("bridge");await go("weather");assert.equal(await page.locator("#weather-value").innerText(),"Sin datos");await go("settings");await click("bridge");await go("weather");
+  await go("settings");
+  await click("bridge");
+  await go("weather");
+  assert.equal(await page.locator("#weather-value").innerText(), "Sin datos");
+  await go("settings");
+  await click("bridge");
+  await go("weather");
   await page.route("http://192.168.1.30:8088/weather?**", (r) => r.abort());
   await click("refresh-weather");
   await page.waitForTimeout(100);
@@ -374,11 +425,11 @@ test("Foco único y alcanzable tras recorridos largos por todas las vistas", asy
     "calendar",
     "network",
     "weather",
-    "links",
+    "links"
   ]) {
     await go(view);
     for (const k of [
-      40, 40, 39, 39, 39, 39, 39, 38, 37, 37, 38, 38, 38, 40, 40,
+      40, 40, 39, 39, 39, 39, 39, 38, 37, 37, 38, 38, 38, 40, 40
     ]) {
       await key(k);
       assert.equal(await page.locator(".focus").count(), 1);
@@ -387,11 +438,151 @@ test("Foco único y alcanzable tras recorridos largos por todas las vistas", asy
   assert.deepEqual(errors, []);
 });
 
-test('Búsqueda desplaza el foco a enlaces fuera del área visible', async () => {
-  await page.evaluate(() => {var p=JSON.parse(localStorage.getItem('alma.orsay.v7')||'{}');p.links=[];for(var i=0;i<12;i++)p.links.push({name:'Personal '+i,url:'https://example.org/'+i});localStorage.setItem('alma.orsay.v7',JSON.stringify(p));});
-  await page.reload();await go('search');
-  for(let i=0;i<10;i++)await key(40);
-  const focused=await page.locator('.focus').boundingBox();const container=await page.locator('.search-layout').boundingBox();
-  assert.ok(focused.y>=container.y&&focused.y+focused.height<=container.y+container.height+1);
-  assert.deepEqual(errors,[]);
+test("Búsqueda desplaza el foco a enlaces fuera del área visible", async () => {
+  await page.evaluate(() => {
+    var p = JSON.parse(localStorage.getItem("alma.orsay.v7") || "{}");
+    p.links = [];
+    for (var i = 0; i < 12; i++)
+      p.links.push({ name: "Personal " + i, url: "https://example.org/" + i });
+    localStorage.setItem("alma.orsay.v7", JSON.stringify(p));
+  });
+  await page.reload();
+  await go("search");
+  for (let i = 0; i < 10; i++) await key(40);
+  const focused = await page.locator(".focus").boundingBox();
+  const container = await page.locator(".search-layout").boundingBox();
+  assert.ok(
+    focused.y >= container.y &&
+      focused.y + focused.height <= container.y + container.height + 1
+  );
+  assert.deepEqual(errors, []);
+});
+
+test("Xbox selecciona solo el descriptor HDMI 2 real y degrada si falta la API", async () => {
+  await go("apps");
+  await click("app-6");
+  assert.match(await page.locator("#dialog").innerText(), /SOURCE/);
+  await key(88);
+  await page.evaluate(() => {
+    window.sourceCalls = [];
+    window.webapis = {
+      tv: {
+        window: {
+          getAvailableSources: function (ok) {
+            ok([
+              { type: "HDMI", number: 1, id: "one" },
+              { type: "AV", number: 2, id: "av2" },
+              { type: "HDMI", number: 2, id: "hdmi-two" }
+            ]);
+          },
+          setSource: function (source, ok) {
+            sourceCalls.push(source);
+            ok();
+          }
+        }
+      }
+    };
+  });
+  await click("app-6");
+  assert.deepEqual(await page.evaluate(() => sourceCalls), [
+    { type: "HDMI", number: 2, id: "hdmi-two" }
+  ]);
+  assert.match(await page.locator("#toast").innerText(), /aceptó HDMI 2/);
+  await page.evaluate(() => {
+    webapis.tv.window.getAvailableSources = function (ok) {
+      ok([{ type: "HDMI", number: 1 }]);
+    };
+  });
+  await click("app-6");
+  assert.match(await page.locator("#toast").innerText(), /no aparece/);
+  assert.equal(await page.evaluate(() => sourceCalls.length), 1);
+  assert.deepEqual(errors, []);
+});
+test("Reposo no repinta textos sin cambios y el foco no reconstruye las tarjetas", async () => {
+  await page.clock.setFixedTime(new Date("2026-10-21T12:20:10Z"));
+  await page.waitForTimeout(1100);
+  await page.evaluate(() => {
+    window.mutations = 0;
+    window.viewReplacements = 0;
+    new MutationObserver((records) => {
+      mutations += records.length;
+      for (const r of records) {
+        if (
+          r.type === "childList" &&
+          r.target === document.getElementById("view")
+        )
+          viewReplacements++;
+      }
+    }).observe(document.getElementById("safe"), {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      characterData: true
+    });
+  });
+  await page.clock.runFor(3000);
+  assert.equal(await page.evaluate(() => mutations), 0);
+  await key(39);
+  await key(40);
+  for (let i = 0; i < 30; i++) await key(i % 2 ? 37 : 39);
+  assert.equal(await page.evaluate(() => viewReplacements), 0);
+  assert.equal(await page.locator(".focus").count(), 1);
+  assert.deepEqual(errors, []);
+});
+test("Salvapantallas ordenado con fecha, ciudad, clima real e icono, sin recuadro negro", async () => {
+  await go("saver");
+  assert.match(await page.locator(".saver-location").innerText(), /Tuxtla/);
+  assert.match(await page.locator(".saver-date").innerText(), /2026/);
+  assert.equal(await page.locator(".saver-weather img").count(), 1);
+  assert.equal(
+    await page
+      .locator("#saver-clock")
+      .evaluate((n) => getComputedStyle(n).backgroundColor),
+    "rgba(0, 0, 0, 0)"
+  );
+  assert.match(await page.locator(".saver-weather").innerText(), /Sin datos/);
+  const first = await page.locator("#saver-clock").getAttribute("style");
+  await page.clock.fastForward(16000);
+  assert.notEqual(
+    await page.locator("#saver-clock").getAttribute("style"),
+    first
+  );
+  await go("settings");
+  await click("bridge");
+  await page.route("http://192.168.1.30:8088/weather?**", (r) =>
+    r.fulfill({
+      status: 200,
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({
+        temperature: 24.5,
+        city: "Tuxtla (respuesta de prueba)",
+        observed_at: "2026-10-21T12:00",
+        description: "Despejado (prueba)",
+        code: 0,
+        is_day: 1
+      })
+    })
+  );
+  await go("saver");
+  await page.waitForTimeout(100);
+  await page.clock.runFor(1100);
+  assert.match(await page.locator(".saver-weather").innerText(), /24.5/);
+  assert.match(
+    await page.locator(".saver-weather img").getAttribute("src"),
+    /sun.png/
+  );
+  await shot("17-salvapantallas-clima-respuesta-de-prueba");
+  assert.deepEqual(errors, []);
+});
+
+test("El puente del clima no desvía ni rompe los lanzamientos DIAL directos", async () => {
+  await go("settings");
+  await click("bridge");
+  await go("apps");
+  await click("app-0");
+  await page.waitForTimeout(100);
+  assert.equal(commands.length, 1);
+  assert.match(commands[0].url, /192\.168\.1\.249:8080\/ws\/app\/Netflix$/);
+  assert.equal(commands[0].method, "POST");
+  assert.deepEqual(errors, []);
 });
