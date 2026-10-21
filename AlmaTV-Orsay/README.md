@@ -210,3 +210,14 @@ mostrarlo. En otras páginas se cierra. Conserva los controles oficiales de YouT
 Actualiza tanto el puente de la Mac como el widget (Alma TV 8.4.0, ID AlmaTV84).
 Los enlaces guardados en la Mac se conservan; la nueva identidad del widget evita
 confundir la actualización con una copia anterior almacenada por el televisor.
+
+
+### Versión 8.5.0: YouTube grande y persistente
+
+Corrige el cuadro pequeño informado en 8.4 con dimensiones numéricas en ambas
+capas del iframe y un área grande a todo el ancho. Inicio permite elegir enlaces
+de YouTube directamente y enfoca el video en reproducción. Al desplazarse o
+navegar por otras secciones internas, el mismo video continúa visible en una
+ventana fija 16:9. Abrir apps nativas, salir, ocultar el documento, iniciar un
+archivo propio o entrar en salvapantallas/calibración detiene YouTube. Los diálogos
+lo pausan. Actualiza puente y widget; abre Alma TV 8.5.0 (ID AlmaTV85).

@@ -580,7 +580,10 @@ var Alma = (function () {
     }
     row(ids);
     h += '</div></div></section><section class="home-now"><h2 class="section-title">En reproducción</h2><div id="home-player" class="home-player" tabindex="0" role="region" aria-label="En reproducción"><div class="home-audio"><span class="media-eq"><b></b><b></b><b></b></span><h3 id="home-media-title"></h3><p id="home-media-state"></p></div></div></section><section class="home-tools"><h2 class="section-title">Herramientas</h2><div class="row">';
+    actions["home-player"] = function () { go(youtubeLoaded ? "youtube" : (AlmaPlayer.snapshot().index >= 0 ? "media" : "youtube-list")); };
     row(["home-player"]);
+    h = h.replace('</section><section class="home-tools">', '<div class="home-youtube-actions">' + pill("home-youtube", "Elegir video de YouTube", function () { go("youtube-list"); }) + '</div></section><section class="home-tools">');
+    row(["home-youtube"]);
     ids = [];
     var order = [0, 5, 2, 4, 1, 3],
       symbols = ["◷", "◴", "▤", "▧", "⌁", "☁"];
@@ -1123,30 +1126,50 @@ var Alma = (function () {
   function closeYoutube() {
     AlmaYouTube.close();
     youtubeLoaded = "";
-    youtubeOffscreen = false;
+    el("safe").setAttribute("data-youtube", "none");
     if (youtubeFull) youtubeFullscreen(false);
   }
-  var youtubeOffscreen = false;
   function updateYoutube() {
     var value = AlmaYouTube.snapshot(), host = el("youtube-host"), slot = el(state.view === "home" ? "home-player" : "youtube-slot");
     htmlIfChanged(el("youtube-state"), esc(value.status));
     if (value.title) htmlIfChanged(el("youtube-title"), esc(value.title));
-    if (!youtubeFull && (state.view === "youtube" || state.view === "home") && slot && youtubeLoaded) {
-      var box = slot.getBoundingClientRect(), safeBox = el("stage").getBoundingClientRect();
-      var scale = el("stage").offsetWidth / safeBox.width;
-      var width = Math.min(box.width, box.height * 16 / 9), height = width * 9 / 16;
-      var left = box.left + (box.width - width) / 2, top = box.top + (box.height - height) / 2;
-      host.style.left = (left - safeBox.left) * scale + "px";
-      host.style.top = (top - safeBox.top) * scale + "px";
-      host.style.width = width * scale + "px";
-      host.style.height = height * scale + "px";
-      var viewport = el("view").getBoundingClientRect();
-      var clipTop = state.view === "home" ? Math.max(0, Math.min(height, viewport.top - top)) : 0;
-      var clipBottom = state.view === "home" ? Math.max(clipTop, Math.min(height, viewport.bottom - top)) : height;
-      host.style.clip = "rect(" + clipTop * scale + "px," + width * scale + "px," + clipBottom * scale + "px,0px)";
-      if (clipBottom <= clipTop && value.state === 1 && !youtubeOffscreen) { youtubeOffscreen = true; AlmaYouTube.send("pause"); }
-      else if (clipBottom > clipTop && youtubeOffscreen) { youtubeOffscreen = false; AlmaYouTube.send("play"); }
+    if (!youtubeLoaded) return;
+    host.style.visibility = modal ? "hidden" : "visible";
+    var stageBox = el("stage").getBoundingClientRect();
+    var scale = el("stage").offsetWidth / stageBox.width;
+    if (youtubeFull) { AlmaYouTube.resize(1280, 720); return; }
+    var width, height, left, top, dock = !slot;
+    if (slot) {
+      slot.style.height = slot.offsetWidth * 9 / 16 + "px";
+      var box = slot.getBoundingClientRect(), viewport = el("view").getBoundingClientRect();
+      width = box.width * scale; height = width * 9 / 16;
+      left = (box.left - stageBox.left) * scale;
+      top = (box.top - stageBox.top) * scale;
+      // Keep the complete official player visible; never crop its controls.
+      if (box.top < viewport.top - 1 || box.top + height / scale > viewport.bottom + 1) dock = true;
     }
+    if (dock) { width = 416; height = 234; left = 824; top = 434; }
+    el("safe").setAttribute("data-youtube", dock ? "docked" : "large");
+    host.style.clip = "";
+    host.style.left = left + "px"; host.style.top = top + "px";
+    host.style.width = width + "px"; host.style.height = height + "px";
+    AlmaYouTube.resize(width, height);
+  }
+  function youtubeList() {
+    var h = head("TUS ENLACES", "Videos de YouTube", "Guarda enlaces desde la Mac. Selecciona un video y pulsa Reproducir.");
+    h += pill("youtube-list-refresh", "Actualizar enlaces de la Mac", function () { loadMacYoutube(false); }) +
+      pill("youtube-list-add", "Pegar enlace", function () { editor("youtubeUrl", "Pega un enlace de YouTube", "", "text"); });
+    row(["youtube-list-refresh", "youtube-list-add"]);
+    h += '<p id="mac-links-state">' + esc(macLinksState) + '</p><div class="youtube-saved">';
+    var items = macYoutubeLinks.concat(prefs.youtubeLinks);
+    for (var i = 0; i < items.length; i++) {
+      (function (item, index) {
+        h += button("youtube-saved-" + index, item.name, "Abrir en el reproductor", function () { openYoutube(item); }, "card media-item") + "<br>";
+        row(["youtube-saved-" + index]);
+      })(items[i], i);
+    }
+    if (!items.length) h += '<p>Añade tus enlaces en http://' + esc(prefs.macIp) + ':8088/enlaces o usa Pegar enlace.</p>';
+    return h + "</div>";
   }
   function openYoutube(item) {
     youtubeSelection = item;
@@ -1165,7 +1188,9 @@ var Alma = (function () {
   function youtubeView() {
     var h = head("YOUTUBE INTEGRADO · EXPERIMENTAL", youtubeSelection ? youtubeSelection.name : "YouTube", "Reproductor oficial · requiere el puente actualizado e internet en la TV.");
     h = h.replace("<h1>", '<h1 id="youtube-title">');
-    h += '<div id="youtube-slot"></div><p id="youtube-state" class="youtube-state"></p><div class="youtube-controls">';
+    h += '<div id="youtube-slot" tabindex="0" role="region" aria-label="Video de YouTube: Aceptar reproduce o pausa"></div><p id="youtube-state" class="youtube-state"></p><div class="youtube-controls">';
+    actions["youtube-slot"] = function () { AlmaYouTube.send("toggle"); };
+    row(["youtube-slot"]);
     var controls = [
       ["youtube-play", "Reproducir", function () { AlmaYouTube.send("play"); }],
       ["youtube-pause", "Pausar", function () { AlmaYouTube.send("pause"); }],
@@ -1178,7 +1203,7 @@ var Alma = (function () {
       h += pill(controls[i][0], controls[i][1], controls[i][2]); ids.push(controls[i][0]);
     }
     row(ids);
-    h += '</div><div class="youtube-options">' + pill("youtube-native", "Abrir app de YouTube", function () { launch(apps[1]); }) + pill("youtube-return", "Volver a Multimedia", function () { go("media"); }) + '</div>';
+    h += '</div><div class="youtube-options">' + pill("youtube-native", "Abrir app de YouTube", function () { launch(apps[1]); }) + pill("youtube-return", "Volver a Multimedia", function () { if (!AlmaYouTube.snapshot().ready) closeYoutube(); go("media"); }) + '</div>';
     row(["youtube-native", "youtube-return"]);
     return h;
   }
@@ -1208,6 +1233,7 @@ var Alma = (function () {
   function updatePlayer() {
     if (typeof AlmaPlayer === "undefined") return;
     var player = AlmaPlayer.snapshot();
+    if (player.playing && youtubeLoaded) closeYoutube();
     if (videoFull && (state.view !== "media" || player.kind !== "video" || player.index < 0)) fullscreenVideo(false);
     var playing = player.playing ? "true" : "false";
     if (el("safe").getAttribute("data-playing") !== playing)
@@ -1229,7 +1255,7 @@ var Alma = (function () {
       player.kind === "video" && player.index >= 0 ? "block" : "none";
     el("media-video").style.visibility = state.view === "media" || state.view === "home" ? "visible" : "hidden";
     var active = player.index >= 0;
-    if (state.view === "home" && youtubeLoaded) {
+    if (youtubeLoaded) {
       el("media-video").style.visibility = "hidden";
       el("safe").setAttribute("data-home-media", "youtube");
       updateYoutube();
@@ -1283,7 +1309,7 @@ var Alma = (function () {
       } catch (e) {
         macLinksState = "No se pudo actualizar la lista de la Mac. Comprueba el puente actualizado. Los enlaces anteriores pueden estar desactualizados.";
       }
-      if (changed && state.view === "media" && !modal) render();
+      if (changed && (state.view === "media" || state.view === "youtube-list") && !modal) render();
       else htmlIfChanged(el("mac-links-state"), esc(macLinksState));
       if (!silent && !success) notice("No se pudo actualizar la lista. Comprueba el puente de la Mac.");
       if (!silent && success && state.view === "media" && !modal) {
@@ -1337,10 +1363,11 @@ var Alma = (function () {
   }
   function mediaView() {
     var player = AlmaPlayer.snapshot();
+    if (player.playing && youtubeLoaded) closeYoutube();
     var h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor · Alma TV 8.3.1",
+        "Tu reproductor · Alma TV 8.5.0",
         "Archivos propios, enlaces directos y YouTube integrado experimental mediante el puente de la Mac."
       ) +
       '<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +
@@ -1447,7 +1474,8 @@ var Alma = (function () {
     return h + "</div>";
   }
   function render() {
-    if (state.view !== "youtube" && state.view !== "home") closeYoutube();
+    if (state.view === "saver" || state.view === "calibrate") closeYoutube();
+    if (youtubeFull && state.view !== "youtube") youtubeFullscreen(false);
     rows = [];
     actions = {};
     nav();
@@ -1462,6 +1490,9 @@ var Alma = (function () {
         break;
       case "media":
         h = mediaView();
+        break;
+      case "youtube-list":
+        h = youtubeList();
         break;
       case "youtube":
         h = youtubeView();
@@ -1512,9 +1543,9 @@ var Alma = (function () {
     }
     el("safe").setAttribute("data-view", state.view);
     syncBackgrounds();
-    el("view").className = state.view === "saver" ? "saver-view" : state.view === "home" ? "home-scroll" : "";
+    el("view").className = state.view === "saver" ? "saver-view" : (state.view === "home" ? "home-scroll" : "content-scroll");
     if (viewChanged) el("view").scrollTop = 0;
-    el("view").onscroll = function () { if (state.view === "home") updatePlayer(); };
+    el("view").onscroll = function () { if (state.view === "home") updatePlayer(); else if (youtubeLoaded) updateYoutube(); };
     el("header").style.display = state.view === "saver" ? "none" : "block";
     el("footer").style.display = state.view === "saver" ? "none" : "block";
     el("view").innerHTML =
@@ -1525,6 +1556,9 @@ var Alma = (function () {
       '">' +
       h +
       "</div>";
+    var surface = el("view").firstChild;
+    surface.addEventListener("animationend", updateYoutube, false);
+    surface.addEventListener("webkitAnimationEnd", updateYoutube, false);
     if (state.view === "media" && el("view").querySelector(".media-list")) el("view").querySelector(".media-list").scrollTop = previousMediaScroll;
     lastRenderedView = state.view;
     if (
@@ -1550,6 +1584,11 @@ var Alma = (function () {
       setTimeout(function () { if (state.view === "youtube") updateYoutube(); }, 250);
     }
     tick();
+    if (viewChanged && state.view === "youtube-list") loadMacYoutube(true);
+    if (youtubeLoaded) updateYoutube();
+    if (viewChanged && state.view === "home" && youtubeLoaded) {
+      for (var homeRow = 0; homeRow < rows.length; homeRow++) if (rows[homeRow][0] === "home-player") { state.row = homeRow; state.col = 0; break; }
+    }
     if (!modal) focus();
   }
   function focusedId() {
@@ -1600,7 +1639,7 @@ var Alma = (function () {
         }
         parent = parent.parentNode;
       }
-      if (state.view === "home" && el("view").contains(target)) {
+      if (el("view").contains(target)) {
         var viewport = el("view"), visible = viewport.getBoundingClientRect();
         var bounds = target.getBoundingClientRect();
         var ratio = viewport.offsetHeight / visible.height;
@@ -1608,6 +1647,7 @@ var Alma = (function () {
         else if (bounds.top < visible.top) viewport.scrollTop -= (visible.top - bounds.top) * ratio + 8;
         else if (bounds.bottom > visible.bottom) viewport.scrollTop += (bounds.bottom - visible.bottom) * ratio + 8;
         updatePlayer();
+        if (youtubeLoaded) updateYoutube();
       }
     }
   }
@@ -1640,6 +1680,7 @@ var Alma = (function () {
     render();
   }
   function showDialog(title, body, buttons) {
+    if (youtubeLoaded) { AlmaYouTube.send("pause"); el("youtube-host").style.visibility = "hidden"; }
     modal = { state: copy(state), rows: rows, actions: actions };
     rows = [];
     actions = {};
@@ -1694,6 +1735,7 @@ var Alma = (function () {
   }
   function editor(field, title, value, type) {
     edit = { field: field, value: String(value), type: type, title: title };
+    if (youtubeLoaded) { AlmaYouTube.send("pause"); el("youtube-host").style.visibility = "hidden"; }
     modal = { state: copy(state), rows: rows, actions: actions };
     state = { view: state.view, row: 0, col: 0 };
     drawEditor();
@@ -2223,7 +2265,7 @@ var Alma = (function () {
     );
   }
   function tick() {
-    if (state.view === "media" && !modal && (macLinksHost !== prefs.macIp || new Date().getTime() - macLinksLast >= 15000)) loadMacYoutube(true);
+    if ((state.view === "media" || state.view === "youtube-list") && !modal && (macLinksHost !== prefs.macIp || new Date().getTime() - macLinksLast >= 15000)) loadMacYoutube(true);
     htmlIfChanged(el("time"), time());
     updateNetwork();
     if (timer.running && timerLeft() <= 0) {

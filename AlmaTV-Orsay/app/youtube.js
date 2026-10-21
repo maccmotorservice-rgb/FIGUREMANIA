@@ -22,6 +22,13 @@ var AlmaYouTube = (function () {
     if (!frame || !frame.contentWindow) return;
     frame.contentWindow.postMessage(JSON.stringify({ channel: "alma-youtube", token: token, command: command }), base);
   }
+  function resize(width, height) {
+    if (!frame || !frame.contentWindow) return;
+    width = Math.round(width); height = Math.round(height);
+    frame.width = width; frame.height = height;
+    frame.style.width = width + "px"; frame.style.height = height + "px";
+    frame.contentWindow.postMessage(JSON.stringify({ channel: "alma-youtube", token: token, command: "resize", width: width, height: height }), base);
+  }
   function receive(event) {
     if (!frame || event.source !== frame.contentWindow || event.origin !== base) return;
     var data;
@@ -65,5 +72,5 @@ var AlmaYouTube = (function () {
   }
   function init() { window.addEventListener("message", receive, false); }
   function destroy() { close(); window.removeEventListener("message", receive, false); }
-  return { init: init, destroy: destroy, parseUrl: parseUrl, open: open, close: close, send: send, snapshot: snapshot };
+  return { init: init, destroy: destroy, parseUrl: parseUrl, open: open, close: close, send: send, resize: resize, snapshot: snapshot };
 })();

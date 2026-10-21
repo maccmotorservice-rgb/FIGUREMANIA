@@ -44,9 +44,12 @@ app nativa funcione no demuestra que el reproductor web actual lo haga.
   branding ni opciones del reproductor. El área visible es mayor de 200×200.
 - Los controles de Alma TV envían comandos a la API. Pantalla completa amplía el
   mismo iframe: no lo mueve de padre ni lo recarga. Volver lo reduce.
-- Al salir de esta pantalla, ocultarse el documento o abrir una app nativa, se
-  destruye el iframe. **YouTube no continúa en Inicio ni en segundo plano.** Los
-  archivos propios conservan la reproducción y el Inicio que ya funcionan.
+- Desde 8.5, navegar por secciones internas conserva el mismo iframe visible:
+  grande en Inicio/reproductor o en una ventana fija al desplazarse. Nunca se
+  recortan los controles oficiales. No se ofrece reproducción invisible de YouTube.
+  Abrir una app nativa, ocultar el documento, entrar en salvapantallas/calibración
+  o iniciar un archivo propio detiene YouTube. Un diálogo pausa y oculta la ventana
+  temporalmente; al volver se puede continuar con Reproducir.
 - Un vídeo privado, eliminado o con embedding desactivado puede fallar aunque
   otro funcione. Los errores 2, 5, 100, 101, 150 y 153 tienen explicación visible.
   Si el proveedor bloquea autoplay se indica que requiere interacción.
@@ -156,3 +159,22 @@ reaparecer continúa. Las demás vistas cierran YouTube. Las pruebas automatizad
 comprueban geometría, identidad del iframe y pausa/continuación con API simulada.
 El propietario confirmó reproducción real antes de este cambio; la nueva
 geometría todavía debe comprobarse en el televisor.
+
+
+## 8.5.0: ventana persistente y selección desde Inicio
+
+El propietario informó que 8.4 reproducía en un cuadro pequeño y desaparecía al
+navegar. Las pruebas anteriores de contenedor 16:9 no verificaban dimensiones
+explícitas del iframe oficial ni continuidad entre todas las secciones.
+Ahora se envían medidas numéricas validadas por postMessage al documento del
+puente, además de establecer width/height y estilos en ambas capas. Se conserva
+la API oficial y el mismo iframe al ampliar, reducir y navegar.
+El video ocupa el ancho disponible; Inicio enfoca «En reproducción» automáticamente.
+Cuando el área grande sale de vista se usa una ventana fija 416×234 (16:9), sin
+pausar ni recargar. En otras secciones se reserva espacio bajo el contenido para
+esa ventana. Inicio ofrece «Elegir video de YouTube» con la lista de la Mac y
+opción de pegar un enlace desde la TV. La lista se actualiza sin reinstalar.
+Las pruebas verifican ambos iframes, sesión/estado al navegar, salida desde
+pantalla completa, ausencia de solapamiento con el contenido en las otras vistas
+y selección desde Inicio. La API se simula; el aspecto en Orsay requiere comprobación
+física tras instalar 8.5.0 y actualizar el puente.

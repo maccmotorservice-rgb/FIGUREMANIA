@@ -1879,3 +1879,18 @@ body,
 
 .mac-links-heading { font-size: 16px; margin: 16px 4px 8px; color: #153f3d; }
 .mac-links-state { font-size: 12px; line-height: 1.5; margin: 6px 4px 12px; color: #52756a; }
+
+/* Explicit 16:9 dimensions are sent through both iframe layers for legacy WebKit. */
+#youtube-host { z-index: 12; }
+#youtube-slot { height: 548px; }
+#safe[data-home-media="youtube"] .home-player { height: 548px; background: #000; }
+#view.content-scroll { overflow-y: auto; overflow-x: hidden; }
+#safe[data-youtube="docked"]:not([data-view="youtube"]) #view.content-scroll { height: 300px; }
+.home-youtube-actions { margin: 10px 0; }
+.youtube-saved .card { width: 90%; margin: 5px 0; }
+
+#safe[data-view="youtube"] .page-head { margin: 0 0 8px; }
+#safe[data-view="youtube"] .page-head h1 { font-size: 20px; line-height: 26px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#safe[data-view="youtube"] .page-head .eyebrow,
+#safe[data-view="youtube"] .page-head p { display: none; }
+#youtube-slot.focus { outline: 3px solid #438d80; outline-offset: -3px; }

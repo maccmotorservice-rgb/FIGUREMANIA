@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="8.4.0"'))
+      if (!html.includes('name="alma-build" content="8.5.0"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -117,7 +117,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /8\.4\.0/);
+  assert.match(await page.locator(".brand").innerText(), /8\.5\.0/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -1020,6 +1020,9 @@ test("YouTube integrado: enlace guardado, controles y pantalla completa sin reca
   assert.ok(Math.abs(box.width / box.height - 16 / 9) < 0.02);
   assert.equal(await page.locator("#safe").getAttribute("data-home-media"),"youtube");
   await go("apps");
+  assert.equal(await page.locator("#youtube-frame").getAttribute("data-test-identity"),"same-frame");
+  assert.equal(await page.evaluate(() => AlmaYouTube.snapshot().state),1);
+  await go("saver");
   assert.equal(await page.locator("#youtube-frame").count(),0);
   await page.reload();
   await go("media");
@@ -1238,5 +1241,67 @@ test("La prueba directa permite pulsación real sin el widget intermedio (API si
   assert.equal(await page.evaluate(() => testYoutube.activation),true);
   await page.locator("#direct-pause").click();
   assert.match(await page.locator("#status").innerText(),/En pausa/);
+  assert.deepEqual(errors,[]);
+});
+
+
+test("YouTube grande: dimensiones explícitas en ambas capas y ventana fija sin pausas al navegar (API simulada)", async () => {
+  await officialYouTubeFixture();
+  await savedYouTube();
+  await page.locator(".page-surface").evaluate(n => n.classList.remove("page-enter"));
+  await page.locator("#youtube-slot").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(100);
+  const frame = page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
+  await page.locator("#youtube-frame").evaluate(n => { n.dataset.identity="persistent-85"; });
+  const large = await page.locator("#youtube-host").boundingBox();
+  assert.ok(large.width >= 800 && large.height >= 450, JSON.stringify(large));
+  assert.ok(Math.abs(large.width/large.height-16/9)<0.02);
+  const outer = await page.locator("#youtube-frame").evaluate(n => [Number(n.width),Number(n.height)]);
+  const inner = await frame.locator("#surface iframe").evaluate(n => [Number(n.width),Number(n.height)]);
+  assert.ok(outer[0]>=800 && inner[0]>=800);
+  assert.ok(Math.abs(inner[0]/inner[1]-16/9)<0.02);
+  await click("youtube-play");
+  await page.waitForFunction(() => AlmaYouTube.snapshot().state===1);
+  for (const view of ["home","apps","settings","media","home"]) {
+    await go(view);
+    assert.equal(await page.locator("#youtube-frame").getAttribute("data-identity"),"persistent-85");
+    assert.equal(await page.evaluate(() => AlmaYouTube.snapshot().state),1);
+    if (view!=="home") {
+      assert.equal(await page.locator("#safe").getAttribute("data-youtube"),"docked");
+      const video = await page.locator("#youtube-host").boundingBox();
+      const content = await page.locator("#view").boundingBox();
+      assert.ok(video.y >= content.y + content.height, JSON.stringify({video,content}));
+    }
+  }
+  await page.locator("#view").evaluate(n => { n.scrollTop=0; n.dispatchEvent(new Event("scroll")); });
+  assert.equal(await page.locator("#safe").getAttribute("data-youtube"),"docked");
+  assert.equal(await page.evaluate(() => AlmaYouTube.snapshot().state),1);
+  await page.locator("#home-player").scrollIntoViewIfNeeded();
+  await page.locator("#view").evaluate(n => n.dispatchEvent(new Event("scroll")));
+  assert.equal(await page.locator("#safe").getAttribute("data-youtube"),"large");
+  assert.equal(await frame.evaluate(() => testYoutube.pause),0);
+  await page.evaluate(() => Alma.go("youtube"));
+  await click("youtube-full");
+  await page.waitForFunction(() => document.getElementById("youtube-frame").width==="1280");
+  assert.deepEqual(await frame.locator("#surface iframe").evaluate(n => [n.width,n.height]),["1280","720"]);
+  await key(20);
+  assert.equal(await page.locator("#youtube-host").getAttribute("class"),"");
+  assert.equal(await page.locator("#youtube-frame").getAttribute("data-identity"),"persistent-85");
+  assert.deepEqual(errors,[]);
+});
+
+test("Inicio permite elegir los enlaces de YouTube de la Mac sin pasar por Multimedia (API simulada)", async () => {
+  await page.route("http://192.168.1.30:8088/youtube/library", r => r.fulfill({status:200,contentType:"application/json",body:JSON.stringify({items:[{id:"M7lc1UVf-VE",name:"Mi video desde Inicio"}]})}));
+  await officialYouTubeFixture();
+  await click("home-youtube");
+  await page.locator("#youtube-saved-0").waitFor();
+  assert.match(await page.locator("#youtube-saved-0").innerText(),/Mi video desde Inicio/);
+  await click("youtube-saved-0");
+  await page.waitForFunction(() => AlmaYouTube.snapshot().ready);
+  await click("youtube-play");
+  await page.waitForFunction(() => AlmaYouTube.snapshot().state===1);
+  await key(20);
+  assert.equal(await page.locator("#safe").getAttribute("data-view"),"home");
+  assert.equal(await page.locator("#youtube-frame").count(),1);
   assert.deepEqual(errors,[]);
 });
