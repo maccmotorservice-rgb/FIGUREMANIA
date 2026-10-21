@@ -1828,3 +1828,18 @@ body,
 }
 .nav{font-size:14px}
 .media-item{background:#f9fdfc;border-color:#c9dfda;color:#153f3d}.media-item small{color:#52756a}.media-item.focus{background:#d9efe9;border-color:#438d80}.media-item strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+#media-video.video-full {
+  left: 0; top: 0; width: 1280px; height: 720px;
+  z-index: 100; background: #000; object-fit: contain;
+}
+#video-help {
+  position: absolute; left: 200px; right: 200px; bottom: 24px;
+  z-index: 101; color: #fff; background: rgba(0,0,0,.65);
+  text-align: center; padding: 10px; border-radius: 8px; font-size: 17px;
+}
+
+#media-video { height: 260px; }
+.media-stage { height: 294px; }
+#media-video.video-full { height: 720px; }
+.media-controls .pill { padding: 8px 10px; font-size: 16px; }

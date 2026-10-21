@@ -31,7 +31,8 @@ var Alma = (function () {
     focusedNode = null,
     lastRenderedView = null,
     heroIndex = 0,
-    sidebarIndex = 0;
+    sidebarIndex = 0,
+    videoFull = false;
   var net = { YouTube: "Sin comprobar", Netflix: "Sin comprobar" },
     query = "",
     edit = null,
@@ -1130,9 +1131,28 @@ var Alma = (function () {
     seconds = Math.max(0, Math.floor(seconds || 0));
     return pad(Math.floor(seconds / 60)) + ":" + pad(seconds % 60);
   }
+  function fullscreenVideo(enabled) {
+    var video = el("media-video"), player = AlmaPlayer.snapshot();
+    if (enabled && (player.kind !== "video" || player.index < 0)) {
+      notice("Primero selecciona un vídeo de la lista.");
+      return;
+    }
+    var resume = !video.paused;
+    videoFull = enabled;
+    el(enabled ? "stage" : "safe").appendChild(video);
+    video.className = enabled ? "video-full" : "";
+    if (resume && typeof video.play === "function") {
+      try {
+        var result = video.play();
+        if (result && result.catch) result.catch(function () {});
+      } catch (e) {}
+    }
+    el("video-help").style.display = enabled ? "block" : "none";
+  }
   function updatePlayer() {
     if (typeof AlmaPlayer === "undefined") return;
     var player = AlmaPlayer.snapshot();
+    if (videoFull && (state.view !== "media" || player.kind !== "video" || player.index < 0)) fullscreenVideo(false);
     var playing = player.playing ? "true" : "false";
     if (el("safe").getAttribute("data-playing") !== playing)
       el("safe").setAttribute("data-playing", playing);
@@ -1147,8 +1167,6 @@ var Alma = (function () {
       el("media-volume"),
       "Volumen: " + Math.round(player.volume * 100) + " %"
     );
-    if (state.view !== "media" && player.kind === "video" && player.playing)
-      AlmaPlayer.pause();
     el("media-video").style.display =
       state.view === "media" && player.kind === "video" && player.index >= 0
         ? "block"
@@ -1231,14 +1249,16 @@ var Alma = (function () {
       pill("media-forward", "+10 s", function () {
         AlmaPlayer.seek(10);
       }) +
-      pill("media-stop", "Detener", AlmaPlayer.stop);
+      pill("media-stop", "Detener", AlmaPlayer.stop) +
+      pill("media-fullscreen", "Pantalla completa", function () { fullscreenVideo(true); });
     row([
       "media-prev",
       "media-play",
       "media-next",
       "media-back",
       "media-forward",
-      "media-stop"
+      "media-stop",
+      "media-fullscreen"
     ]);
     h +=
       '</div><div class="media-actions">' +
@@ -1439,6 +1459,7 @@ var Alma = (function () {
     if (view === "saver" && prefs.bridge && prefs.city) getWeather(true);
   }
   function back() {
+    if (videoFull) { fullscreenVideo(false); return; }
     if (modal) {
       closeDialog();
       return;
@@ -2110,6 +2131,14 @@ var Alma = (function () {
         return true;
       }
       return false;
+    }
+    if (videoFull) {
+      if (k === "back" || k === "exit") fullscreenVideo(false);
+      else if (k === "ok") AlmaPlayer.toggle();
+      else if (k === "left") AlmaPlayer.seek(-10);
+      else if (k === "right") AlmaPlayer.seek(10);
+      else if (k === "home" || k === "settings") { fullscreenVideo(false); go(k === "home" ? "home" : "settings"); }
+      return true;
     }
     if (k === "exit") {
       exit();

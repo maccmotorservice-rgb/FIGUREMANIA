@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="7.2.0"'))
+      if (!html.includes('name="alma-build" content="7.2.1"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -831,6 +831,13 @@ test("El reproductor reproduce video MP4 real con sus controles", async () => {
     { timeout: 5000 }
   );
   assert.equal(await page.locator("#media-video").isVisible(), true);
+  await click("media-fullscreen");
+  assert.equal(await page.locator("#media-video").evaluate(n => n.getBoundingClientRect().width), 1280);
+  await key(88);
+  assert.equal(await page.locator("#media-video").evaluate(n => n.className), "");
+  await go("home");
+  assert.equal(await page.locator("#media-video").evaluate(n => n.paused), false);
+  await go("media");
   await click("media-play");
   assert.equal(
     await page.locator("#media-video").evaluate((n) => n.paused),

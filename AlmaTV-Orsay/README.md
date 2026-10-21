@@ -117,3 +117,23 @@ PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="/Applications/Google Chrome.app/Contents/Ma
 El runner utiliza `.preview/app`, extraído del ZIP real, y un servidor local con solicitudes Range. Las pruebas nunca contactan la TV. Fuentes legibles en UTF-8; distribución HTML/CSS/JS segura para el motor antiguo; sin dependencias de ejecución ni CDN en el widget.
 
 Consulta [LIMITACIONES.md](LIMITACIONES.md), [VALIDACION.md](docs/VALIDACION.md), [RENDIMIENTO.md](docs/RENDIMIENTO.md), [LOGOTIPOS.md](docs/LOGOTIPOS.md) y [PRUEBA_TV.md](docs/PRUEBA_TV.md). La lentitud general del televisor no se repara borrando componentes desde este widget: reinicia completamente primero y revisa solo apps opcionales desde menús oficiales con el propietario.
+
+### Reproductor 7.2.1 y puente sin Terminal
+
+El reproductor ampliado ofrece **Pantalla completa**. Aceptar pausa/reanuda,
+izquierda/derecha buscan diez segundos y Volver reduce el vídeo sin detenerlo.
+La imagen respeta su proporción (puede mostrar bandas). Al navegar a Inicio o
+Apps continúa el audio; abrir una app nativa o cambiar HDMI pausa la reproducción.
+
+En la Mac, detén primero el puente manual con Ctrl+C. Ejecuta sin sudo:
+
+```sh
+python3 configurar_puente_mac.py --bind 192.168.1.30 --tv 192.168.1.249
+```
+
+Instala un LaunchAgent del usuario, copia el puente a Application Support y
+arranca al iniciar sesión, sin Terminal abierta. No evita el reposo de la Mac.
+Necesita Python instalado; no eliminar esa instalación. Registros en
+`~/Library/Logs/AlmaTV`. Si cambia la IP, ejecuta de nuevo con la nueva dirección.
+Para desactivarlo: `python3 configurar_puente_mac.py --remove`.
+El funcionamiento de launchd y pantalla completa en Orsay requiere prueba física.
