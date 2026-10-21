@@ -309,6 +309,7 @@ var Alma = (function () {
     var transform = "scale(" + width / 1280 + "," + height / 720 + ")";
     el("stage").style.webkitTransform = transform;
     el("stage").style.transform = transform;
+    if (youtubeLoaded) updateYoutube();
   }
   function syncBackgrounds() {
     var saver = state.view === "saver",
@@ -1121,7 +1122,7 @@ var Alma = (function () {
     host.style.clip = "";
     host.style.left = ""; host.style.top = "";
     host.style.width = ""; host.style.height = "";
-    if (!enabled) updateYoutube();
+    updateYoutube();
   }
   function closeYoutube() {
     AlmaYouTube.close();
@@ -1135,24 +1136,36 @@ var Alma = (function () {
     if (value.title) htmlIfChanged(el("youtube-title"), esc(value.title));
     if (!youtubeLoaded) return;
     host.style.visibility = modal ? "hidden" : "visible";
-    var stageBox = el("stage").getBoundingClientRect();
-    var scale = el("stage").offsetWidth / stageBox.width;
-    if (youtubeFull) { AlmaYouTube.resize(1280, 720); return; }
+    var screenWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
+    var screenHeight = window.innerHeight || document.documentElement.clientHeight || 720;
     var width, height, left, top, dock = !slot;
-    if (slot) {
-      slot.style.height = slot.offsetWidth * 9 / 16 + "px";
-      var box = slot.getBoundingClientRect(), viewport = el("view").getBoundingClientRect();
-      width = box.width * scale; height = width * 9 / 16;
-      left = (box.left - stageBox.left) * scale;
-      top = (box.top - stageBox.top) * scale;
-      // Keep the complete official player visible; never crop its controls.
-      if (box.top < viewport.top - 1 || box.top + height / scale > viewport.bottom + 1) dock = true;
+    if (youtubeFull) {
+      width = screenWidth; height = screenHeight; left = 0; top = 0;
+    } else {
+      if (slot) {
+        var slotHeight = slot.offsetWidth * 9 / 16 + "px";
+        if (slot.style.height !== slotHeight) slot.style.height = slotHeight;
+        var box = slot.getBoundingClientRect(), viewport = el("view").getBoundingClientRect();
+        width = box.width; height = width * 9 / 16;
+        left = box.left; top = box.top;
+        if (box.top < viewport.top - 1 || box.top + height > viewport.bottom + 1) dock = true;
+      }
+      if (dock) {
+        width = Math.min(416, screenWidth * 0.325); height = width * 9 / 16;
+        left = screenWidth - width - screenWidth / 32;
+        var footer = el("footer").getBoundingClientRect();
+        top = Math.max(0, Math.min(screenHeight, footer.top) - height - Math.max(8, screenHeight / 60));
+      }
+      el("safe").setAttribute("data-youtube", dock ? "docked" : "large");
     }
-    if (dock) { width = 416; height = 234; left = 824; top = 434; }
-    el("safe").setAttribute("data-youtube", dock ? "docked" : "large");
-    host.style.clip = "";
-    host.style.left = left + "px"; host.style.top = top + "px";
-    host.style.width = width + "px"; host.style.height = height + "px";
+    // Use viewport pixels outside every transformed ancestor. Never allow
+    // stale/fullscreen/invalid geometry to turn into a page-sized overlay.
+    if (!isFinite(width) || !isFinite(height) || !isFinite(left) || !isFinite(top) || width <= 0 || height <= 0 || left < -1 || top < -1 || left + width > screenWidth + 2 || top + height > screenHeight + 2) {
+      host.style.visibility = "hidden";
+      return;
+    }
+    var geometry = { left: Math.round(left) + "px", top: Math.round(top) + "px", width: Math.round(width) + "px", height: Math.round(height) + "px" };
+    for (var property in geometry) if (Object.prototype.hasOwnProperty.call(geometry, property) && host.style[property] !== geometry[property]) host.style[property] = geometry[property];
     AlmaYouTube.resize(width, height);
   }
   function youtubeList() {
@@ -1367,7 +1380,7 @@ var Alma = (function () {
     var h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor · Alma TV 8.5.0",
+        "Tu reproductor · Alma TV 8.5.1",
         "Archivos propios, enlaces directos y YouTube integrado experimental mediante el puente de la Mac."
       ) +
       '<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +
@@ -2326,7 +2339,25 @@ var Alma = (function () {
     }
     notice("Se solicitó salir · el cierre real requiere Samsung Orsay");
   }
+  var volumeKeyCodes = [7, 11, 27], nativeKeyPlugin = null;
+  function releaseVolumeKeys() {
+    try {
+      if (typeof Common === "undefined" || !Common.API) return;
+      if (typeof Common.API.TVKeyValue === "function") {
+        var keys = new Common.API.TVKeyValue();
+        volumeKeyCodes = [typeof keys.KEY_VOL_UP === "number" ? keys.KEY_VOL_UP : 7, typeof keys.KEY_VOL_DOWN === "number" ? keys.KEY_VOL_DOWN : 11, typeof keys.KEY_MUTE === "number" ? keys.KEY_MUTE : 27];
+      }
+      if (!nativeKeyPlugin && typeof Common.API.Plugin === "function") nativeKeyPlugin = new Common.API.Plugin();
+      if (!nativeKeyPlugin || typeof nativeKeyPlugin.unregistKey !== "function") return;
+      for (var i = 0; i < volumeKeyCodes.length; i++) {
+        try { nativeKeyPlugin.unregistKey(volumeKeyCodes[i]); } catch (unavailableKey) {}
+      }
+    } catch (unavailablePlugin) {}
+  }
   function key(code) {
+    // Samsung handles its own amplifier and OSD. Do not consume Vol+/Vol-/Mute.
+    if (volumeKeyCodes.indexOf(code) !== -1) return false;
+
     var map = {
         4: "left",
         37: "left",
@@ -2342,7 +2373,6 @@ var Alma = (function () {
         8: "back",
         10009: "back",
         45: "exit",
-        27: "exit",
         20: "home",
         21: "settings"
       },
@@ -2467,8 +2497,10 @@ var Alma = (function () {
       api = new Common.API.Widget();
       api.sendReadyEvent();
     } catch (e) {}
+    releaseVolumeKeys();
+    window.addEventListener("focus", releaseVolumeKeys, false);
     window.onresize = fitScreen;
-    el("stage").appendChild(el("youtube-host"));
+    document.body.appendChild(el("youtube-host"));
     AlmaYouTube.init();
     document.addEventListener("visibilitychange", youtubeHidden, false);
     AlmaPlayer.init(el("media-audio"), el("media-video"), updatePlayer);
@@ -2536,6 +2568,7 @@ var Alma = (function () {
   };
   A.destroy = function () {
     window.onresize = null;
+    window.removeEventListener("focus", releaseVolumeKeys, false);
     AlmaYouTube.destroy();
     document.removeEventListener("visibilitychange", youtubeHidden, false);
     AlmaPlayer.destroy();

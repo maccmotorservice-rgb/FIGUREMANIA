@@ -1894,3 +1894,7 @@ body,
 #safe[data-view="youtube"] .page-head .eyebrow,
 #safe[data-view="youtube"] .page-head p { display: none; }
 #youtube-slot.focus { outline: 3px solid #438d80; outline-offset: -3px; }
+
+/* Orsay video surface: body child with viewport pixel bounds, no theme scaling. */
+body > #youtube-host { position: absolute; overflow: hidden; margin: 0; padding: 0; border: 0; }
+body > #youtube-host.youtube-full { left: 0; top: 0; }

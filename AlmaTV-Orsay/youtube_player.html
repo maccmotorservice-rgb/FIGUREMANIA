@@ -13,7 +13,7 @@
 <script>
 (function () {
   "use strict";
-  var config = __ALMA_YT_CONFIG__, player = null, ready = false, watchdog = null, initialTime = null, layoutWidth = 0, layoutHeight = 0;
+  var config = __ALMA_YT_CONFIG__, player = null, ready = false, watchdog = null, initialTime = null, layoutWidth = 0, layoutHeight = 0, fittedWidth = 0, fittedHeight = 0;
   function details() {
     var state = null, seconds = null, muted = null;
     try { if (ready && player && typeof player.getPlayerState === "function") state = player.getPlayerState(); } catch (e) {}
@@ -52,6 +52,8 @@
     surface.style.width = width + "px"; surface.style.height = height + "px";
     surface.style.margin = Math.max(0, (areaHeight - height) / 2) + "px auto";
     var iframe = document.querySelector("#surface iframe");
+    if (!iframe || (fittedWidth === Math.round(width) && fittedHeight === Math.round(height))) return;
+    fittedWidth = Math.round(width); fittedHeight = Math.round(height);
     if (iframe) {
       iframe.width = Math.round(width); iframe.height = Math.round(height);
       iframe.style.width = width + "px"; iframe.style.height = height + "px";
@@ -112,7 +114,7 @@
         width: "100%", height: "100%", videoId: config.video,
         playerVars: { controls: 1, autoplay: 0, playsinline: 1, fs: 1, origin: window.location.protocol + "//" + window.location.host },
         events: {
-          onReady: function () { ready = true; fit(); tell("ready", "YouTube est\u00e1 listo (API). Pulsa Reproducir.", details().state); report("ready", "La API est\u00e1 lista; a\u00fan no se ha confirmado reproducci\u00f3n."); },
+          onReady: function () { ready = true; fittedWidth = 0; fittedHeight = 0; fit(); tell("ready", "YouTube est\u00e1 listo (API). Pulsa Reproducir.", details().state); report("ready", "La API est\u00e1 lista; a\u00fan no se ha confirmado reproducci\u00f3n."); },
           onStateChange: function (e) {
             var labels = { "-1": "V\u00eddeo sin iniciar. Pulsa Reproducir.", 0: "Finalizado", 1: "Reproduciendo en YouTube", 2: "En pausa", 3: "Cargando v\u00eddeo de YouTube\u2026", 5: "V\u00eddeo preparado" };
             tell("state", labels[e.data] || "YouTube", e.data);

@@ -3,7 +3,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <meta name="viewport" content="width=1280, user-scalable=no" />
-    <meta name="alma-build" content="8.5.0" />
+    <meta name="alma-build" content="8.5.1" />
     <title>Alma TV</title>
     <link rel="stylesheet" href="style.css" />
     <script
@@ -11,6 +11,8 @@
       charset="UTF-8"
       src="$MANAGER_WIDGET/Common/API/Widget.js"
     ></script>
+    <script type="text/javascript" charset="UTF-8" src="$MANAGER_WIDGET/Common/API/TVKeyValue.js"></script>
+    <script type="text/javascript" charset="UTF-8" src="$MANAGER_WIDGET/Common/API/Plugin.js"></script>
     <script
       type="text/javascript"
       charset="UTF-8"
@@ -26,6 +28,7 @@
     <script type="text/javascript" charset="UTF-8" src="main.js"></script>
   </head>
   <body onload="Alma.init()" onunload="Alma.destroy()">
+    <object id="pluginObjectNNavi" classid="clsid:SAMSUNG-INFOLINK-NNAVI" style="position:absolute;width:0;height:0;visibility:hidden"></object>
     <div id="stage">
       <div id="wallpaper"></div>
       <div id="wallpaper-shade"></div>
@@ -33,7 +36,7 @@
       <div id="video-help" style="display: none">Aceptar: reproducir o pausar · ◀ / ▶: 10 segundos · Volver: reducir</div>
       <div id="safe">
         <header id="header">
-          <div class="brand">alma<span>tv 8.5.0</span></div>
+          <div class="brand">alma<span>tv 8.5.1</span></div>
           <nav id="nav"></nav>
           <div id="status">
             <span id="network">Conexión sin comprobar</span><b id="time"></b>

@@ -1,7 +1,7 @@
 /* Integración oficial de YouTube. ES5; no extrae ni descarga vídeos. */
 var AlmaYouTube = (function () {
   "use strict";
-  var frame = null, host = null, base = "", token = "", timer = null;
+  var frame = null, host = null, base = "", token = "", timer = null, lastWidth = 0, lastHeight = 0;
   var changed = function () {}, value = { status: "Sin vídeo", ready: false, state: -1, title: "" };
   function parseUrl(input) {
     var text = String(input || "").replace(/^\s+|\s+$/g, ""), a = document.createElement("a"), id = "";
@@ -25,6 +25,9 @@ var AlmaYouTube = (function () {
   function resize(width, height) {
     if (!frame || !frame.contentWindow) return;
     width = Math.round(width); height = Math.round(height);
+    if (width === lastWidth && height === lastHeight) return;
+    if (!isFinite(width) || !isFinite(height) || width < 200 || height < 200 || width > 4096 || height > 2160) return;
+    lastWidth = width; lastHeight = height;
     frame.width = width; frame.height = height;
     frame.style.width = width + "px"; frame.style.height = height + "px";
     frame.contentWindow.postMessage(JSON.stringify({ channel: "alma-youtube", token: token, command: "resize", width: width, height: height }), base);
@@ -34,7 +37,7 @@ var AlmaYouTube = (function () {
     var data;
     try { data = typeof event.data === "string" ? JSON.parse(event.data) : event.data; } catch (e) { return; }
     if (!data || data.channel !== "alma-youtube" || data.token !== token) return;
-    if (data.type === "ready") { value.ready = true; clearTimeout(timer); }
+    if (data.type === "ready") { lastWidth = 0; lastHeight = 0; value.ready = true; clearTimeout(timer); }
     if (data.type === "error") { value.ready = false; clearTimeout(timer); }
     if (typeof data.state === "number") value.state = data.state;
     if (typeof data.title === "string") value.title = data.title.slice(0, 160);
@@ -44,7 +47,7 @@ var AlmaYouTube = (function () {
   function close() {
     clearTimeout(timer);
     if (frame) { send("pause"); frame.src = "about:blank"; host.innerHTML = ""; }
-    frame = null;
+    frame = null; lastWidth = 0; lastHeight = 0;
     if (host) host.style.display = "none";
     value = { status: "Sin vídeo", ready: false, state: -1, title: "" };
   }

@@ -221,3 +221,16 @@ navegar por otras secciones internas, el mismo video continúa visible en una
 ventana fija 16:9. Abrir apps nativas, salir, ocultar el documento, iniciar un
 archivo propio o entrar en salvapantallas/calibración detiene YouTube. Los diálogos
 lo pausan. Actualiza puente y widget; abre Alma TV 8.5.0 (ID AlmaTV85).
+
+
+### Versión 8.5.1: corrección de capas de video
+
+Tras el informe de imagen negra y rectángulos superpuestos, el iframe sale del
+escenario escalado del tema y usa coordenadas de pantalla delimitadas. Se evitan
+reajustes repetidos con el mismo tamaño. Las pruebas comprueban Inicio en 720p
+y Full HD, pero la imagen real debe verificarse en Orsay. Actualiza puente y
+widget; abre Alma TV 8.5.1 (ID independiente AlmaTV851 para evitar confundir la copia anterior).
+
+Esta versión también devuelve Vol+/Vol-/Mute al televisor mediante el gestor de
+teclas Orsay cuando está disponible. No intercepta el control remoto para cambiar
+el volumen de un archivo HTML5 y no interpreta Mute como salir.

@@ -178,3 +178,31 @@ Las pruebas verifican ambos iframes, sesión/estado al navegar, salida desde
 pantalla completa, ausencia de solapamiento con el contenido en las otras vistas
 y selección desde Inicio. La API se simula; el aspecto en Orsay requiere comprobación
 física tras instalar 8.5.0 y actualizar el puente.
+
+
+## 8.5.1: superficie de video fuera de las escalas del tema
+
+El propietario informó audio/reproducción con imagen negra y varios rectángulos
+superpuestos en 8.5.0. No se ha demostrado la causa exacta en el firmware. El
+widget colocaba el iframe bajo el escenario escalado por CSS y recalculaba sus
+dimensiones con cada mensaje de estado/animación.
+La superficie persistente ahora cuelga directamente de body, sin ancestros con
+transformaciones. Se usan coordenadas reales del área visible; se rechazan
+medidas no finitas o fuera de la pantalla. Las dos capas de iframe conservan
+medidas explícitas, pero setSize y postMessage de tamaño solo se repiten cuando
+cambian las dimensiones (o cuando la API termina de inicializarse). Inicio
+mantiene su espacio y el video conserva su origen y su sesión.
+Se prueba la coincidencia del video con «En reproducción» a 1280×720 y 1920×1080,
+ausencia de ancestros transformados y ausencia de reajustes tras 50 avisos de
+animación con el mismo tamaño. La API está simulada: la imagen real en Samsung
+Orsay sigue pendiente de comprobación por el propietario.
+
+
+La misma corrección libera Vol+/Vol-/Mute al sistema Orsay con
+Common.API.Plugin.unregistKey y los valores reales de TVKeyValue, si existen.
+Nunca se cancelan esas teclas: mute 27 deja de tratarse como Escape/salir.
+Se prueba la cesión y el no bloqueo con API Samsung simulada; el volumen y el
+OSD reales deben comprobarse con el control remoto del televisor.
+No se añade vista previa HDMI: el proyecto solo tiene una ruta verificada por
+código para seleccionar un descriptor de fuente, no evidencia de captura o
+composición HDMI dentro de un widget en el UN50J5200.

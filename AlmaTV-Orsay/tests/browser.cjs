@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="8.5.0"'))
+      if (!html.includes('name="alma-build" content="8.5.1"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -88,8 +88,11 @@ beforeEach(async (t) => {
   errors = [];
   await context.addInitScript(() => {
     window.platformCalls = [];
+    window.nativeVolumeKeys = [];
     window.Common = {
       API: {
+        TVKeyValue: function () { this.KEY_VOL_UP=7; this.KEY_VOL_DOWN=11; this.KEY_MUTE=27; },
+        Plugin: function () { this.unregistKey = code => nativeVolumeKeys.push(code); },
         Widget: function () {
           this.sendReadyEvent = () => platformCalls.push("ready");
           this.sendExitEvent = () => platformCalls.push("exit");
@@ -117,7 +120,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /8\.5\.0/);
+  assert.match(await page.locator(".brand").innerText(), /8\.5\.1/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -950,10 +953,10 @@ async function officialYouTubeFixture(code = 0, behavior = "normal") {
     window.YT={Player:function(id,options){
       var iframe=document.createElement('iframe');iframe.src='https://www.youtube.com/embed/'+options.videoId;
       var node=document.getElementById(id);node.parentNode.replaceChild(iframe,node);
-      var state=-1,time=20;window.testYoutube={play:0,pause:0,seek:0,load:0,size:null,options:options};
+      var state=-1,time=20;window.testYoutube={play:0,pause:0,seek:0,load:0,size:null,sizeCount:0,options:options};
       this.getPlayerState=function(){return state;}; this.getCurrentTime=function(){return time;};
       this.getVideoData=function(){return {title:'Vídeo de prueba · API simulada'};};
-      this.setSize=function(w,h){window.testYoutube.size=[w,h];};
+      this.setSize=function(w,h){window.testYoutube.sizeCount++;window.testYoutube.size=[w,h];};
       this.playVideo=function(){window.testYoutube.play++;window.testYoutube.activation=navigator.userActivation ? navigator.userActivation.isActive : null;${code ? `options.events.onError({data:${code}});` : behavior === "stalled" ? "" : behavior === "blocked" ? "options.events.onAutoplayBlocked();" : "state=1;options.events.onStateChange({data:1});"}};
       ${behavior === "explicit" ? 'this.loadVideoById=function(id){window.testYoutube.load++;window.testYoutube.loadedId=id;state=1;options.events.onStateChange({data:1});};' : ''}
       this.pauseVideo=function(){window.testYoutube.pause++;state=2;options.events.onStateChange({data:2});};
@@ -1303,5 +1306,65 @@ test("Inicio permite elegir los enlaces de YouTube de la Mac sin pasar por Multi
   await key(20);
   assert.equal(await page.locator("#safe").getAttribute("data-view"),"home");
   assert.equal(await page.locator("#youtube-frame").count(),1);
+  assert.deepEqual(errors,[]);
+});
+
+
+test("YouTube queda dentro de En reproducción sin ancestros escalados ni reajustes repetidos, incluso a Full HD (API simulada)", async () => {
+  await officialYouTubeFixture();
+  await savedYouTube();
+  await click("youtube-play");
+  await page.waitForFunction(() => AlmaYouTube.snapshot().state===1);
+  const child = page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
+  const identity = await page.locator("#youtube-frame").evaluate(n => { n.dataset.identity="unscaled"; return n.src; });
+  for (const resolution of [{width:1280,height:720},{width:1920,height:1080}]) {
+    await page.setViewportSize(resolution);
+    await go("home");
+    await page.locator(".page-surface").evaluate(n => n.classList.remove("page-enter"));
+    await page.locator("#home-player").scrollIntoViewIfNeeded();
+    await page.locator("#view").evaluate(n => n.dispatchEvent(new Event("scroll")));
+    await page.waitForFunction(() => document.getElementById("safe").getAttribute("data-youtube")==="large");
+    const geometry = await page.evaluate(() => {
+      const host=document.getElementById("youtube-host"), slot=document.getElementById("home-player");
+      const ancestors=[];for(let node=host.parentElement;node;node=node.parentElement) ancestors.push(getComputedStyle(node).transform);
+      return {host:host.getBoundingClientRect().toJSON(),slot:slot.getBoundingClientRect().toJSON(),parent:host.parentElement.tagName,ancestors};
+    });
+    assert.equal(geometry.parent,"BODY");
+    assert.ok(geometry.ancestors.every(t=>t==="none"));
+    assert.ok(Math.abs(geometry.host.x-geometry.slot.x)<=2,JSON.stringify(geometry));
+    assert.ok(Math.abs(geometry.host.y-geometry.slot.y)<=2,JSON.stringify(geometry));
+    assert.ok(Math.abs(geometry.host.width-geometry.slot.width)<=2,JSON.stringify(geometry));
+    assert.ok(Math.abs(geometry.host.height-geometry.slot.height)<=2,JSON.stringify(geometry));
+    assert.equal(await page.locator("#youtube-frame").getAttribute("src"),identity);
+    // Let the resize messages from viewport/navigation settle before measuring.
+    await page.waitForTimeout(200);
+    const before=await child.evaluate(()=>testYoutube.sizeCount);
+    await page.evaluate(() => {for(let i=0;i<50;i++) document.querySelector(".page-surface").dispatchEvent(new Event("animationend"));});
+    await page.waitForTimeout(100);
+    assert.equal(await child.evaluate(()=>testYoutube.sizeCount),before);
+    assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);
+  }
+  assert.deepEqual(errors,[]);
+});
+
+
+test("Volumen del control remoto se libera a Samsung y no se bloquea ni cierra Alma TV (API Samsung simulada)", async () => {
+  assert.deepEqual(await page.evaluate(()=>nativeVolumeKeys),[7,11,27]);
+  for (const view of ["home","apps","media","settings"]) {
+    await go(view);
+    const events=await page.evaluate(()=>[7,11,27].map(code=>{
+      const event=new KeyboardEvent("keydown",{keyCode:code,which:code,bubbles:true,cancelable:true});
+      document.dispatchEvent(event);
+      return event.defaultPrevented;
+    }));
+    assert.deepEqual(events,[false,false,false]);
+  }
+  await officialYouTubeFixture();
+  await savedYouTube();
+  await click("youtube-full");
+  assert.deepEqual(await page.evaluate(()=>[7,11,27].map(code=>Alma.key(code))),[false,false,false]);
+  assert.ok(!(await page.evaluate(()=>platformCalls)).includes("exit"));
+  await page.evaluate(()=>window.dispatchEvent(new Event("focus")));
+  assert.deepEqual((await page.evaluate(()=>nativeVolumeKeys)).slice(-3),[7,11,27]);
   assert.deepEqual(errors,[]);
 });
