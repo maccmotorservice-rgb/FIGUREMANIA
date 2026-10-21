@@ -200,3 +200,13 @@ permite abrir /youtube/prueba para comparar con una interacción directa en la M
 Solo hay que actualizar el puente y volver a abrir el vídeo en Alma TV. El ZIP
 8.3.1 se mantiene idéntico y los enlaces guardados se conservan. La reproducción
 real en Orsay sigue pendiente de verificar. Detalles: docs/YOUTUBE.md.
+
+### Versión 8.4.0: YouTube en Inicio
+
+El reproductor oficial se centra en un área 16:9, sin estirar el contenedor.
+Inicio reutiliza el mismo iframe en «En reproducción» sin reiniciar el vídeo.
+Al desplazarlo completamente fuera de la vista, se pausa; vuelve a continuar al
+mostrarlo. En otras páginas se cierra. Conserva los controles oficiales de YouTube.
+Actualiza tanto el puente de la Mac como el widget (Alma TV 8.4.0, ID AlmaTV84).
+Los enlaces guardados en la Mac se conservan; la nueva identidad del widget evita
+confundir la actualización con una copia anterior almacenada por el televisor.

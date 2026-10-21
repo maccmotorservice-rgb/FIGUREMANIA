@@ -1115,6 +1115,7 @@ var Alma = (function () {
     youtubeFull = enabled;
     var host = el("youtube-host");
     host.className = enabled ? "youtube-full" : "";
+    host.style.clip = "";
     host.style.left = ""; host.style.top = "";
     host.style.width = ""; host.style.height = "";
     if (!enabled) updateYoutube();
@@ -1122,19 +1123,29 @@ var Alma = (function () {
   function closeYoutube() {
     AlmaYouTube.close();
     youtubeLoaded = "";
+    youtubeOffscreen = false;
     if (youtubeFull) youtubeFullscreen(false);
   }
+  var youtubeOffscreen = false;
   function updateYoutube() {
-    var value = AlmaYouTube.snapshot(), host = el("youtube-host"), slot = el("youtube-slot");
+    var value = AlmaYouTube.snapshot(), host = el("youtube-host"), slot = el(state.view === "home" ? "home-player" : "youtube-slot");
     htmlIfChanged(el("youtube-state"), esc(value.status));
     if (value.title) htmlIfChanged(el("youtube-title"), esc(value.title));
-    if (!youtubeFull && state.view === "youtube" && slot) {
+    if (!youtubeFull && (state.view === "youtube" || state.view === "home") && slot && youtubeLoaded) {
       var box = slot.getBoundingClientRect(), safeBox = el("stage").getBoundingClientRect();
       var scale = el("stage").offsetWidth / safeBox.width;
-      host.style.left = (box.left - safeBox.left) * scale + "px";
-      host.style.top = (box.top - safeBox.top) * scale + "px";
-      host.style.width = box.width * scale + "px";
-      host.style.height = box.height * scale + "px";
+      var width = Math.min(box.width, box.height * 16 / 9), height = width * 9 / 16;
+      var left = box.left + (box.width - width) / 2, top = box.top + (box.height - height) / 2;
+      host.style.left = (left - safeBox.left) * scale + "px";
+      host.style.top = (top - safeBox.top) * scale + "px";
+      host.style.width = width * scale + "px";
+      host.style.height = height * scale + "px";
+      var viewport = el("view").getBoundingClientRect();
+      var clipTop = state.view === "home" ? Math.max(0, Math.min(height, viewport.top - top)) : 0;
+      var clipBottom = state.view === "home" ? Math.max(clipTop, Math.min(height, viewport.bottom - top)) : height;
+      host.style.clip = "rect(" + clipTop * scale + "px," + width * scale + "px," + clipBottom * scale + "px,0px)";
+      if (clipBottom <= clipTop && value.state === 1 && !youtubeOffscreen) { youtubeOffscreen = true; AlmaYouTube.send("pause"); }
+      else if (clipBottom > clipTop && youtubeOffscreen) { youtubeOffscreen = false; AlmaYouTube.send("play"); }
     }
   }
   function openYoutube(item) {
@@ -1218,6 +1229,12 @@ var Alma = (function () {
       player.kind === "video" && player.index >= 0 ? "block" : "none";
     el("media-video").style.visibility = state.view === "media" || state.view === "home" ? "visible" : "hidden";
     var active = player.index >= 0;
+    if (state.view === "home" && youtubeLoaded) {
+      el("media-video").style.visibility = "hidden";
+      el("safe").setAttribute("data-home-media", "youtube");
+      updateYoutube();
+      return;
+    }
     el("safe").setAttribute("data-home-media", active ? player.kind : "none");
     htmlIfChanged(el("home-media-title"), esc(active ? player.title : "Tu música y tus vídeos"));
     htmlIfChanged(el("home-media-state"), esc(active ? (player.error || player.status) : "Selecciona un archivo desde Multimedia."));
@@ -1430,7 +1447,7 @@ var Alma = (function () {
     return h + "</div>";
   }
   function render() {
-    if (state.view !== "youtube") closeYoutube();
+    if (state.view !== "youtube" && state.view !== "home") closeYoutube();
     rows = [];
     actions = {};
     nav();

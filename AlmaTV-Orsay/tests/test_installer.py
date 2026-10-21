@@ -26,7 +26,7 @@ class InstallerTests(unittest.TestCase):
         self.files={str(p.relative_to(ROOT/'app')):p.read_bytes() for p in (ROOT/'app').rglob('*') if p.is_file()}
     def test_manifest_identity_plain_info_and_relative_resources(self):
         ident,version,_=preparar.validate(self.files)
-        self.assertEqual((ident,version),('AlmaTV83','8.3.1'))
+        self.assertEqual((ident,version),('AlmaTV84','8.4.0'))
         self.assertNotIn(b'<',self.files['widget.info'])
         self.assertIn(b'1280x720',self.files['widget.info'])
         with tempfile.TemporaryDirectory() as directory:
@@ -46,7 +46,7 @@ class InstallerTests(unittest.TestCase):
             self.assertEqual(manifest['sha256'],hashlib.sha256(first).hexdigest())
     def test_new_widget_identity_is_distinct_from_the_installed_82_and_83(self):
         current=preparar.validate(self.files)[0]
-        self.assertEqual(current,'AlmaTV83')
+        self.assertEqual(current,'AlmaTV84')
         for version in ['8.2.0','8.3.0']:
             with ZipFile(str(ROOT/'servidor/Widget'/('AlmaTV80_'+version+'.zip'))) as archive:
                 previous=ET.fromstring(archive.read('config.xml')).findtext('cpname')
@@ -111,7 +111,7 @@ class InstallerTests(unittest.TestCase):
             request=Request(base+'/widgetlist.xml',headers={'If-Modified-Since':'Wed, 21 Oct 2099 07:28:00 GMT','If-None-Match':'old-widget'})
             with urlopen(request) as response:
                 self.assertEqual(response.status,200)
-                self.assertEqual(ET.fromstring(response.read()).find('.//widget').get('id'),'AlmaTV83')
+                self.assertEqual(ET.fromstring(response.read()).find('.//widget').get('id'),'AlmaTV84')
                 self.assertIn('no-store',response.headers['Cache-Control'])
             for route in ['/','/manifest.json','/../preparar.py','/Widget/../../README.md']:
                 with self.assertRaises(HTTPError) as error:urlopen(base+route)

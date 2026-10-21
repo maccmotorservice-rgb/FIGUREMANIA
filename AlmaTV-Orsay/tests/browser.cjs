@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="8.3.1"'))
+      if (!html.includes('name="alma-build" content="8.4.0"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -117,7 +117,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /8\.3\.1/);
+  assert.match(await page.locator(".brand").innerText(), /8\.4\.0/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -993,7 +993,7 @@ test("YouTube integrado: enlace guardado, controles y pantalla completa sin reca
   const frame = page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
   assert.ok(frame);
   assert.match(await page.locator("#youtube-state").innerText(), /listo/);
-  assert.ok(await page.locator("#youtube-host").evaluate(n => n.getBoundingClientRect().height) >= 300);
+  assert.ok(await page.locator("#youtube-host").evaluate(n => n.getBoundingClientRect().height) >= 250);
   await click("youtube-play");
   await page.waitForFunction(() => AlmaYouTube.snapshot().state === 1);
   assert.equal(await frame.evaluate(() => testYoutube.play), 1);
@@ -1010,9 +1010,17 @@ test("YouTube integrado: enlace guardado, controles y pantalla completa sin reca
   await shot("26-youtube-integrado-api-simulada");
   assert.deepEqual(referers,["http://192.168.1.30:8088/"]);
   assert.equal(await frame.evaluate(() => testYoutube.options.playerVars.origin),"http://192.168.1.30:8088");
+  await click("youtube-play");
+  await page.waitForFunction(() => AlmaYouTube.snapshot().state === 1);
   await go("home");
+  assert.equal(await page.locator("#youtube-frame").getAttribute("data-test-identity"),"same-frame");
+  await page.locator("#home-player").scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => AlmaYouTube.snapshot().state === 1);
+  const box = await page.locator("#youtube-host").boundingBox();
+  assert.ok(Math.abs(box.width / box.height - 16 / 9) < 0.02);
+  assert.equal(await page.locator("#safe").getAttribute("data-home-media"),"youtube");
+  await go("apps");
   assert.equal(await page.locator("#youtube-frame").count(),0);
-  assert.equal(await page.evaluate(() => AlmaYouTube.snapshot().ready),false);
   await page.reload();
   await go("media");
   assert.equal(await page.locator("#youtube-item-0").count(),1);
@@ -1058,7 +1066,7 @@ test("YouTube no acepta estados falsos y el puente ausente da un error con salid
   assert.deepEqual(errors,[]);
 });
 
-test("Abrir YouTube integrado pausa el archivo propio y no lo reproduce en Inicio", async () => {
+test("Abrir YouTube integrado pausa el archivo propio y conserva YouTube en Inicio", async () => {
   await officialYouTubeFixture();
   await go("media"); await click("media-play");
   await savedYouTube();
@@ -1066,7 +1074,7 @@ test("Abrir YouTube integrado pausa el archivo propio y no lo reproduce en Inici
   await click("youtube-play");
   await page.waitForFunction(() => AlmaYouTube.snapshot().state === 1);
   await key(20);
-  assert.equal(await page.locator("#youtube-frame").count(),0);
+  assert.equal(await page.locator("#youtube-frame").count(),1);
   assert.equal(await page.locator("#media-audio").evaluate(n => n.paused),true);
   assert.deepEqual(errors,[]);
 });
@@ -1079,7 +1087,7 @@ test("Probar YouTube abre la prueba oficial sin escribir enlaces (API simulada)"
   await page.waitForFunction(() => AlmaYouTube.snapshot().ready);
   assert.match(await page.locator("#youtube-frame").getAttribute("src"),/video=M7lc1UVf-VE/);
   await key(20);
-  assert.equal(await page.locator("#youtube-frame").count(),0);
+  assert.equal(await page.locator("#youtube-frame").count(),1);
   assert.deepEqual(errors,[]);
 });
 
@@ -1156,7 +1164,7 @@ server.serve_forever()
   await click("mac-youtube-0");
   await page.waitForFunction(() => AlmaYouTube.snapshot().ready);
   await go("home");
-  assert.equal(await page.locator("#youtube-frame").count(),0);
+  assert.equal(await page.locator("#youtube-frame").count(),1);
   assert.deepEqual(panelErrors,[]);
   assert.deepEqual(errors,[]);
 });
@@ -1171,7 +1179,8 @@ test("YouTube confirma la orden y carga explícitamente un vídeo sin iniciar (A
   assert.equal(await frame.evaluate(() => testYoutube.play),0);
   assert.equal(await frame.evaluate(() => testYoutube.loadedId),"M7lc1UVf-VE");
   const size=await frame.evaluate(() => testYoutube.size);
-  assert.ok(size[0]>800 && size[1]>=200);
+  assert.ok(size[0]>=350 && size[1]>=200);
+  assert.ok(Math.abs(size[0]/size[1]-16/9)<0.02);
   assert.deepEqual(errors,[]);
 });
 

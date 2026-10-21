@@ -146,3 +146,13 @@ La corrección requiere comprobar de nuevo en la TV; no se afirma que el vídeo
 real ya funcione. Si el contador avanza y sigue negro, puede ser un problema de
 representación/composición distinto de una orden perdida. Si no avanza, se
 necesita el mensaje y código para distinguir bloqueo, carga y compatibilidad.
+
+## 8.4.0: proporciones e Inicio
+
+La ventana se centra en 16:9 tanto en el widget como en la plantilla del puente.
+Inicio conserva el iframe y la sesión en «En reproducción». Se recorta el área
+visible al desplazar la página; completamente fuera de vista se pausa y al
+reaparecer continúa. Las demás vistas cierran YouTube. Las pruebas automatizadas
+comprueban geometría, identidad del iframe y pausa/continuación con API simulada.
+El propietario confirmó reproducción real antes de este cambio; la nueva
+geometría todavía debe comprobarse en el televisor.

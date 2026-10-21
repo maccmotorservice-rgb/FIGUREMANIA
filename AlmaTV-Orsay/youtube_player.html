@@ -46,7 +46,11 @@
     var height = window.innerHeight || document.documentElement.clientHeight;
     if (config.standalone) height -= document.getElementById("direct").offsetHeight;
     width = Math.max(200, width); height = Math.max(200, height);
-    document.getElementById("surface").style.height = height + "px";
+    var areaHeight = height;
+    width = Math.min(width, height * 16 / 9); height = width * 9 / 16;
+    var surface = document.getElementById("surface");
+    surface.style.width = width + "px"; surface.style.height = height + "px";
+    surface.style.margin = Math.max(0, (areaHeight - height) / 2) + "px auto";
     try { if (ready && player && typeof player.setSize === "function") player.setSize(width, height); } catch (e) {}
   }
   function failure(code) {

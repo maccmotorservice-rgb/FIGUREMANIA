@@ -1849,9 +1849,11 @@ body,
 .home-audio { padding: 20px; text-align: center; }
 .home-audio h3 { margin: 8px; font-size: 24px; }
 .home-audio p { margin: 6px; }
+#safe[data-home-media="youtube"] .home-player,
 #safe[data-home-media="video"] .home-player,
 #safe[data-home-media="audio"] .home-player { height: 320px; }
 #safe[data-home-media="audio"] .home-audio { padding-top: 95px; }
+#safe[data-home-media="youtube"] .home-audio,
 #safe[data-home-media="video"] .home-audio { visibility: hidden; }
 
 #view.home-scroll { overflow-y: auto; overflow-x: hidden; padding: 4px 6px 12px 0; }
