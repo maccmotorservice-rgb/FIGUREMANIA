@@ -1843,3 +1843,15 @@ body,
 .media-stage { height: 294px; }
 #media-video.video-full { height: 720px; }
 .media-controls .pill { padding: 8px 10px; font-size: 16px; }
+
+.home-now { margin-bottom: 14px; }
+.home-player { position: relative; height: 100px; border-radius: 12px; background: #f4faf8; color: #153f3d; overflow: hidden; }
+.home-audio { padding: 20px; text-align: center; }
+.home-audio h3 { margin: 8px; font-size: 24px; }
+.home-audio p { margin: 6px; }
+#safe[data-view="home"][data-home-media="video"] .hero,
+#safe[data-view="home"][data-home-media="audio"] .hero { display: none; }
+#safe[data-home-media="video"] .home-player,
+#safe[data-home-media="audio"] .home-player { height: 320px; }
+#safe[data-home-media="audio"] .home-audio { padding-top: 95px; }
+#safe[data-home-media="video"] .home-audio { visibility: hidden; }

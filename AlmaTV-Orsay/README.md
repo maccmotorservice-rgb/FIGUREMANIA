@@ -146,3 +146,8 @@ conserva. Incluye reproductor ampliado, botón Pantalla completa y reproducción
 entre vistas de Alma TV; no continúa al salir de la aplicación o lanzar otra app.
 El vídeo activo se oculta con visibility al navegar, sin display:none para evitar
 la suspensión en motores antiguos. Comprobar reproducción y códecs en la TV real.
+
+Inicio sustituye los accesos guardados por En reproducción, sin botones. Al
+reproducir muestra un vídeo amplio o el título de la música; el encabezado
+promocional se oculta para dejar espacio. Los controles siguen en Multimedia.
+Los enlaces guardados siguen disponibles desde Buscar y la vista de enlaces.

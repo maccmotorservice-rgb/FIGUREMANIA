@@ -552,7 +552,7 @@ var Alma = (function () {
         launch(apps[heroIndex]);
       }) +
       '<span class="hero-credit">Mensajes personalizados · disponibilidad según el servicio</span></section>';
-    row(["hero-cta"]);
+    if (AlmaPlayer.snapshot().index < 0) row(["hero-cta"]);
     h +=
       '<section class="home-apps"><h2 class="section-title">Aplicaciones <span>Pulsa Aceptar para abrir</span></h2><div class="app-carousel"><div class="row app-track">';
     var ids = [],
@@ -562,41 +562,7 @@ var Alma = (function () {
       ids.push("app-" + i);
     }
     row(ids);
-    h +=
-      '</div></div></section><section class="home-links"><h2 class="section-title">Tus accesos guardados</h2><div class="row">';
-    ids = [];
-    if (prefs.links.length) {
-      for (i = 0; i < Math.min(4, prefs.links.length); i++) {
-        (function (i) {
-          h += button(
-            "home-link-" + i,
-            prefs.links[i].name,
-            "Abrir en el navegador Samsung",
-            function () {
-              browser(prefs.links[i].url);
-            },
-            "card saved-link"
-          );
-          ids.push("home-link-" + i);
-        })(i);
-      }
-    } else {
-      h += button(
-        "save-link",
-        "Añadir un acceso personal",
-        "Guarda tus sitios favoritos",
-        function () {
-          go("links");
-        },
-        "card saved-link"
-      );
-      ids.push("save-link");
-      h +=
-        '<p class="local-note">Guarda aquí tus sitios favoritos para encontrarlos fácilmente.</p>';
-    }
-    row(ids);
-    h +=
-      '</div></section><section class="home-tools"><h2 class="section-title">Herramientas</h2><div class="row">';
+    h += '</div></div></section><section class="home-now"><h2 class="section-title">En reproducción</h2><div id="home-player" class="home-player"><div class="home-audio"><span class="media-eq"><b></b><b></b><b></b></span><h3 id="home-media-title"></h3><p id="home-media-state"></p></div></div></section><section class="home-tools"><h2 class="section-title">Herramientas</h2><div class="row">';
     ids = [];
     var order = [0, 5, 2, 4, 1, 3],
       symbols = ["◷", "◴", "▤", "▧", "⌁", "☁"];
@@ -1171,7 +1137,24 @@ var Alma = (function () {
     // Some legacy engines suspend media when display is set to none.
     el("media-video").style.display =
       player.kind === "video" && player.index >= 0 ? "block" : "none";
-    el("media-video").style.visibility = state.view === "media" ? "visible" : "hidden";
+    el("media-video").style.visibility = state.view === "media" || state.view === "home" ? "visible" : "hidden";
+    var active = player.index >= 0;
+    el("safe").setAttribute("data-home-media", active ? player.kind : "none");
+    htmlIfChanged(el("home-media-title"), esc(active ? player.title : "Tu música y tus vídeos"));
+    htmlIfChanged(el("home-media-state"), esc(active ? (player.error || player.status) : "Selecciona un archivo desde Multimedia."));
+    var slot = el("home-player"), video = el("media-video");
+    if (!videoFull) {
+      video.style.left = ""; video.style.top = "";
+      video.style.width = ""; video.style.height = "";
+      if (state.view === "home" && slot && active && player.kind === "video") {
+        var box = slot.getBoundingClientRect(), safeBox = el("safe").getBoundingClientRect();
+        var scale = el("safe").offsetWidth / safeBox.width;
+        video.style.left = (box.left - safeBox.left) * scale + "px";
+        video.style.top = (box.top - safeBox.top) * scale + "px";
+        video.style.width = box.width * scale + "px";
+        video.style.height = box.height * scale + "px";
+      }
+    }
     if (el("media-progress"))
       el("media-progress").style.width =
         (player.duration ? (player.time / player.duration) * 100 : 0) + "%";

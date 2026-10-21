@@ -778,6 +778,10 @@ test("El reproductor decodifica audio real, permite pausa, salto y reproducción
     await page.locator("#media-audio").evaluate((n) => n.paused),
     false
   );
+  assert.equal(await page.locator("#home-player button").count(), 0);
+  assert.match(await page.locator("#home-media-title").innerText(), /Prueba de sonido/);
+  assert.equal(await page.locator(".home-links").count(), 0);
+  await shot("25-alma8-musica-en-inicio");
   await go("media");
   await shot("21-reproductor-audio");
   await click("media-stop");
@@ -824,6 +828,7 @@ test("El reproductor reproduce video MP4 real con sus controles", async () => {
   await click("media-add");
   await editor("Video de prueba");
   await editor("http://127.0.0.1:8765/video-prueba.mp4");
+  await page.locator("#media-video").evaluate(n => { n.loop = true; });
   await click("media-item-1");
   await page.waitForFunction(
     () => document.getElementById("media-video").currentTime > 0.1,
@@ -843,7 +848,13 @@ test("El reproductor reproduce video MP4 real con sus controles", async () => {
     await page.waitForTimeout(180);
     assert.equal(await page.locator("#media-video").evaluate(n => n.paused), false);
     assert.ok(await page.locator("#media-video").evaluate(n => n.currentTime) > time);
-    assert.equal(await page.locator("#media-video").isVisible(), false);
+    assert.equal(await page.locator("#media-video").isVisible(), view === "home");
+    if (view === "home") {
+      assert.equal(await page.locator("#home-player button").count(), 0);
+      assert.ok(await page.locator("#media-video").evaluate(n => n.getBoundingClientRect().width) > 800);
+      assert.ok(await page.locator("#media-video").evaluate(n => n.getBoundingClientRect().height) > 280);
+      await shot("24-alma8-video-en-inicio");
+    }
   }
   await go("media");
   await click("media-play");
