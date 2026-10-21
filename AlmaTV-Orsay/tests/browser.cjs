@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="8.0.0"'))
+      if (!html.includes('name="alma-build" content="8.1.0"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -781,6 +781,11 @@ test("El reproductor decodifica audio real, permite pausa, salto y reproducción
   assert.equal(await page.locator("#home-player button").count(), 0);
   assert.match(await page.locator("#home-media-title").innerText(), /Prueba de sonido/);
   assert.equal(await page.locator(".home-links").count(), 0);
+  assert.equal(await page.locator("#hero-title").isVisible(), true);
+  await key(29461);
+  await key(29461);
+  assert.equal(await page.evaluate(() => document.querySelector(".focus").id), "home-player");
+  assert.ok(await page.locator("#view").evaluate(n => n.scrollTop) > 0);
   await shot("25-alma8-musica-en-inicio");
   await go("media");
   await shot("21-reproductor-audio");
@@ -850,6 +855,10 @@ test("El reproductor reproduce video MP4 real con sus controles", async () => {
     assert.ok(await page.locator("#media-video").evaluate(n => n.currentTime) > time);
     assert.equal(await page.locator("#media-video").isVisible(), view === "home");
     if (view === "home") {
+      await key(29461);
+      await key(29461);
+      assert.equal(await page.evaluate(() => document.querySelector(".focus").id), "home-player");
+      assert.ok(await page.locator("#view").evaluate(n => n.scrollTop) > 0);
       assert.equal(await page.locator("#home-player button").count(), 0);
       assert.ok(await page.locator("#media-video").evaluate(n => n.getBoundingClientRect().width) > 800);
       assert.ok(await page.locator("#media-video").evaluate(n => n.getBoundingClientRect().height) > 280);

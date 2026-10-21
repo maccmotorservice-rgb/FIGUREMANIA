@@ -148,6 +148,12 @@ El vídeo activo se oculta con visibility al navegar, sin display:none para evit
 la suspensión en motores antiguos. Comprobar reproducción y códecs en la TV real.
 
 Inicio sustituye los accesos guardados por En reproducción, sin botones. Al
-reproducir muestra un vídeo amplio o el título de la música; el encabezado
-promocional se oculta para dejar espacio. Los controles siguen en Multimedia.
+reproducir muestra un vídeo amplio o el título de la música. El Inicio permite
+desplazarse y conserva el encabezado promocional. Los controles siguen en Multimedia.
 Los enlaces guardados siguen disponibles desde Buscar y la vista de enlaces.
+
+### 8.1: Inicio desplazable
+
+El Inicio conserva el encabezado al reproducir. Arriba/abajo recorren el
+encabezado, apps, zona de reproducción sin botones y herramientas. La imagen
+se recorta al área visible al desplazarse, sin superponer la cabecera o el pie.

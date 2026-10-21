@@ -552,7 +552,7 @@ var Alma = (function () {
         launch(apps[heroIndex]);
       }) +
       '<span class="hero-credit">Mensajes personalizados · disponibilidad según el servicio</span></section>';
-    if (AlmaPlayer.snapshot().index < 0) row(["hero-cta"]);
+    row(["hero-cta"]);
     h +=
       '<section class="home-apps"><h2 class="section-title">Aplicaciones <span>Pulsa Aceptar para abrir</span></h2><div class="app-carousel"><div class="row app-track">';
     var ids = [],
@@ -562,7 +562,8 @@ var Alma = (function () {
       ids.push("app-" + i);
     }
     row(ids);
-    h += '</div></div></section><section class="home-now"><h2 class="section-title">En reproducción</h2><div id="home-player" class="home-player"><div class="home-audio"><span class="media-eq"><b></b><b></b><b></b></span><h3 id="home-media-title"></h3><p id="home-media-state"></p></div></div></section><section class="home-tools"><h2 class="section-title">Herramientas</h2><div class="row">';
+    h += '</div></div></section><section class="home-now"><h2 class="section-title">En reproducción</h2><div id="home-player" class="home-player" tabindex="0" role="region" aria-label="En reproducción"><div class="home-audio"><span class="media-eq"><b></b><b></b><b></b></span><h3 id="home-media-title"></h3><p id="home-media-state"></p></div></div></section><section class="home-tools"><h2 class="section-title">Herramientas</h2><div class="row">';
+    row(["home-player"]);
     ids = [];
     var order = [0, 5, 2, 4, 1, 3],
       symbols = ["◷", "◴", "▤", "▧", "⌁", "☁"];
@@ -1145,7 +1146,7 @@ var Alma = (function () {
     var slot = el("home-player"), video = el("media-video");
     if (!videoFull) {
       video.style.left = ""; video.style.top = "";
-      video.style.width = ""; video.style.height = "";
+      video.style.width = ""; video.style.height = ""; video.style.clip = "";
       if (state.view === "home" && slot && active && player.kind === "video") {
         var box = slot.getBoundingClientRect(), safeBox = el("safe").getBoundingClientRect();
         var scale = el("safe").offsetWidth / safeBox.width;
@@ -1153,6 +1154,10 @@ var Alma = (function () {
         video.style.top = (box.top - safeBox.top) * scale + "px";
         video.style.width = box.width * scale + "px";
         video.style.height = box.height * scale + "px";
+        var viewport = el("view").getBoundingClientRect();
+        var clipTop = Math.max(0, Math.min(box.height, viewport.top - box.top)) * scale;
+        var clipBottom = Math.max(clipTop, Math.min(box.height, viewport.bottom - box.top) * scale);
+        video.style.clip = "rect(" + clipTop + "px," + box.width * scale + "px," + clipBottom + "px,0px)";
       }
     }
     if (el("media-progress"))
@@ -1350,7 +1355,9 @@ var Alma = (function () {
     }
     el("safe").setAttribute("data-view", state.view);
     syncBackgrounds();
-    el("view").className = state.view === "saver" ? "saver-view" : "";
+    el("view").className = state.view === "saver" ? "saver-view" : state.view === "home" ? "home-scroll" : "";
+    if (viewChanged) el("view").scrollTop = 0;
+    el("view").onscroll = function () { if (state.view === "home") updatePlayer(); };
     el("header").style.display = state.view === "saver" ? "none" : "block";
     el("footer").style.display = state.view === "saver" ? "none" : "block";
     el("view").innerHTML =
@@ -1426,6 +1433,15 @@ var Alma = (function () {
               top + target.offsetHeight - parent.clientHeight + 8;
         }
         parent = parent.parentNode;
+      }
+      if (state.view === "home" && el("view").contains(target)) {
+        var viewport = el("view"), visible = viewport.getBoundingClientRect();
+        var bounds = target.getBoundingClientRect();
+        var ratio = viewport.offsetHeight / visible.height;
+        if (target.id === "hero-cta") viewport.scrollTop = 0;
+        else if (bounds.top < visible.top) viewport.scrollTop -= (visible.top - bounds.top) * ratio + 8;
+        else if (bounds.bottom > visible.bottom) viewport.scrollTop += (bounds.bottom - visible.bottom) * ratio + 8;
+        updatePlayer();
       }
     }
   }
