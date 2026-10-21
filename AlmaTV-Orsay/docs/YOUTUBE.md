@@ -138,7 +138,7 @@ TV carga la página nueva, sin sincronizar Samsung Apps ni reinstalar el widget.
   Alma TV y de la prueba directa se conservan por separado en memoria, con hora,
   estado, segundos y dimensiones. Se muestra primero el de Alma TV. Los informes
   no contienen URLs, títulos, cookies o token de sesión. El endpoint solo admite
-  escritura desde el origen/Host del puente, con JSON pequeño y sesión válida.
+  escritura desde el origen/Host del puente, con JSON pequeño y formato de sesión válido.
 
 Las pruebas de origen, recepción, carga explícita, watchdog, activación directa
 son simulaciones de la API. La prueba del endpoint y panel usa HTTP real local.
