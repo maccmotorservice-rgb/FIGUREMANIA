@@ -74,3 +74,35 @@ está listo» y pulsar Reproducir. Comprobar vídeo, audio, pausa, salto, pantal
 completa y Volver. Si falla, anotar el mensaje y código exactos; conservar el
 acceso nativo. Solo después de esta prueba se puede afirmar compatibilidad de
 esta integración con el firmware de este televisor.
+
+## 8.3: pegar enlaces desde la Mac
+
+Abrir **http://192.168.1.30:8088/enlaces** en Safari o Chrome de la Mac. Pegar uno
+o varios enlaces, uno por línea, y pulsar Guardar enlaces. El nombre es opcional
+para un solo enlace. Se pueden quitar entradas desde la misma página.
+
+La TV consulta la lista al entrar en Multimedia y cada 15 segundos mientras
+esa vista esté abierta, sin interrumpir al escribir en un diálogo. **Enlaces de
+la Mac** permite actualizar al momento. Si no cambia el contenido no se reconstruye
+la lista. Los enlaces escritos antes desde la TV se conservan por separado.
+
+Se necesita una actualización inicial al widget y al puente 8.3. Después, añadir,
+renombrar o quitar enlaces no requiere reinstalar, sincronizar Samsung Apps ni
+editar el código. La compatibilidad del reproductor oficial con Orsay sigue siendo
+experimental: administrar la lista no garantiza que un vídeo pueda reproducirse.
+
+La lista se guarda en `~/Library/Application Support/AlmaTV/youtube-links.json`,
+fuera de Descargas y del ZIP. El asistente del puente copia los nuevos archivos
+sin borrar esa lista, que sobrevive a reinicios y actualizaciones. Se admiten 50
+vídeos; las entradas duplicadas no se repiten. Una operación con algún enlace
+inválido no guarda parcialmente el resto ni sobrescribe una lista corrupta.
+
+El panel y sus peticiones se sirven desde la misma dirección del puente. Las
+mutaciones requieren el origen y Host del propio puente, JSON y un token de sesión;
+la TV solo consulta la lista. Se evita incrustar el panel en otros sitios. Los
+nombres se muestran como texto, sin interpretar HTML. No se descargan vídeos ni
+se abre el router. Sigue siendo un servicio para la LAN de confianza.
+
+Las pruebas del panel usan un servidor HTTP local real, guardan y eliminan enlaces,
+recargan la página y verifican que el widget recibe los cambios sin modificar su
+ZIP. La reproducción de YouTube en esas pruebas continúa usando la API simulada.

@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="8.2.0"'))
+      if (!html.includes('name="alma-build" content="8.3.0"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -112,6 +112,7 @@ beforeEach(async (t) => {
       body: "<service><state>running</state></service>"
     });
   });
+  await page.route("http://192.168.1.30:8088/youtube/library", r => r.fulfill({status:200,contentType:"application/json",headers:{"Access-Control-Allow-Origin":"*"},body:JSON.stringify({items:[]})}));
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
@@ -1075,5 +1076,79 @@ test("Probar YouTube abre la prueba oficial sin escribir enlaces (API simulada)"
   assert.match(await page.locator("#youtube-frame").getAttribute("src"),/video=M7lc1UVf-VE/);
   await key(20);
   assert.equal(await page.locator("#youtube-frame").count(),0);
+  assert.deepEqual(errors,[]);
+});
+
+test("Pegar enlaces en el panel real de la Mac los actualiza en TV sin reinstalar", async (t) => {
+  const os = require("node:os");
+  const {spawn} = require("node:child_process");
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(),"alma-panel-"));
+  const filename = path.join(directory,"youtube-links.json");
+  const script = `import sys,secrets
+from pathlib import Path
+from http.server import ThreadingHTTPServer
+from puente import Handler
+from youtube_library import Library
+server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
+server.origins=['null','http://127.0.0.1:8765']
+server.youtube_library=Library(Path(sys.argv[1]))
+server.admin_token=secrets.token_urlsafe(32)
+server.allow_launch=False
+server.tv='192.168.1.249'
+print(server.server_port,flush=True)
+server.serve_forever()
+`;
+  const process = spawn("python3",["-u","-c",script,filename],{cwd:ROOT,stdio:["ignore","pipe","pipe"]});
+  t.after(() => { process.kill(); fs.rmSync(directory,{recursive:true,force:true}); });
+  const port = await new Promise((resolve,reject) => {
+    process.once("error",reject);
+    process.stdout.once("data",chunk => resolve(Number(chunk.toString().split("\n")[0])));
+    process.once("exit",code => reject(new Error("Servidor del panel terminó: " + code)));
+  });
+  assert.ok(port > 0);
+  const base = "http://127.0.0.1:" + port;
+  await page.route("http://192.168.1.30:8088/youtube/library",async route => {
+    const response = await fetch(base + "/youtube/library");
+    await route.fulfill({status:response.status,headers:{"Access-Control-Allow-Origin":"http://127.0.0.1:8765"},contentType:"application/json",body:await response.text()});
+  });
+  const laptop = await browser.newContext({viewport:{width:1280,height:1000}});
+  t.after(() => laptop.close());
+  const panel = await laptop.newPage();
+  const panelErrors = [];
+  panel.on("pageerror",e => panelErrors.push(e.message));
+  await panel.goto(base + "/enlaces");
+  await panel.locator("#urls").fill("https://youtu.be/M7lc1UVf-VE");
+  await panel.locator("#name").fill("Mi concierto en línea");
+  await panel.locator("#save").click();
+  await panel.waitForFunction(() => document.getElementById("status").textContent.indexOf("Guardado.") === 0);
+  await go("media");
+  await page.locator("#mac-youtube-0").waitFor();
+  assert.match(await page.locator("#mac-youtube-0").innerText(),/Mi concierto en línea/);
+  assert.equal(JSON.parse(fs.readFileSync(filename,"utf8")).items[0].name,"Mi concierto en línea");
+  await panel.screenshot({path:path.join(ROOT,"docs/capturas/27-panel-enlaces-mac.png"),fullPage:true});
+  await click("media-mac-links");
+  await page.waitForFunction(() => document.getElementById("mac-youtube-0").className.indexOf("focus") >= 0);
+  await shot("28-lista-mac-sin-reinstalar");
+  await panel.locator(".remove").click();
+  await panel.waitForFunction(() => document.querySelectorAll(".item").length === 0);
+  await click("media-mac-links");
+  await page.waitForFunction(() => !document.getElementById("mac-youtube-0"));
+  await panel.locator("#urls").fill("https://youtu.be/M7lc1UVf-VE");
+  await panel.locator("#name").fill('<img src=x onerror="alert(1)">');
+  await panel.locator("#save").click();
+  await panel.waitForFunction(() => document.querySelectorAll(".item").length === 1);
+  await page.clock.runFor(16000);
+  await page.locator("#mac-youtube-0").waitFor();
+  assert.match(await page.locator("#mac-youtube-0 strong").innerText(),/<img src=x/);
+  assert.equal(await page.locator("#mac-youtube-0 img").count(),0);
+  assert.equal(await panel.locator(".item img").count(),0);
+  await panel.reload();
+  await panel.waitForFunction(() => document.querySelectorAll(".item").length === 1);
+  await officialYouTubeFixture();
+  await click("mac-youtube-0");
+  await page.waitForFunction(() => AlmaYouTube.snapshot().ready);
+  await go("home");
+  assert.equal(await page.locator("#youtube-frame").count(),0);
+  assert.deepEqual(panelErrors,[]);
   assert.deepEqual(errors,[]);
 });

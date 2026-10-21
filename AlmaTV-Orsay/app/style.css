@@ -1874,3 +1874,6 @@ body,
 .youtube-controls .pill, .youtube-options .pill { margin: 0 8px 8px 0; font-size: 14px; padding: 8px 12px; }
 #safe[data-view="youtube"] .page-head h1 { font-size: 26px; margin: 6px 0; }
 #safe[data-view="youtube"] .page-head { margin-bottom: 10px; }
+
+.mac-links-heading { font-size: 16px; margin: 16px 4px 8px; color: #153f3d; }
+.mac-links-state { font-size: 12px; line-height: 1.5; margin: 6px 4px 12px; color: #52756a; }

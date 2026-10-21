@@ -36,7 +36,12 @@ var Alma = (function () {
     videoFull = false,
     youtubeFull = false,
     youtubeSelection = null,
-    youtubeLoaded = "";
+    youtubeLoaded = "",
+    macYoutubeLinks = [],
+    macLinksBusy = false,
+    macLinksLast = 0,
+    macLinksHost = "",
+    macLinksState = "Enlaces de la Mac: sin consultar.";
   var net = { YouTube: "Sin comprobar", Netflix: "Sin comprobar" },
     query = "",
     edit = null,
@@ -1237,6 +1242,43 @@ var Alma = (function () {
       el("media-progress").style.width =
         (player.duration ? (player.time / player.duration) * 100 : 0) + "%";
   }
+  function loadMacYoutube(silent) {
+    if (macLinksBusy) return;
+    macLinksBusy = true;
+    macLinksLast = new Date().getTime();
+    macLinksHost = prefs.macIp;
+    var gen = generation;
+    if (!silent) htmlIfChanged(el("mac-links-state"), "Actualizando enlaces de la Mac…");
+    request("GET", "http://" + prefs.macIp + ":8088/youtube/library", function (code, body) {
+      macLinksBusy = false;
+      if (gen !== generation) return;
+      var changed = false, success = false;
+      try {
+        var data = JSON.parse(body);
+        if (code !== 200 || Object.prototype.toString.call(data.items) !== "[object Array]") throw new Error();
+        var next = data.items.slice(0, 50).filter(function (item) {
+          return item && typeof item.id === "string" && /^[A-Za-z0-9_-]{11}$/.test(item.id) && typeof item.name === "string" && item.name.length <= 80;
+        });
+        changed = JSON.stringify(next) !== JSON.stringify(macYoutubeLinks);
+        macYoutubeLinks = next;
+        success = true;
+        macLinksState = "Enlaces de la Mac: " + next.length + ". Pégalos en http://" + prefs.macIp + ":8088/enlaces";
+      } catch (e) {
+        macLinksState = "No se pudo actualizar la lista de la Mac. Comprueba el puente actualizado. Los enlaces anteriores pueden estar desactualizados.";
+      }
+      if (changed && state.view === "media" && !modal) render();
+      else htmlIfChanged(el("mac-links-state"), esc(macLinksState));
+      if (!silent && !success) notice("No se pudo actualizar la lista. Comprueba el puente de la Mac.");
+      if (!silent && success && state.view === "media" && !modal) {
+        if (macYoutubeLinks.length) {
+          for (var r = 0; r < rows.length; r++) {
+            var c = rows[r].indexOf("mac-youtube-0");
+            if (c >= 0) { state.row = r; state.col = c; focus(); break; }
+          }
+        } else notice("Aún no hay enlaces en la Mac. Añádelos en http://" + prefs.macIp + ":8088/enlaces");
+      }
+    });
+  }
   function loadMacMedia() {
     var base = "http://" + prefs.macIp + ":8088";
     request("GET", base + "/media/library", function (code, body) {
@@ -1281,7 +1323,7 @@ var Alma = (function () {
     var h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor · Alma TV 8.2",
+        "Tu reproductor · Alma TV 8.3",
         "Archivos propios, enlaces directos y YouTube integrado experimental mediante el puente de la Mac."
       ) +
       '<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +
@@ -1332,6 +1374,7 @@ var Alma = (function () {
         editor("mediaName", "Nombre del archivo", "", "text");
       }) +
       pill("media-mac", "Archivos de la Mac", loadMacMedia) +
+      pill("media-mac-links", "Enlaces de la Mac", function () { loadMacYoutube(false); }) +
       pill("media-youtube", "YouTube en línea", function () { editor("youtubeUrl", "Pega un enlace de YouTube", "", "text"); }) +
       pill("media-youtube-test", "Probar YouTube", function () { openYoutube({ id: "M7lc1UVf-VE", name: "Prueba de compatibilidad de YouTube" }); }) +
       pill("media-vol-down", "− Volumen", function () {
@@ -1343,7 +1386,7 @@ var Alma = (function () {
       '<span id="media-volume">Volumen: ' +
       Math.round(player.volume * 100) +
       ' %</span></div><div class="media-list">';
-    row(["media-add", "media-mac", "media-youtube", "media-youtube-test", "media-vol-down", "media-vol-up"]);
+    row(["media-add", "media-mac", "media-mac-links", "media-youtube", "media-youtube-test", "media-vol-down", "media-vol-up"]);
     for (var i = 0; i < player.tracks.length; i++)
       (function (i) {
         h += button(
@@ -1376,6 +1419,14 @@ var Alma = (function () {
         row(["youtube-item-" + y, "youtube-remove-" + y]); h += "<br>";
       })(y);
     }
+    h += '<h2 class="mac-links-heading">YouTube · Enlaces de la Mac</h2><p id="mac-links-state" class="mac-links-state">' + esc(macLinksState) + '</p>';
+    for (var m = 0; m < macYoutubeLinks.length; m++) {
+      (function (m) {
+        var item = macYoutubeLinks[m];
+        h += button("mac-youtube-" + m, item.name, "Guardado desde la Mac · YouTube integrado", function () { openYoutube(item); }, "card media-item") + "<br>";
+        row(["mac-youtube-" + m]);
+      })(m);
+    }
     return h + "</div>";
   }
   function render() {
@@ -1384,6 +1435,9 @@ var Alma = (function () {
     actions = {};
     nav();
     var viewChanged = lastRenderedView !== state.view;
+    if (viewChanged && state.view === "media") macLinksLast = 0;
+    var previousMediaList = state.view === "media" && el("view").querySelector(".media-list");
+    var previousMediaScroll = previousMediaList ? previousMediaList.scrollTop : 0;
     var h = "";
     switch (state.view) {
       case "home":
@@ -1454,6 +1508,7 @@ var Alma = (function () {
       '">' +
       h +
       "</div>";
+    if (state.view === "media" && el("view").querySelector(".media-list")) el("view").querySelector(".media-list").scrollTop = previousMediaScroll;
     lastRenderedView = state.view;
     if (
       state.view === "saver" &&
@@ -1829,6 +1884,8 @@ var Alma = (function () {
     requests = [];
     pending = false;
     weatherPending = false;
+    macLinksBusy = false;
+    macLinksLast = 0;
     net = { YouTube: "Sin comprobar", Netflix: "Sin comprobar" };
   }
   function request(method, url, callback) {
@@ -2149,6 +2206,7 @@ var Alma = (function () {
     );
   }
   function tick() {
+    if (state.view === "media" && !modal && (macLinksHost !== prefs.macIp || new Date().getTime() - macLinksLast >= 15000)) loadMacYoutube(true);
     htmlIfChanged(el("time"), time());
     updateNetwork();
     if (timer.running && timerLeft() <= 0) {

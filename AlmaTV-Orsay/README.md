@@ -170,3 +170,13 @@ Controles, pantalla completa, errores claros y acceso nativo conservado.
 La compatibilidad real con Orsay queda pendiente de prueba física; no se afirma
 que cualquier vídeo funcione. YouTube se detiene al salir de su vista.
 Ver [investigación, límites y prueba física](docs/YOUTUBE.md).
+
+### 8.3: enlaces desde la Mac, sin reinstalar por cada vídeo
+
+Abrir `http://192.168.1.30:8088/enlaces` en el navegador de la Mac para pegar,
+nombrar y quitar vídeos. En la TV: Multimedia → Enlaces de la Mac; la lista también
+se actualiza al entrar y cada 15 segundos mientras Multimedia está abierta.
+Una actualización inicial instala el panel y el soporte del widget; las siguientes
+ediciones de la lista no requieren instalar nada. Se conservan los enlaces de la TV.
+El puente automático mantiene la lista en Application Support, separada del código.
+El reproductor de YouTube sigue siendo experimental en Orsay. Ver docs/YOUTUBE.md.

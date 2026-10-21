@@ -5,12 +5,14 @@ import hashlib
 import re
 from pathlib import Path
 import json
+import secrets
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit, urlencode
 from urllib.request import urlopen, Request, build_opener, ProxyHandler, HTTPRedirectHandler
 from urllib.error import HTTPError
 from preparar import private_ipv4
+from youtube_library import Library
 
 CACHE={}
 WEATHER_CODES={0:'Despejado',1:'Mayormente despejado',2:'Parcialmente nublado',3:'Nublado',45:'Niebla',48:'Niebla con escarcha',51:'Llovizna ligera',53:'Llovizna',55:'Llovizna intensa',61:'Lluvia ligera',63:'Lluvia',65:'Lluvia intensa',71:'Nieve ligera',73:'Nieve',75:'Nieve intensa',80:'Chubascos ligeros',81:'Chubascos',82:'Chubascos intensos',95:'Tormenta',96:'Tormenta con granizo',99:'Tormenta intensa con granizo'}
@@ -92,15 +94,19 @@ def stream_media(self,path):
 
 
 class Handler(BaseHTTPRequestHandler):
+    def panel_origin(self):
+        return 'http://%s:%s' % self.server.server_address[:2]
+    def panel_host_allowed(self):
+        return self.headers.get('Host') == self.panel_origin().split('//',1)[1]
     def origin_allowed(self):
         origin=self.headers.get('Origin')
-        return origin is None or origin in self.server.origins
-    def reply(self,status,body,content_type='application/json; charset=utf-8'):
+        return origin is None or origin in self.server.origins or origin == self.panel_origin()
+    def reply(self,status,body,content_type='application/json; charset=utf-8',extra_headers=None):
         if not isinstance(body,bytes):
             body=json.dumps(body,ensure_ascii=True).encode('utf-8')
         self.send_response(status)
         origin=self.headers.get('Origin')
-        if origin in self.server.origins:
+        if origin in self.server.origins or origin == self.panel_origin():
             self.send_header('Access-Control-Allow-Origin',origin)
             self.send_header('Vary','Origin')
         self.send_header('Access-Control-Allow-Methods','GET, POST, OPTIONS')
@@ -110,6 +116,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Referrer-Policy','origin')
         self.send_header('X-Content-Type-Options','nosniff')
         self.send_header('Content-Length',str(len(body)))
+        for name,value in (extra_headers or {}).items(): self.send_header(name,value)
         self.end_headers()
         self.wfile.write(body)
     def do_OPTIONS(self):
@@ -118,6 +125,43 @@ class Handler(BaseHTTPRequestHandler):
         self.dispatch('GET')
     def do_POST(self):
         self.dispatch('POST')
+    def panel(self,method):
+        if not self.panel_host_allowed():
+            self.reply(403,{'error':'Dirección del puente no autorizada'})
+            return
+        library=getattr(self.server,'youtube_library',None)
+        if library is None:
+            self.reply(503,{'error':'La lista de enlaces no está configurada. Actualiza el puente.'})
+            return
+        try:
+            if method=='GET':
+                self.reply(200,{'items':library.read()})
+                return
+            origin=self.headers.get('Origin')
+            token=self.headers.get('X-Alma-Token','')
+            if origin!=self.panel_origin() or not secrets.compare_digest(token,getattr(self.server,'admin_token','')) or not token:
+                self.reply(403,{'error':'Actualiza la página de enlaces y vuelve a intentarlo.'})
+                return
+            if self.headers.get('Content-Type','').split(';')[0].strip()!='application/json':
+                self.reply(415,{'error':'Formato de solicitud no válido.'})
+                return
+            try: size=int(self.headers.get('Content-Length','0'))
+            except ValueError: size=0
+            if not 0<size<=32768:
+                self.reply(413,{'error':'La solicitud es demasiado grande o está vacía.'})
+                return
+            self.connection.settimeout(5)
+            data=json.loads(self.rfile.read(size).decode('utf-8'))
+            self.reply(200,{'items':library.change(data)})
+        except (ValueError,UnicodeError) as error:
+            self.reply(400,{'error':str(error) if not isinstance(error,json.JSONDecodeError) else 'Solicitud JSON no válida.'})
+    def serve_panel(self):
+        if not self.panel_host_allowed():
+            self.reply(403,{'error':'Dirección del puente no autorizada'})
+            return
+        token=json.dumps(self.server.admin_token)
+        page=(Path(__file__).resolve().parent/'link_panel.html').read_text(encoding='utf-8').replace('__ALMA_PANEL_TOKEN__',token)
+        self.reply(200,page.encode('utf-8'),'text/html; charset=utf-8',{'X-Frame-Options':'DENY','Content-Security-Policy':"frame-ancestors 'none'"})
     def serve_youtube(self,query):
         video=query.get('video',[''])[0]
         token=query.get('token',[''])[0]
@@ -146,6 +190,10 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if method=='GET' and parsed.path=='/health':
                 self.reply(200,{'service':'alma-lan-bridge','dial_launch_enabled':self.server.allow_launch})
+            elif method=='GET' and parsed.path in ('/','/enlaces'):
+                self.serve_panel()
+            elif parsed.path=='/youtube/library' and method in ('GET','POST'):
+                self.panel(method)
             elif method=='GET' and parsed.path=='/youtube/player':
                 self.serve_youtube(query)
             elif method=='GET' and parsed.path=='/media/library':
@@ -194,11 +242,14 @@ def main():
     p.add_argument('--port',type=int,default=8088)
     p.add_argument('--origin',action='append',default=[],help='Origen exacto adicional de tu widget, si es necesario')
     p.add_argument('--media-dir',help='Carpeta dedicada con música y videos propios, sin subcarpetas ni enlaces simbólicos')
+    p.add_argument('--links-file',default=str(Path.home()/'Library/Application Support/AlmaTV/youtube-links.json'),help='Archivo local persistente de la lista de enlaces')
     p.add_argument('--allow-launch',action='store_true',help='Autoriza POST DIAL a Netflix/YouTube cuando el usuario los pulse')
     a=p.parse_args()
     server=ThreadingHTTPServer((private_ipv4(a.bind),a.port),Handler)
     server.media_dir=Path(a.media_dir).expanduser().resolve() if a.media_dir else None
     if server.media_dir is not None and not server.media_dir.is_dir():p.error('La carpeta de archivos multimedia no existe')
+    server.youtube_library=Library(Path(a.links_file).expanduser())
+    server.admin_token=secrets.token_urlsafe(32)
     server.tv=private_ipv4(a.tv)
     server.allow_launch=a.allow_launch
     server.origins=['null','http://127.0.0.1:8765','http://localhost:8765']+a.origin
