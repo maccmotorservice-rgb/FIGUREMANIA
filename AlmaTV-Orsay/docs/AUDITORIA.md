@@ -46,3 +46,15 @@ Xbox es una selección de entrada, no una app Orsay: consulta fuentes por API de
 Clima y Relay DIAL se separan para que activar el clima no desvíe los lanzamientos directos a un puente cuyos POST estén deshabilitados. El nuevo salvapantallas conserva la imagen exacta y agrupa hora, fecha con año, ciudad configurada y clima sin caja negra.
 
 El instalador 7.0 instalado por el propietario se conserva sin recomprimir. El paquete nuevo utiliza ID AlmaTV71 y versión 7.1.0; no se reemplaza automáticamente nada en el televisor.
+
+## Revisión 7.2: idioma, encuadre, movimiento y multimedia
+
+Se revisan textos y etiquetas, se añaden tildes/ñ al teclado y se utiliza un campo de texto real para admitir entrada física y composición de caracteres. El empaquetado exporta escapes Unicode en JS y referencias de caracteres en HTML/CSS para evitar depender de la interpretación de archivos UTF-8 del motor antiguo; las pruebas cargan exactamente los bytes del ZIP.
+
+Los fondos se separan de la capa calibrada. El lienzo lógico 1280×720 se adapta al tamaño real de la ventana, mientras la calibración conserva los controles dentro de la zona segura. El marco blanco es una preferencia exclusiva del salvapantallas; puede desactivarse sin alterar escala/X/Y ni añadir márgenes al tema.
+
+Se añaden transiciones cortas y no bloqueantes de página/foco/pulsación, un acento gráfico de entrada y barras de reproducción ligadas al estado real del audio. Animaciones reducidas desactiva estos efectos. No se añaden videos decorativos ni fondos animados continuos.
+
+El carrusel mantiene alrededor de seis tarjetas grandes visibles y desplaza la selección. Se igualan los fondos de marca en Inicio y cuadrícula. Los encabezados editoriales los solicita el propietario; no se afirma acceso a catálogos, disponibilidad o suscripciones.
+
+El reproductor propio controla audio/video reales y comparte archivos de una carpeta elegida en la Mac. La búsqueda por segmentos se implementa en el puente y en el servidor de preview, no se sustituye por un cambio artificial del contador. La compatibilidad física de codecs sigue pendiente. Spotify/YouTube no se incrustan como si sus reproductores modernos fueran compatibles.

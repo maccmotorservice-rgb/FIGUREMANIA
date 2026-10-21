@@ -53,6 +53,20 @@ def validate(files):
                 raise ValueError('Falta la imagen local del salvapantallas')
     return ident, version, config.findtext('widgetname') or ident
 
+def runtime_files(files):
+    result=dict(files)
+    def js_character(c):
+        value=ord(c)
+        if value<128:return c
+        if value<=65535:return "\\u%04x"%value
+        value-=65536
+        return "\\u%04x\\u%04x"%(0xd800+(value>>10),0xdc00+(value&1023))
+    for name,body in files.items():
+        if name.endswith('.js'):result[name]=''.join(js_character(c) for c in body.decode('utf-8')).encode('ascii')
+        elif name.endswith('.css'):result[name]=''.join(c if ord(c)<128 else "\\%x "%ord(c) for c in body.decode('utf-8')).encode('ascii')
+        elif name.endswith('.html'):result[name]=''.join(c if ord(c)<128 else '&#%s;'%ord(c) for c in body.decode('utf-8')).encode('ascii')
+    return result
+
 def build(files, output, host):
     ident, version, title = validate(files)
     output = Path(output)
@@ -89,7 +103,10 @@ def main():
     args=parser.parse_args()
     host=private_ipv4(args.mac_ip)
     files={str(p.relative_to(ROOT/'app')):p.read_bytes() for p in (ROOT/'app').rglob('*') if p.is_file()}
-    build(files,ROOT/'servidor',host)
+    archive=build(runtime_files(files),ROOT/'servidor',host)
+    preview=ROOT/'.preview'/'app'
+    preview.mkdir(parents=True,exist_ok=True)
+    with ZipFile(str(archive)) as z:z.extractall(str(preview))
     # Original supplied by the owner: preserve exact widget contents and identifier.
     with ZipFile(str(ROOT/'respaldo'/'ALMA_TV_CODEX_STARTER_original.zip')) as z:
         prefix='AlmaTV_6_0_TVOS_Red/app/'
@@ -105,6 +122,15 @@ def main():
         if z.testzip() is not None:raise ValueError('Respaldo 7.0 dañado')
         ident,version,title=validate({n:z.read(n) for n in z.namelist()})
     if (ident,version)!=('AlmaTV70','7.0.0'):raise ValueError('Respaldo 7.0 incorrecto')
+    catalogue(ident,version,title,archive,backup,host)
+    backup=ROOT/'respaldo'/'version-7.1'
+    archive=backup/'Widget'/'AlmaTV71_7.1.0.zip'
+    saved=json.loads((backup/'manifest.json').read_text())
+    if hashlib.sha256(archive.read_bytes()).hexdigest()!=saved['sha256']:raise ValueError('El respaldo 7.1 no coincide con su SHA-256')
+    with ZipFile(str(archive)) as z:
+        if z.testzip() is not None:raise ValueError('Respaldo 7.1 dañado')
+        ident,version,title=validate({n:z.read(n) for n in z.namelist()})
+    if (ident,version)!=('AlmaTV71','7.1.0'):raise ValueError('Respaldo 7.1 incorrecto')
     catalogue(ident,version,title,archive,backup,host)
     print('Paquete validado; no se ha contactado ni instalado nada en la TV.')
 

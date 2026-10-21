@@ -16,9 +16,11 @@ var Alma = (function () {
       scale: 90,
       x: 0,
       y: 0,
-      reduced: true,
+      animations: true,
+      saverFrame: true,
       city: "Tuxtla Gutiérrez, Chiapas, México",
-      links: []
+      links: [],
+      media: []
     };
   var prefs = {},
     interval = null,
@@ -27,8 +29,10 @@ var Alma = (function () {
     generation = 0,
     pending = false,
     focusedNode = null,
+    lastRenderedView = null,
+    heroIndex = 0,
     sidebarIndex = 0;
-  var net = { YouTube: "Sin verificar", Netflix: "Sin verificar" },
+  var net = { YouTube: "Sin comprobar", Netflix: "Sin comprobar" },
     query = "",
     edit = null,
     cal = null;
@@ -51,14 +55,14 @@ var Alma = (function () {
     {
       id: "netflix",
       name: "Netflix",
-      detail: "App nativa · DIAL",
+      detail: "Aplicación del televisor",
       dial: "Netflix",
       mark: "N"
     },
     {
       id: "youtube",
       name: "YouTube",
-      detail: "App nativa · DIAL",
+      detail: "Aplicación del televisor",
       dial: "YouTube",
       mark: "▶"
     },
@@ -100,8 +104,8 @@ var Alma = (function () {
     },
     {
       id: "more",
-      name: "Más apps",
-      detail: "Ver aplicaciones y compatibilidad",
+      name: "Más aplicaciones",
+      detail: "Ver aplicaciones compatibles",
       mark: "▦"
     }
   ];
@@ -122,7 +126,11 @@ var Alma = (function () {
     },
     { id: "calendar", name: "Calendario", detail: "Explorar meses" },
     { id: "saver", name: "Salvapantallas", detail: "Reloj en movimiento" },
-    { id: "network", name: "Diagnóstico", detail: "Estado DIAL de las apps" },
+    {
+      id: "network",
+      name: "Diagnóstico",
+      detail: "Conexión de las aplicaciones"
+    },
     { id: "weather", name: "Clima", detail: "Datos reales · puente opcional" }
   ];
   function el(id) {
@@ -227,19 +235,41 @@ var Alma = (function () {
     prefs.city = String(prefs.city || "").slice(0, 80);
     prefs.bridge = prefs.bridge === true;
     prefs.relay = prefs.relay === true;
-    prefs.reduced = prefs.reduced === true;
+    prefs.animations = prefs.animations !== false;
+    prefs.saverFrame = prefs.saverFrame !== false;
     if (Object.prototype.toString.call(prefs.links) !== "[object Array]")
       prefs.links = [];
     prefs.links = prefs.links.slice(0, 12).filter(function (l) {
       return l && validUrl(l.url) && typeof l.name === "string";
     });
+    if (Object.prototype.toString.call(prefs.media) !== "[object Array]")
+      prefs.media = [];
+    prefs.media = prefs.media.slice(0, 30).filter(function (t) {
+      return (
+        t &&
+        typeof t.name === "string" &&
+        validUrl(t.url) &&
+        (t.kind === "audio" || t.kind === "video")
+      );
+    });
+  }
+  function mediaTracks() {
+    return [
+      {
+        name: "Prueba de sonido · composición original",
+        url: "assets/media/prueba-sonido.mp3",
+        kind: "audio"
+      }
+    ].concat(prefs.media || []);
   }
   function save() {
     try {
       localStorage.setItem("alma.orsay.v7", JSON.stringify(prefs));
       return true;
     } catch (e) {
-      notice("No se pudieron guardar las preferencias. Memoria no disponible.");
+      notice(
+        "No se pudieron guardar los ajustes. Revisa el espacio disponible."
+      );
       return false;
     }
   }
@@ -254,7 +284,47 @@ var Alma = (function () {
       ")";
     el("safe").style.webkitTransform = v;
     el("safe").style.transform = v;
-    el("safe").className = prefs.reduced ? "reduced" : "";
+    el("safe").className = prefs.animations ? "" : "reduced";
+    fitScreen();
+  }
+  function fitScreen() {
+    var width =
+      window.innerWidth || document.documentElement.clientWidth || 1280;
+    var height =
+      window.innerHeight || document.documentElement.clientHeight || 720;
+    var transform = "scale(" + width / 1280 + "," + height / 720 + ")";
+    el("stage").style.webkitTransform = transform;
+    el("stage").style.transform = transform;
+  }
+  function syncBackgrounds() {
+    var saver = state.view === "saver",
+      media =
+        typeof AlmaMedia !== "undefined" &&
+        /^assets\/salvapantallas\.(jpg|png)$/.test(AlmaMedia.saver);
+    el("stage").setAttribute("data-view", state.view);
+    el("stage").setAttribute(
+      "data-saver-frame",
+      prefs.saverFrame ? "true" : "false"
+    );
+    el("wallpaper").style.display = state.view === "home" ? "block" : "none";
+    el("wallpaper-shade").style.display =
+      state.view === "home" ? "block" : "none";
+    el("saver-wallpaper").style.display =
+      saver && !prefs.saverFrame ? "block" : "none";
+    if (media) {
+      el("wallpaper").style.backgroundImage = "url(" + AlmaMedia.saver + ")";
+      el("saver-wallpaper").style.backgroundImage =
+        "url(" + AlmaMedia.saver + ")";
+    }
+  }
+  var confirmSequence = 0;
+  function confirmAction(fn) {
+    var node = el(focusedId());
+    if (node) {
+      node.className = node.className.replace(/\s*press-[ab]\b/g, "");
+      node.className += " press-" + (confirmSequence++ % 2 ? "a" : "b");
+    }
+    fn();
   }
   function notice(s) {
     el("toast").innerHTML = esc(s);
@@ -310,6 +380,7 @@ var Alma = (function () {
     "home",
     "search",
     "apps",
+    "media",
     "hub",
     "clock",
     "weather",
@@ -321,8 +392,9 @@ var Alma = (function () {
     var names = [
         "Inicio",
         "Buscar",
-        "Apps",
-        "TV / Smart Hub",
+        "Aplicaciones",
+        "Multimedia",
+        "Smart Hub",
         "Reloj",
         "Clima",
         "Calendario",
@@ -332,6 +404,7 @@ var Alma = (function () {
       icons = [
         "home",
         "search",
+        "apps",
         "apps",
         "hub",
         "clock",
@@ -377,7 +450,7 @@ var Alma = (function () {
       launch(a);
     };
     var detail =
-      a.dial && net[a.dial] !== "Sin verificar" ? net[a.dial] : a.detail;
+      a.dial && net[a.dial] !== "Sin comprobar" ? net[a.dial] : a.detail;
     return (
       '<button type="button" id="' +
       id +
@@ -388,7 +461,7 @@ var Alma = (function () {
       '">' +
       (/^(prime|disney|apple|max)$/.test(a.id)
         ? '<span class="app-note">' +
-          (/^(prime|disney)$/.test(a.id) ? "Sin soporte" : "Por verificar") +
+          (/^(prime|disney)$/.test(a.id) ? "No compatible" : "Sin comprobar") +
           "</span>"
         : a.id === "xbox"
           ? '<span class="app-note">HDMI 2</span>'
@@ -404,16 +477,83 @@ var Alma = (function () {
       "</small></button>"
     );
   }
+  function updateHero(index) {
+    heroIndex = index;
+    var messages = [
+        [
+          "NETFLIX",
+          "Ve WWE Raw on Netflix",
+          "Disfruta de WWE Raw desde la aplicación de Netflix.",
+          "Abrir Netflix"
+        ],
+        [
+          "YOUTUBE",
+          "¡Bienvenido, IWC!",
+          "Continúa viendo tus videos favoritos.",
+          "Abrir YouTube"
+        ],
+        [
+          "PRIME VIDEO",
+          "La Última Palabra",
+          "Disfrútalo solo por Fox con tu suscripción.",
+          "Ver opciones de Prime Video"
+        ],
+        [
+          "DISNEY+",
+          "Un mundo de historias",
+          "Descubre aventuras, personajes y mundos en Disney+.",
+          "Ver opciones de Disney+"
+        ],
+        [
+          "APPLE TV",
+          "Historias que te acompañan",
+          "Consulta las opciones de Apple TV en un dispositivo compatible.",
+          "Ver opciones de Apple TV"
+        ],
+        [
+          "MAX",
+          "Grandes historias, a tu manera",
+          "Descubre las opciones de Max en un dispositivo compatible.",
+          "Ver opciones de Max"
+        ],
+        [
+          "XBOX · HDMI 2",
+          "Tu próxima partida empieza aquí",
+          "Enciende tu consola y elige tu próxima aventura.",
+          "Cambiar a HDMI 2"
+        ],
+        [
+          "NAVEGADOR",
+          "Tus sitios favoritos, más cerca",
+          "Abre el navegador del televisor.",
+          "Abrir el navegador"
+        ],
+        [
+          "APLICACIONES",
+          "Más formas de disfrutar",
+          "Revisa los accesos y la compatibilidad de tus aplicaciones.",
+          "Ver aplicaciones"
+        ]
+      ],
+      message = messages[index] || messages[0];
+    htmlIfChanged(el("hero-label"), esc(message[0]));
+    htmlIfChanged(el("hero-title"), esc(message[1]));
+    htmlIfChanged(el("hero-copy"), esc(message[2]));
+    htmlIfChanged(el("hero-cta"), esc(message[3]));
+    actions["hero-cta"] = function () {
+      launch(apps[heroIndex]);
+    };
+  }
   function home() {
     var h =
-      '<section class="hero"><div class="eyebrow">ALMA TV · TU ESPACIO</div><h1>Tu momento.<br>Tu pantalla.</h1><p>Tus aplicaciones y herramientas,<br>con el paisaje que elegiste.</p>' +
+      '<section class="hero"><div class="eyebrow" id="hero-label"></div><h1 id="hero-title"></h1><p id="hero-copy"></p>' +
       pill("hero-cta", "Abrir Netflix", function () {
-        launch(apps[0]);
+        launch(apps[heroIndex]);
       }) +
-      '<span class="hero-credit">Tu ilustración · guardada en esta TV</span></section>';
+      '<span class="hero-credit">Mensajes personalizados · disponibilidad según el servicio</span></section>';
     row(["hero-cta"]);
     h +=
-      '<section class="home-apps"><h2 class="section-title">Apps <span>OK abre · compatibilidad en Apps</span></h2><div class="row">';
+      '<section class="home-apps"><h2 class="section-title">Aplicaciones <span>Pulsa Aceptar para abrir</span></h2><div class="app-carousel"><div class="row app-track">';
     var ids = [],
       i;
     for (i = 0; i < apps.length; i++) {
@@ -422,7 +562,7 @@ var Alma = (function () {
     }
     row(ids);
     h +=
-      '</div></section><section class="home-links"><h2 class="section-title">Tus accesos guardados</h2><div class="row">';
+      '</div></div></section><section class="home-links"><h2 class="section-title">Tus accesos guardados</h2><div class="row">';
     ids = [];
     if (prefs.links.length) {
       for (i = 0; i < Math.min(4, prefs.links.length); i++) {
@@ -451,7 +591,7 @@ var Alma = (function () {
       );
       ids.push("save-link");
       h +=
-        '<p class="local-note">Este espacio es tuyo. No accedemos al historial de tus plataformas.</p>';
+        '<p class="local-note">Guarda aquí tus sitios favoritos para encontrarlos fácilmente.</p>';
     }
     row(ids);
     h +=
@@ -468,8 +608,8 @@ var Alma = (function () {
             date().split(",")[0],
             "Abrir",
             net.YouTube.indexOf("Disponible") === 0
-              ? "DIAL disponible"
-              : "Sin verificar",
+              ? "Televisor conectado"
+              : "Sin comprobar",
             weather.text
           ][index];
         h += button(
@@ -494,8 +634,8 @@ var Alma = (function () {
           kind === "apps" ? "ENTRETENIMIENTO" : "A TU RITMO",
           kind === "apps" ? "Tus aplicaciones" : "Herramientas",
           kind === "apps"
-            ? "Netflix y YouTube: lanzamiento DIAL confirmado en una versión anterior; comprueba esta versión en tu TV."
-            : "Funciones locales, sin cuentas ni catálogos inventados."
+            ? "Elige una aplicación. Algunos servicios requieren un dispositivo compatible."
+            : "Funciones locales, sin cuentas ni catálogos simulados."
         ) + '<div class="grid">',
       ids = [],
       i;
@@ -534,7 +674,7 @@ var Alma = (function () {
         "IP del televisor",
         prefs.tvIp,
         function () {
-          editor("tvIp", "IP privada de la TV", prefs.tvIp, "ip");
+          editor("tvIp", "Dirección IP del televisor", prefs.tvIp, "ip");
         }
       ],
       [
@@ -542,7 +682,7 @@ var Alma = (function () {
         "IP de la Mac",
         prefs.macIp,
         function () {
-          editor("macIp", "IP privada de la Mac", prefs.macIp, "ip");
+          editor("macIp", "Dirección IP de la Mac", prefs.macIp, "ip");
         }
       ],
       [
@@ -562,7 +702,7 @@ var Alma = (function () {
       ],
       [
         "relay",
-        "Relay DIAL",
+        "Conexión de aplicaciones",
         prefs.relay
           ? "Mac · requiere permitir lanzamientos"
           : "Directo desde la TV",
@@ -575,12 +715,24 @@ var Alma = (function () {
       ],
       [
         "motion",
-        "Movimiento",
-        prefs.reduced ? "Reducido" : "Sutil",
+        "Animaciones",
+        prefs.animations ? "Activadas" : "Reducidas",
         function () {
-          prefs.reduced = !prefs.reduced;
+          prefs.animations = !prefs.animations;
           save();
           apply();
+          render();
+        }
+      ],
+      [
+        "saver-frame",
+        "Marco del salvapantallas",
+        prefs.saverFrame
+          ? "Blanco · solo en el salvapantallas"
+          : "Sin marco · imagen a pantalla completa",
+        function () {
+          prefs.saverFrame = !prefs.saverFrame;
+          save();
           render();
         }
       ],
@@ -602,7 +754,7 @@ var Alma = (function () {
       ],
       [
         "diagnostic",
-        "Diagnóstico DIAL",
+        "Comprobar conexión",
         "Comprobar Netflix y YouTube",
         function () {
           go("network");
@@ -619,7 +771,7 @@ var Alma = (function () {
         head(
           "PREFERENCIAS",
           "A tu medida",
-          "Los ajustes no cambian Smart Hub, las apps de Samsung ni el firmware."
+          "Los ajustes no cambian Smart Hub, las aplicaciones de Samsung ni el firmware."
         ) + '<div class="grid settings">',
       ids = [];
     for (var i = 0; i < items.length; i++) {
@@ -776,7 +928,7 @@ var Alma = (function () {
       '</div><p class="muted">HTTP 0 puede indicar CORS, red bloqueada o TV inaccesible. No se interpreta como falta de internet.</p><div class="actions">' +
       pill("check-network", "Comprobar ahora", checkNetwork) +
       pill("edit-tv", "Cambiar IP de TV", function () {
-        editor("tvIp", "IP privada de la TV", prefs.tvIp, "ip");
+        editor("tvIp", "Dirección IP del televisor", prefs.tvIp, "ip");
       }) +
       "</div></div>";
     row(["check-network", "edit-tv"]);
@@ -790,7 +942,7 @@ var Alma = (function () {
         "Encuentra tus bordes",
         "Este marco, los modales y todas las vistas comparten la misma transformación."
       ) +
-      '<p class="muted">Arriba/abajo: elegir ajuste · Izq/der: cambiar · OK: presets.<br>Verde: guardar · RETURN: cancelar · Amarillo: ajustes</p><button class="pill" id="cal-adjust" data-focus="cal-adjust"><span class="cal-value" id="cal-value"></span></button><p class="help">Escala entre 76–100 %. 90 % inicial protege del overscan.<br>Los presets reservan 3 %, 5 % u 8 % por cada borde.</p>' +
+      '<p class="muted">Arriba/abajo: elegir ajuste · Izq/der: cambiar · Aceptar: presets.<br>Verde: guardar · Volver: cancelar · Amarillo: ajustes</p><button class="pill" id="cal-adjust" data-focus="cal-adjust"><span class="cal-value" id="cal-value"></span></button><p class="help">Escala entre 76–100 %. 90 % inicial protege del overscan.<br>Los presets reservan 3 %, 5 % u 8 % por cada borde.</p>' +
       pill("safe3", "3 %", function () {
         prefs.scale = 94;
         apply();
@@ -858,7 +1010,7 @@ var Alma = (function () {
       (function (a) {
         l.push({
           name: a.name,
-          type: "App",
+          type: "Aplicación",
           open: function () {
             launch(a);
           }
@@ -884,6 +1036,13 @@ var Alma = (function () {
           }
         });
       })(prefs.links[i]);
+    l.push({
+      name: "Reproductor multimedia",
+      type: "Música y videos",
+      open: function () {
+        go("media");
+      }
+    });
     return l;
   }
   function normalize(s) {
@@ -900,7 +1059,7 @@ var Alma = (function () {
       head(
         "SOLO LO TUYO",
         "Encuentra tu próximo paso",
-        "Busca apps, herramientas y enlaces guardados. No consulta catálogos de streaming."
+        "Busca aplicaciones, herramientas y enlaces guardados."
       ) +
       '<div class="search-layout">' +
       pill("search-edit", query || "Escribir búsqueda…", function () {
@@ -967,14 +1126,179 @@ var Alma = (function () {
     }
     return h + "</div>";
   }
+  function mediaClock(seconds) {
+    seconds = Math.max(0, Math.floor(seconds || 0));
+    return pad(Math.floor(seconds / 60)) + ":" + pad(seconds % 60);
+  }
+  function updatePlayer() {
+    if (typeof AlmaPlayer === "undefined") return;
+    var player = AlmaPlayer.snapshot();
+    var playing = player.playing ? "true" : "false";
+    if (el("safe").getAttribute("data-playing") !== playing)
+      el("safe").setAttribute("data-playing", playing);
+    htmlIfChanged(el("media-title"), esc(player.title));
+    htmlIfChanged(el("media-state"), esc(player.error || player.status));
+    htmlIfChanged(
+      el("media-time"),
+      mediaClock(player.time) + " / " + mediaClock(player.duration)
+    );
+    htmlIfChanged(el("media-play"), player.playing ? "Pausar" : "Reproducir");
+    htmlIfChanged(
+      el("media-volume"),
+      "Volumen: " + Math.round(player.volume * 100) + " %"
+    );
+    if (state.view !== "media" && player.kind === "video" && player.playing)
+      AlmaPlayer.pause();
+    el("media-video").style.display =
+      state.view === "media" && player.kind === "video" && player.index >= 0
+        ? "block"
+        : "none";
+    if (el("media-progress"))
+      el("media-progress").style.width =
+        (player.duration ? (player.time / player.duration) * 100 : 0) + "%";
+  }
+  function loadMacMedia() {
+    var base = "http://" + prefs.macIp + ":8088";
+    request("GET", base + "/media/library", function (code, body) {
+      try {
+        var data = JSON.parse(body);
+        if (code !== 200 || !data.enabled || !data.items) throw new Error();
+        var retained = prefs.media.filter(function (t) {
+            return t.url.indexOf("/media/file/") === -1;
+          }),
+          added = [];
+        for (
+          var i = 0;
+          i < data.items.length && retained.length + added.length < 30;
+          i++
+        ) {
+          var file = data.items[i];
+          if (/^[a-f0-9]{16}$/.test(file.id))
+            added.push({
+              name: String(file.name).slice(0, 80),
+              url: base + "/media/file/" + file.id,
+              kind: file.kind === "video" ? "video" : "audio"
+            });
+        }
+        prefs.media = retained.concat(added);
+        save();
+        AlmaPlayer.setTracks(mediaTracks());
+        render();
+        notice(
+          added.length
+            ? "Archivos de la Mac añadidos a tu lista."
+            : "La carpeta de la Mac no contiene archivos compatibles."
+        );
+      } catch (e) {
+        notice(
+          "No se pudo leer la carpeta de la Mac. Inicia el puente con --media-dir y comprueba su dirección IP."
+        );
+      }
+    });
+  }
+  function mediaView() {
+    var player = AlmaPlayer.snapshot();
+    var h =
+      head(
+        "MÚSICA Y VÍDEOS",
+        "Tu reproductor",
+        "Archivos propios o enlaces directos. YouTube se abre en su aplicación; no se reproduce el catálogo de Spotify."
+      ) +
+      '<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +
+      esc(player.title) +
+      '</h2><p id="media-state">' +
+      esc(player.error || player.status) +
+      '</p><div class="media-track"><span id="media-progress"></span></div><div id="media-time">' +
+      mediaClock(player.time) +
+      " / " +
+      mediaClock(player.duration) +
+      '</div></div><div class="media-controls">';
+    h +=
+      pill("media-prev", "Anterior", function () {
+        AlmaPlayer.step(-1);
+      }) +
+      pill(
+        "media-play",
+        player.playing ? "Pausar" : "Reproducir",
+        AlmaPlayer.toggle
+      ) +
+      pill("media-next", "Siguiente", function () {
+        AlmaPlayer.step(1);
+      }) +
+      pill("media-back", "−10 s", function () {
+        AlmaPlayer.seek(-10);
+      }) +
+      pill("media-forward", "+10 s", function () {
+        AlmaPlayer.seek(10);
+      }) +
+      pill("media-stop", "Detener", AlmaPlayer.stop);
+    row([
+      "media-prev",
+      "media-play",
+      "media-next",
+      "media-back",
+      "media-forward",
+      "media-stop"
+    ]);
+    h +=
+      '</div><div class="media-actions">' +
+      pill("media-add", "Añadir enlace", function () {
+        if (prefs.media.length >= 30) {
+          notice("Puedes guardar hasta 30 archivos.");
+          return;
+        }
+        editor("mediaName", "Nombre del archivo", "", "text");
+      }) +
+      pill("media-mac", "Archivos de la Mac", loadMacMedia) +
+      pill("media-vol-down", "− Volumen", function () {
+        AlmaPlayer.volume(-0.1);
+      }) +
+      pill("media-vol-up", "+ Volumen", function () {
+        AlmaPlayer.volume(0.1);
+      }) +
+      '<span id="media-volume">Volumen: ' +
+      Math.round(player.volume * 100) +
+      ' %</span></div><div class="media-list">';
+    row(["media-add", "media-mac", "media-vol-down", "media-vol-up"]);
+    for (var i = 0; i < player.tracks.length; i++)
+      (function (i) {
+        h += button(
+          "media-item-" + i,
+          player.tracks[i].name,
+          player.tracks[i].kind === "video" ? "Vídeo" : "Audio",
+          function () {
+            AlmaPlayer.play(i);
+          },
+          "card media-item"
+        );
+        var ids = ["media-item-" + i];
+        if (i > 0) {
+          h += pill("media-remove-" + i, "Quitar", function () {
+            AlmaPlayer.stop();
+            prefs.media.splice(i - 1, 1);
+            save();
+            AlmaPlayer.setTracks(mediaTracks());
+            render();
+          });
+          ids.push("media-remove-" + i);
+        }
+        row(ids);
+        h += "<br>";
+      })(i);
+    return h + "</div>";
+  }
   function render() {
     rows = [];
     actions = {};
     nav();
+    var viewChanged = lastRenderedView !== state.view;
     var h = "";
     switch (state.view) {
       case "home":
         h = home();
+        break;
+      case "media":
+        h = mediaView();
         break;
       case "apps":
         h = catalog("apps");
@@ -1008,11 +1332,7 @@ var Alma = (function () {
         break;
       case "clock":
         h =
-          head(
-            "AHORA",
-            "Un momento para ti",
-            "Hora del dispositivo · sin sincronización externa"
-          ) +
+          head("AHORA", "Un momento para ti", "Hora y fecha del televisor") +
           '<div class="big-clock" id="live-clock">' +
           time() +
           '</div><div class="date">' +
@@ -1025,19 +1345,33 @@ var Alma = (function () {
         break;
     }
     el("safe").setAttribute("data-view", state.view);
-    el("wallpaper").style.display = state.view === "home" ? "block" : "none";
+    syncBackgrounds();
     el("view").className = state.view === "saver" ? "saver-view" : "";
     el("header").style.display = state.view === "saver" ? "none" : "block";
     el("footer").style.display = state.view === "saver" ? "none" : "block";
-    el("view").innerHTML = h;
+    el("view").innerHTML =
+      '<div class="page-surface' +
+      (viewChanged && prefs.animations && state.view !== "saver"
+        ? " page-enter"
+        : "") +
+      '">' +
+      h +
+      "</div>";
+    lastRenderedView = state.view;
     if (
       state.view === "saver" &&
       typeof AlmaMedia !== "undefined" &&
       /^assets\/salvapantallas\.(jpg|png)$/.test(AlmaMedia.saver)
     ) {
-      el("saver-scene").style.backgroundImage = "url(" + AlmaMedia.saver + ")";
+      el("saver-scene").style.backgroundImage = prefs.saverFrame
+        ? "url(" + AlmaMedia.saver + ")"
+        : "none";
+      el("saver-scene").className =
+        "saver" + (prefs.saverFrame ? " framed" : "");
     }
+    if (state.view === "home") updateHero(heroIndex);
     updateCal();
+    updatePlayer();
     tick();
     if (!modal) focus();
   }
@@ -1050,14 +1384,34 @@ var Alma = (function () {
     var target = el(focusedId());
     if (target === focusedNode) return;
     if (focusedNode)
-      focusedNode.className = focusedNode.className.replace(/\s*focus\b/g, "");
+      focusedNode.className = focusedNode.className.replace(
+        /\s*(focus|press-a|press-b)\b/g,
+        ""
+      );
     if (target) {
       target.className += " focus";
       focusedNode = target;
-      if (!api && target.focus) target.focus();
+      if (state.view === "home" && /^app-\d+$/.test(target.id))
+        updateHero(Number(target.id.slice(4)));
+      if (!api && !edit && target.focus) target.focus();
       var parent = target.parentNode;
       while (parent && parent !== el("view")) {
-        if (parent.className && /(grid|search-layout)/.test(parent.className)) {
+        if (parent.className && /app-carousel/.test(parent.className)) {
+          var left = target.offsetLeft;
+          if (left < parent.scrollLeft)
+            parent.scrollLeft = Math.max(0, left - 4);
+          else if (
+            left + target.offsetWidth >
+            parent.scrollLeft + parent.clientWidth
+          )
+            parent.scrollLeft =
+              left + target.offsetWidth - parent.clientWidth + 4;
+        }
+
+        if (
+          parent.className &&
+          /(grid|search-layout|media-list)/.test(parent.className)
+        ) {
           var top = target.offsetTop - parent.offsetTop;
           if (top < parent.scrollTop) parent.scrollTop = top - 5;
           else if (
@@ -1131,13 +1485,15 @@ var Alma = (function () {
   function reset() {
     showDialog(
       "Restaurar Alma TV",
-      "Se borrarán solo la calibración, IP, ciudad y enlaces de Alma TV. Las apps y los datos de Smart Hub se conservan.",
+      "Se borrarán solo la calibración, IP, ciudad y enlaces de Alma TV. Las aplicaciones y los datos de Smart Hub se conservan.",
       [
         { label: "Cancelar", action: closeDialog },
         {
           label: "Restaurar preferencias",
           action: function () {
             prefs = copy(defaults);
+            AlmaPlayer.stop();
+            AlmaPlayer.setTracks(mediaTracks());
             save();
             invalidate();
             apply();
@@ -1160,13 +1516,19 @@ var Alma = (function () {
     var h =
         "<h2>" +
         esc(edit.title) +
-        '</h2><div class="field" id="editor-value">' +
-        (esc(edit.value) || "…") +
-        '</div><div class="keyboard">',
+        '</h2><input class="field" id="editor-value" type="text" autocomplete="off" value="' +
+        esc(edit.value) +
+        '"><div class="keyboard">',
       chars =
         edit.type === "ip"
           ? ["1234567890."]
-          : ["ABCDEFGHIJKLM", "NOPQRSTUVWXYZ", "0123456789.:/-", "?&_=%,+#@"],
+          : [
+              "ABCDEFGHIJKLM",
+              "NOPQRSTUVWXYZ",
+              "ÑÁÉÍÓÚÜ",
+              "0123456789.:/-",
+              "?&_=%,+#@"
+            ],
       i,
       j,
       ids;
@@ -1219,27 +1581,81 @@ var Alma = (function () {
     });
     row(ids);
     h +=
-      '<p class="help">Flechas y OK para escribir · teclado físico opcional · RETURN cancela</p>';
+      '<p class="help">Flechas y Aceptar para escribir · teclado físico opcional · Volver cancela</p>';
     el("dialog").innerHTML = h;
     el("dialog").style.display = "block";
+    el("editor-value").oninput = function () {
+      if (edit)
+        edit.value = this.value.slice(
+          0,
+          edit.field === "mediaUrl" || edit.field === "linkUrl"
+            ? 1000
+            : edit.type === "ip"
+              ? 15
+              : 80
+        );
+    };
+    el("editor-value").focus();
     focus();
   }
   function updateEdit() {
-    el("editor-value").innerHTML = esc(edit.value) || "…";
+    el("editor-value").value = edit.value;
   }
   function append(s) {
-    var max = edit.field === "linkUrl" ? 1000 : edit.type === "ip" ? 15 : 80;
+    var max =
+      edit.field === "linkUrl" || edit.field === "mediaUrl"
+        ? 1000
+        : edit.type === "ip"
+          ? 15
+          : 80;
     if (edit.value.length < max) {
       edit.value += s;
       updateEdit();
     }
   }
-  var linkName = "";
+  var linkName = "",
+    mediaName = "";
   function finishEdit() {
     var f = edit.field,
       v = edit.value.replace(/^\s+|\s+$/g, "");
     if ((f === "tvIp" || f === "macIp") && !privateIp(v)) {
       notice("Usa una dirección IPv4 privada válida");
+      return;
+    }
+    if (f === "mediaName") {
+      if (!v) {
+        notice("Escribe un nombre para el archivo.");
+        return;
+      }
+      mediaName = v;
+      closeDialog();
+      editor(
+        "mediaUrl",
+        "Enlace directo al archivo de audio o video",
+        "",
+        "text"
+      );
+      return;
+    }
+    if (f === "mediaUrl") {
+      if (!validUrl(v)) {
+        notice("Introduce una dirección http:// o https:// válida.");
+        return;
+      }
+      if (/youtube\.com|youtu\.be|spotify\.com/i.test(v)) {
+        notice(
+          "Usa un enlace directo a un archivo MP3 o MP4. Los enlaces de YouTube y Spotify no son archivos reproducibles."
+        );
+        return;
+      }
+      prefs.media.push({
+        name: mediaName,
+        url: v,
+        kind: /\.(mp4|m4v|webm)([?#]|$)/i.test(v) ? "video" : "audio"
+      });
+      save();
+      AlmaPlayer.setTracks(mediaTracks());
+      closeDialog();
       return;
     }
     if (f === "linkName") {
@@ -1289,7 +1705,7 @@ var Alma = (function () {
     requests = [];
     pending = false;
     weatherPending = false;
-    net = { YouTube: "Sin verificar", Netflix: "Sin verificar" };
+    net = { YouTube: "Sin comprobar", Netflix: "Sin comprobar" };
   }
   function request(method, url, callback) {
     var x = new XMLHttpRequest(),
@@ -1346,8 +1762,8 @@ var Alma = (function () {
       el("network"),
       net.YouTube.indexOf("Disponible") === 0 ||
         net.Netflix.indexOf("Disponible") === 0
-        ? "DIAL disponible"
-        : "DIAL sin verificar"
+        ? "Televisor conectado"
+        : "Conexión sin comprobar"
     );
     htmlIfChanged(el("dial-youtube"), esc(net.YouTube));
     htmlIfChanged(el("dial-netflix"), esc(net.Netflix));
@@ -1372,6 +1788,7 @@ var Alma = (function () {
         return;
       }
       pending = true;
+      AlmaPlayer.pause();
       var gen = generation;
       notice("Abriendo " + a.name + "…");
       request("POST", endpoint(a.dial), function (code) {
@@ -1427,7 +1844,7 @@ var Alma = (function () {
     ) {
       showDialog(
         "Xbox · HDMI 2",
-        "Este firmware no expone la selección de entradas a Alma TV. Enciende la consola y usa SOURCE → HDMI 2 en el control Samsung. No se ha cambiado ninguna entrada.",
+        "Este firmware no expone la selección de entradas a Alma TV. Enciende la consola y elige HDMI 2 con el botón SOURCE del control Samsung. La entrada actual no se ha cambiado.",
         [{ label: "Volver", action: closeDialog }]
       );
       return;
@@ -1480,6 +1897,7 @@ var Alma = (function () {
         return;
       }
       try {
+        AlmaPlayer.pause();
         tvWindow.setSource(
           selected,
           function () {
@@ -1593,7 +2011,7 @@ var Alma = (function () {
       '</div><div class="saver-date">' +
       esc(date() + " de " + new Date().getFullYear()) +
       '</div><div class="saver-location">' +
-      esc(prefs.city || "Ubicación sin configurar") +
+      esc(prefs.city || "Ubicación no configurada") +
       '</div><div class="saver-weather"><img src="assets/weather/' +
       icon +
       '.png" alt=""><div>' +
@@ -1601,7 +2019,7 @@ var Alma = (function () {
       "<small>" +
       (weather.observed
         ? "Open-Meteo · " + esc(weather.observed)
-        : "Clima sin datos actuales") +
+        : "No hay datos meteorológicos actualizados") +
       "</small></div></div>"
     );
   }
@@ -1645,8 +2063,8 @@ var Alma = (function () {
         date().split(",")[0],
         "Iniciar",
         net.YouTube.indexOf("Disponible") === 0
-          ? "DIAL disponible"
-          : "Sin verificar",
+          ? "Televisor conectado"
+          : "Sin comprobar",
         weather.text
       ];
       for (var i = 0; i < vals.length; i++) {
@@ -1656,13 +2074,14 @@ var Alma = (function () {
     }
   }
   function exit() {
+    AlmaPlayer.pause();
     if (api) {
       try {
         api.sendExitEvent();
         return;
       } catch (e) {}
     }
-    notice("EXIT recibido · el cierre real requiere Samsung Orsay");
+    notice("Se solicitó salir · el cierre real requiere Samsung Orsay");
   }
   function key(code) {
     var map = {
@@ -1749,7 +2168,7 @@ var Alma = (function () {
     }
     if (k === "ok") {
       var fn = actions[focusedId()];
-      if (fn) fn();
+      if (fn) confirmAction(fn);
       return true;
     }
     if (!modal && state.row === 0) {
@@ -1789,6 +2208,9 @@ var Alma = (function () {
       api = new Common.API.Widget();
       api.sendReadyEvent();
     } catch (e) {}
+    window.onresize = fitScreen;
+    AlmaPlayer.init(el("media-audio"), el("media-video"), updatePlayer);
+    AlmaPlayer.setTracks(mediaTracks());
     document.onkeydown = function (e) {
       e = e || window.event;
       var used;
@@ -1813,7 +2235,7 @@ var Alma = (function () {
       e = e || window.event;
       if (edit && !e.ctrlKey && !e.metaKey) {
         var c = e.charCode || e.which;
-        if (c >= 32 && c < 127) {
+        if (c >= 32 && c <= 65535) {
           if (c !== 32) append(String.fromCharCode(c));
           if (e.preventDefault) e.preventDefault();
           return false;
@@ -1832,7 +2254,8 @@ var Alma = (function () {
               state.row = i;
               state.col = j;
               focus();
-              if (actions[id]) actions[id]();
+              if (actions[id]) confirmAction(actions[id]);
+              if (edit && el("editor-value")) el("editor-value").focus();
               return;
             }
           }
@@ -1850,6 +2273,8 @@ var Alma = (function () {
     interval = setInterval(tick, 1000);
   };
   A.destroy = function () {
+    window.onresize = null;
+    AlmaPlayer.destroy();
     clearInterval(interval);
     clearTimeout(toastTimer);
     invalidate();

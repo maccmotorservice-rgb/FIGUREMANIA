@@ -3,36 +3,51 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <meta name="viewport" content="width=1280, user-scalable=no" />
-    <meta name="alma-build" content="7.1.0" />
+    <meta name="alma-build" content="7.2.0" />
     <title>Alma TV</title>
     <link rel="stylesheet" href="style.css" />
     <script
       type="text/javascript"
+      charset="UTF-8"
       src="$MANAGER_WIDGET/Common/API/Widget.js"
     ></script>
     <script
       type="text/javascript"
+      charset="UTF-8"
       src="$MANAGER_WIDGET/Common/webapi/1.0/webapis.js"
     ></script>
-    <script type="text/javascript" src="assets/media.js"></script>
-    <script type="text/javascript" src="main.js"></script>
+    <script
+      type="text/javascript"
+      charset="UTF-8"
+      src="assets/media.js"
+    ></script>
+    <script type="text/javascript" charset="UTF-8" src="player.js"></script>
+    <script type="text/javascript" charset="UTF-8" src="main.js"></script>
   </head>
   <body onload="Alma.init()" onunload="Alma.destroy()">
     <div id="stage">
+      <div id="wallpaper"></div>
+      <div id="wallpaper-shade"></div>
+      <div id="saver-wallpaper"></div>
       <div id="safe">
-        <div id="wallpaper"></div>
-        <div id="wallpaper-shade"></div>
         <header id="header">
           <div class="brand">alma<span>tv</span></div>
           <nav id="nav"></nav>
           <div id="status">
-            <span id="network">DIAL sin verificar</span><b id="time"></b>
+            <span id="network">Conexión sin comprobar</span><b id="time"></b>
           </div>
         </header>
         <main id="view"></main>
+        <audio id="media-audio" preload="none"></audio>
+        <video
+          id="media-video"
+          preload="metadata"
+          playsinline
+          style="display: none"
+        ></video>
         <footer id="footer">
-          Flechas · mover &nbsp; OK · abrir &nbsp; RETURN · volver &nbsp; Verde
-          · Inicio &nbsp; Amarillo · Ajustes
+          Flechas: mover · Aceptar: abrir · Volver: regresar · Verde: Inicio ·
+          Amarillo: Ajustes
         </footer>
         <div
           id="dialog"

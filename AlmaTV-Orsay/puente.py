@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Optional LAN bridge. Standard library only, Python 3.8+, verified HTTPS."""
 import argparse
+import hashlib
+import re
+from pathlib import Path
 import json
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -37,13 +40,64 @@ def weather(city):
     CACHE[city]=(time.time(),value)
     return value
 
+MEDIA_TYPES={'.mp3':('audio','audio/mpeg'),'.m4a':('audio','audio/mp4'),'.wav':('audio','audio/wav'),'.mp4':('video','video/mp4'),'.m4v':('video','video/mp4'),'.webm':('video','video/webm')}
+
+def media_files(directory):
+    if directory is None:return {}
+    root=Path(directory).resolve()
+    found={}
+    for item in sorted(root.iterdir()):
+        if len(found)>=100:break
+        if item.is_symlink() or not item.is_file() or item.suffix.lower() not in MEDIA_TYPES:continue
+        resolved=item.resolve()
+        if resolved.parent!=root:continue
+        ident=hashlib.sha256(item.name.encode('utf-8')).hexdigest()[:16]
+        found[ident]=resolved
+    return found
+
+def stream_media(self,path):
+    size=path.stat().st_size
+    start,end,status=0,size-1,200
+    value=self.headers.get('Range')
+    if value:
+        match=re.fullmatch(r'bytes=(\d*)-(\d*)',value)
+        if not match or not any(match.groups()):
+            self.reply(416,{'error':'Intervalo no válido'})
+            return
+        first,last=match.groups()
+        if first:
+            start=int(first);end=min(size-1,int(last)) if last else size-1
+        else:
+            start=max(0,size-int(last));end=size-1
+        if start<0 or start>=size or end<start:
+            self.reply(416,{'error':'Intervalo fuera del archivo'})
+            return
+        status=206
+    self.send_response(status)
+    origin=self.headers.get('Origin')
+    if origin in self.server.origins:self.send_header('Access-Control-Allow-Origin',origin)
+    self.send_header('Content-Type',MEDIA_TYPES[path.suffix.lower()][1])
+    self.send_header('Accept-Ranges','bytes')
+    self.send_header('Content-Length',str(max(0,end-start+1)))
+    if status==206:self.send_header('Content-Range','bytes %s-%s/%s'%(start,end,size))
+    self.end_headers()
+    with path.open('rb') as stream:
+        stream.seek(start)
+        remaining=end-start+1
+        while remaining>0:
+            chunk=stream.read(min(65536,remaining))
+            if not chunk:break
+            self.wfile.write(chunk)
+            remaining-=len(chunk)
+
+
 class Handler(BaseHTTPRequestHandler):
     def origin_allowed(self):
         origin=self.headers.get('Origin')
         return origin is None or origin in self.server.origins
     def reply(self,status,body,content_type='application/json; charset=utf-8'):
         if not isinstance(body,bytes):
-            body=json.dumps(body,ensure_ascii=False).encode('utf-8')
+            body=json.dumps(body,ensure_ascii=True).encode('utf-8')
         self.send_response(status)
         origin=self.headers.get('Origin')
         if origin in self.server.origins:
@@ -62,6 +116,14 @@ class Handler(BaseHTTPRequestHandler):
         self.dispatch('GET')
     def do_POST(self):
         self.dispatch('POST')
+    def serve_media(self,ident):
+        directory=getattr(self.server,'media_dir',None)
+        files=media_files(directory)
+        if ident not in files:
+            self.reply(404,{'error':'Archivo no disponible'})
+            return
+        path=files[ident]
+        stream_media(self,path)
     def dispatch(self,method):
         if not self.origin_allowed():
             self.reply(403,{'error':'Origen no autorizado'})
@@ -71,6 +133,12 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if method=='GET' and parsed.path=='/health':
                 self.reply(200,{'service':'alma-lan-bridge','dial_launch_enabled':self.server.allow_launch})
+            elif method=='GET' and parsed.path=='/media/library':
+                directory=getattr(self.server,'media_dir',None)
+                files=media_files(directory)
+                self.reply(200,{'enabled':directory is not None,'items':[{'id':ident,'name':path.stem,'kind':MEDIA_TYPES[path.suffix.lower()][0]} for ident,path in files.items()]})
+            elif method=='GET' and re.fullmatch(r'/media/file/[a-f0-9]{16}',parsed.path):
+                self.serve_media(parsed.path.rsplit('/',1)[1])
             elif method=='GET' and parsed.path=='/weather':
                 city=query.get('city',[''])[0].strip()
                 if not city or len(city)>80:
@@ -108,9 +176,12 @@ def main():
     p.add_argument('--tv',default='192.168.1.249')
     p.add_argument('--port',type=int,default=8088)
     p.add_argument('--origin',action='append',default=[],help='Origen exacto adicional de tu widget, si es necesario')
+    p.add_argument('--media-dir',help='Carpeta dedicada con música y videos propios, sin subcarpetas ni enlaces simbólicos')
     p.add_argument('--allow-launch',action='store_true',help='Autoriza POST DIAL a Netflix/YouTube cuando el usuario los pulse')
     a=p.parse_args()
     server=ThreadingHTTPServer((private_ipv4(a.bind),a.port),Handler)
+    server.media_dir=Path(a.media_dir).expanduser().resolve() if a.media_dir else None
+    if server.media_dir is not None and not server.media_dir.is_dir():p.error('La carpeta de archivos multimedia no existe')
     server.tv=private_ipv4(a.tv)
     server.allow_launch=a.allow_launch
     server.origins=['null','http://127.0.0.1:8765','http://localhost:8765']+a.origin

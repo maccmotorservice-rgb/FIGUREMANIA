@@ -27,3 +27,13 @@ Los logotipos son identificadores locales con sus fuentes y licencias incluidas;
 El puente es HTTP para LAN de confianza, no un servicio para internet. Relay DIAL es independiente de clima y está desactivado por defecto. No se abren puertos del router ni se ejecutan comandos en la TV desde la nube.
 
 No se eliminan componentes de Samsung, se cambia firmware, se usa un menú de servicio ni se restablece Smart Hub. Antes de desinstalar apps opcionales mediante menús oficiales hay que acordar cuáles con el propietario.
+
+## Actualización 7.2
+
+Se añaden idioma revisado y caracteres seguros para Orsay, animaciones cortas con modo reducido, lienzo que cubre la ventana, marco opcional exclusivo del salvapantallas y carrusel de seis tarjetas grandes aproximadamente. La calibración se aplica al contenido y no recorta el fondo general.
+
+Los encabezados de Netflix, YouTube, Prime Video, Disney+, Max y Xbox son mensajes personalizados pedidos por el propietario; no proceden de búsquedas, no prueban disponibilidad y no añaden soporte a las tarjetas marcadas como no compatibles.
+
+El reproductor multimedia propio decodifica MP3/MP4 reales en Chromium y controla reproducción nativa HTML5. La compatibilidad de formatos, códecs y resolución en el firmware Orsay sigue pendiente; no se integra ni simula el catálogo de Spotify ni se garantiza el iframe actual de YouTube. Ver MULTIMEDIA.md. Los archivos de la Mac necesitan el puente activo con una carpeta dedicada; no se copian a la TV.
+
+El instalador 7.1 se conserva en respaldo/version-7.1 sin modificar su ZIP. La opción --rollback lo ofrece; --rollback-7 ofrece 7.0 y --rollback-6 ofrece la base 6.0. No se publica ni sincroniza automáticamente en la TV.

@@ -1,120 +1,119 @@
-# Alma TV 7.1 · Samsung Orsay
+# Alma TV 7.2 · Samsung Orsay
 
-Widget ES5 para Samsung **UN50J5200 (2015)**, diseñado a 1280×720. Tema claro, menú lateral, logotipos locales de apps y la ilustración elegida por el propietario como fondo y salvapantallas. Smart Hub sigue siendo el sistema principal.
+Aplicación local ES5 para **Samsung UN50J5200 (2015)**. Menú lateral claro, ilustración del propietario, logotipos locales, carrusel de aplicaciones, herramientas y reproductor de archivos propios. Smart Hub sigue siendo el sistema principal.
 
-Proyecto en `FIGUREMANIA/AlmaTV-Orsay`, rama `alma-tv/orsay`. La aplicación anterior de FIGUREMANIA se conserva. El instalador 7.0 que el propietario instaló y probó se conserva byte a byte en `respaldo/version-7.0/`.
+Proyecto: `FIGUREMANIA/AlmaTV-Orsay`, rama `alma-tv/orsay`. FIGUREMANIA se conserva. Los instaladores 7.0 y 7.1 anteriores están en `respaldo/`, sin recomprimir.
 
-## Cambios de 7.1
+## Novedades de 7.2
 
-- Menú lateral vertical con iconos locales, tarjetas compactas y paneles claros; sin desenfoque, ampliación animada del foco ni fondos publicitarios inventados.
-- PNG locales de los logotipos Netflix, YouTube, Prime Video, Disney+, Apple TV, Max y Xbox, con fuentes y licencias incluidas. Ver `docs/LOGOTIPOS.md`.
-- Inicio utiliza tu ilustración; no lee búsquedas privadas ni historial de servicios. «Tus accesos guardados» contiene solo enlaces que tú agregas.
-- El foco solo actualiza los dos elementos afectados. Textos de hora/estado no se reescriben si no cambian. Las pruebas observan cero mutaciones de DOM en reposo con hora fija y ninguna reconstrucción de tarjetas al mover el foco. Esto no equivale a una medición de velocidad en el televisor.
-- Salvapantallas sin recuadro negro: hora, fecha completa, ciudad configurada y clima con icono se mueven juntos cada 15 s. Ciudad inicial: **Tuxtla Gutiérrez, Chiapas, México**; no es una lectura GPS. Sin proveedor accesible aparece «Sin datos».
-- **Xbox → HDMI 2**: detecta `webapis.tv.window`, consulta las entradas y selecciona el descriptor real HDMI 2. No utiliza números de fuente adivinados. Si el firmware no ofrece esa API, explica cómo usar **SOURCE → HDMI 2**. Cambio físico pendiente de verificar; no enciende la consola ni abre una app de Xbox.
+- Textos revisados en español y teclado con **ñ, á, é, í, ó, ú, ü**. El instalador convierte HTML, CSS y JavaScript a representaciones seguras para el motor antiguo, manteniendo las tildes al mostrar texto. Los fuentes siguen siendo legibles en UTF-8. La vista previa de pruebas usa los bytes extraídos del ZIP real.
+- Transiciones breves de página, foco, pulsación y apertura de cuadros. Acento gráfico al cambiar de página y barras animadas solo mientras se reproduce audio. No bloquean las teclas. **Ajustes → Animaciones** permite reducirlas.
+- Fondo que cubre toda la pantalla; la calibración de escala/X/Y protege solo los controles. Se comprueba también el ajuste a 960×540 y 1920×1080.
+- **Ajustes → Marco del salvapantallas**: blanco o sin marco. Esta preferencia no añade bordes al tema. El salvapantallas conserva el bloque móvil de hora, fecha, ciudad y clima, sin caja negra detrás de los datos.
+- Carrusel con aproximadamente seis tarjetas visibles, más grandes, desplazable con izquierda/derecha. Los logotipos conservan el fondo de marca también en la cuadrícula.
+- Encabezado según la aplicación seleccionada: WWE Raw en Netflix, «¡Bienvenido, IWC!» en YouTube, «La Última Palabra» y el texto de Fox solicitado para Prime Video, y mensajes para Disney+, Max, Apple TV y Xbox. Son textos personalizados del propietario; no se consulta un catálogo ni se confirma disponibilidad, suscripción o derecho de emisión.
+- **Multimedia**: reproducción real de audio/video propios, lista guardada, pausa, anterior/siguiente, salto de 10 s y volumen. La muestra incluida es una composición original breve, marcada como prueba de sonido; no simula Spotify ni un catálogo musical.
 
-## Apps y compatibilidad
+## Compatibilidad de servicios
 
-Netflix/YouTube conservan los POST DIAL a `/ws/app/Netflix` y `/YouTube` en puerto 8080, con una sola pulsación y errores visibles. DIAL directo es independiente del puente meteorológico.
+Netflix y YouTube se abren mediante sus aplicaciones nativas por DIAL, con una sola pulsación. No se añade un iframe de YouTube que se anuncie compatible sin probarlo. El propietario ya instaló versiones anteriores; las nuevas funciones se validan en Chromium y necesitan comprobación física.
 
-El propietario informa que su TV no tiene apps nativas Disney+ ni Prime Video. Alma TV no añade el reproductor, DRM ni soporte que falta en Orsay. Apple TV/Max tampoco tienen una integración nativa verificada. Esas tarjetas muestran el estado y ofrecen ir a la Xbox conectada a HDMI 2; puedes usar las apps oficiales disponibles para tu modelo de consola y región, desde su propio menú. No hay inicio remoto de Disney/Prime en la consola ni reproducción web simulada.
+Disney+ y Prime Video no tienen app nativa disponible en este Orsay según el propietario. Apple TV y Max no tienen integración nativa verificada. Sus tarjetas indican el estado y ofrecen usar la Xbox conectada a HDMI 2; consulta las apps oficiales disponibles para tu modelo de consola y región. Alma TV no añade DRM, cuentas o reproductores de esas plataformas.
 
-«TV / Smart Hub» llama a la salida normal del widget; no promete sintonizar directamente TV en vivo. El navegador usa `Common.API.Widget.runWebBrowser`; su compatibilidad con sitios modernos es limitada.
+**Xbox → HDMI 2** consulta la API de fuentes que exponga el firmware y selecciona el descriptor real HDMI 2. Si no existe, muestra SOURCE → HDMI 2. No adivina números de entrada, enciende la consola ni abre sus apps. «Smart Hub» sale normalmente del widget; no sustituye Home.
 
-## Descargar y preparar en la Mac
+Spotify requiere su propio servicio, autenticación y un reproductor compatible. Este proyecto no se conecta a su catálogo ni implementa Spotify Connect. Multimedia reproduce tus archivos o enlaces directos, sin DRM. No convierte enlaces de YouTube/Spotify en descargas ni elude protección.
 
-Primero revisa [capturas y comparación](docs/comparacion.html). No se ha sincronizado esta actualización automáticamente.
+## Instalación Wi-Fi en la Mac
 
-1. Descarga el ZIP de la rama/commit indicado en el chat y descomprímelo en Descargas.
-2. Abre Terminal en la carpeta `AlmaTV-Orsay` de esa descarga. Python **3.8 o posterior** basta para construir y servir; no necesita Node ni paquetes Python.
-3. Confirma la IP actual de la Mac. El valor usado antes fue `192.168.1.30`. Después ejecuta:
+1. Descarga el ZIP del commit indicado en el chat y descomprímelo en Descargas. Revisa [las capturas](docs/comparacion.html).
+2. Detén con Ctrl+C el servidor de instalación anterior. En Terminal, entra en `AlmaTV-Orsay` dentro de la nueva descarga.
+3. Confirma la IP actual de la Mac. El valor usado antes fue `192.168.1.30`. Ejecuta:
 
    ```sh
    python3 preparar.py 192.168.1.30
    python3 servir.py --bind 192.168.1.30
    ```
 
-4. Si macOS pide permisos para puerto 80, repite solo el servidor con:
+4. Si el puerto 80 requiere permisos, repite solo el servidor con:
 
    ```sh
    sudo python3 servir.py --bind 192.168.1.30
    ```
 
-   Detén antes el servidor anterior con Ctrl+C en su Terminal. No finalices procesos desconocidos. No abras puertos del router.
-5. En otra Terminal puedes comprobar el catálogo con `curl --fail http://192.168.1.30/widgetlist.xml`.
-6. Después de revisar el diseño y decidir instalar: Samsung Apps → cuenta `develop` → Ajustes IP → IP de la Mac → Sincr. aplicac. → **Alma TV 7.1**.
-7. En Ajustes de Alma TV configura la IP real de la TV si cambió de `192.168.1.249`; comprueba DIAL y calibra el marco. IDs de widget distintos pueden tener almacenamiento separado; no se garantiza migración automática de preferencias.
+5. Cuando decidas sincronizar: Samsung Apps → cuenta `develop` → Ajustes IP → IP de la Mac → Sincr. aplicac. → **Alma TV 7.2**.
+6. Configura la IP real de la TV si cambió de `192.168.1.249`. Revisa calibración, animaciones y marco del salvapantallas. IDs distintos pueden tener almacenamiento separado; no se promete migración automática.
 
-El paquete generado usa `cpname` e ID **AlmaTV71**, versión **7.1.0**; `widget.info` sigue siendo texto plano. El ZIP contiene `index.html` en su raíz. El servidor expone solo catálogo y ZIPs. Al terminar la sincronización, Ctrl+C detiene el puerto 80; no hace falta mantenerlo para las herramientas o DIAL directo.
+El paquete usa ID/cpname **AlmaTV72**, versión **7.2.0**. `widget.info` permanece en texto plano; `index.html` está en la raíz del ZIP. El servidor expone catálogo y ZIPs, sin publicar el código fuente. No abras puertos del router.
 
-Algunos firmwares reemplazan la lista de widgets de desarrollo al sincronizar. Revisa tus widgets anteriores y conserva sus instaladores; no se promete coinstalación.
+Se necesita Python **3.8 o posterior**, sin paquetes adicionales, para construir, instalar y compartir archivos. No hace falta Node ni FFmpeg en tu Mac para esas tareas. El puerto 80 puede cerrarse después de instalar; no es necesario para herramientas, audio de muestra o DIAL directo.
 
-## Clima del salvapantallas y puente opcional
+Algunos firmwares reemplazan los widgets de desarrollo al sincronizar. Conserva los instaladores y revisa el catálogo; no se garantiza coinstalación. No se ha sincronizado 7.2 desde esta nube.
 
-Para datos reales, ejecuta este archivo de la **versión nueva** en otra Terminal y deja la Mac despierta:
+## Clima y música de tu Mac
 
-```sh
-python3 puente.py --bind 192.168.1.30 --tv 192.168.1.249
-```
-
-En Alma TV → Ajustes, configura IP de la Mac y activa **Puente local**. No hace falta activar **Relay DIAL** para usar clima. En Clima → Actualizar puedes verificar la localidad resuelta. El salvapantallas consulta al entrar y renueva datos con antigüedad superior a 10 minutos mientras está visible; si falla informa Sin datos. No fabrica condiciones a partir de la hora.
-
-Proveedor: Open-Meteo, datos CC BY 4.0, `geocoding-api.open-meteo.com` y `api.open-meteo.com` por HTTPS verificado. Muestra hora de observación y ciudad resuelta. El icono usa código WMO y día/noche cuando el proveedor los entrega; si no hay datos, se usa un icono genérico con el estado explícito. La búsqueda geográfica usa el nombre anterior a la primera coma; revisa el resultado.
-
-El puente meteorológico puede estar activo y Netflix/YouTube seguir por DIAL directo. **Relay DIAL** es otro ajuste, desactivado por defecto. Úsalo solo si necesitas pasar DIAL por la Mac, por ejemplo ante un bloqueo CORS; exige iniciar el puente explícitamente con:
+Crea una carpeta dedicada para los archivos que quieras compartir:
 
 ```sh
-python3 puente.py --bind 192.168.1.30 --tv 192.168.1.249 --allow-launch
+mkdir -p "$HOME/Music/AlmaTV"
 ```
 
-El relay solo permite las dos apps a la TV configurada y rechaza redirecciones. El puente acepta origen nulo de widgets y orígenes locales de preview; `--origin` permite añadir un origen exacto observado. No uses comodines. Es HTTP para tu Wi-Fi de confianza, no un servicio autenticado para internet. Ctrl+C lo detiene. El clima deja de actualizarse sin la Mac.
+Copia allí tus MP3 o MP4 propios desde Finder. En otra Terminal, desde la carpeta nueva del proyecto:
 
-## Imagen y salvapantallas
+```sh
+python3 puente.py --bind 192.168.1.30 --tv 192.168.1.249 --media-dir "$HOME/Music/AlmaTV"
+```
 
-La imagen original del propietario, PNG 1672×941, ya está incluida **sin modificar sus bytes**. Su SHA-256 está en `docs/IMAGEN_USUARIO.json`. Inicio y salvapantallas usan el mismo archivo; no hay descargas de imágenes en uso normal.
+- **Para clima**: en Ajustes confirma la IP de la Mac y activa **Puente local**. El salvapantallas consulta al entrar y renueva los datos mientras está visible; sin proveedor accesible muestra Sin datos. La ciudad inicial indicada por el propietario es Tuxtla Gutiérrez, Chiapas, México; no se presenta como una lectura GPS.
+- **Para archivos**: abre **Multimedia → Archivos de la Mac**. Se añaden a la lista hasta 30 pistas o videos. Solo se comparten archivos de la carpeta elegida, sin subcarpetas ni enlaces simbólicos. El servidor admite solicitudes HTTP Range para poder adelantar o retroceder sin cargar todo el archivo en memoria.
+- **Para enlaces**: Multimedia → Añadir enlace. Usa una URL directa a un archivo sin DRM. Las páginas de YouTube y Spotify no son archivos de audio/video y se rechazan con un mensaje claro.
+- La Mac debe seguir despierta para servir sus archivos y actualizar el clima. Los archivos no se copian a la memoria del televisor. Solo se guardan nombre y dirección en Alma TV. Quitar una entrada de la lista no borra el archivo de la Mac.
 
-Para sustituirla en el futuro:
+MP3 y MP4 se decodifican y reproducen en las pruebas de navegador. La compatibilidad real de códec/resolución depende del firmware; prueba primero un MP3 o MP4 H.264/AAC sencillo en el televisor. M4A, WAV y WebM se comparten si los eliges, pero su reproducción depende del dispositivo y puede no estar disponible. No hay transcodificación automática ni reproducción de archivos protegidos.
+
+La música puede continuar al cambiar de vista dentro de Alma TV; abrir una app nativa pausa el reproductor. Un video se pausa al abandonar su vista. No se promete reproducción en segundo plano cuando el sistema suspende o cierra el widget.
+
+El clima procede de Open-Meteo (CC BY 4.0), por HTTPS verificado en la Mac. Se indica la observación y localidad resuelta. El icono usa el código meteorológico y día/noche del proveedor. No se inventa una temperatura cuando falta conexión.
+
+El puente meteorológico no cambia DIAL directo. **Conexión de aplicaciones** es el ajuste independiente para reenviar DIAL por la Mac, desactivado por defecto. Solo si lo necesitas, inicia el puente con `--allow-launch` y activa ese ajuste. El relay se limita a YouTube/Netflix y a la TV configurada, sin redirecciones.
+
+El puente es HTTP dentro de tu Wi-Fi de confianza, no un servicio autenticado para internet. `--origin` permite añadir un origen exacto observado del widget; no uses comodines. Ctrl+C lo detiene. No expongas la carpeta multimedia mediante un túnel o port forwarding.
+
+## Imagen y respaldo
+
+El PNG original del propietario, 1672×941, sigue intacto; SHA-256 en `docs/IMAGEN_USUARIO.json`. No se descargan fondos publicitarios. Para sustituirlo:
 
 ```sh
 python3 importar_salvapantallas.py "/ruta/a/imagen.png"
 python3 preparar.py IP_DE_LA_MAC
 ```
 
-Admite JPG/PNG de hasta 1920×1080 y 4 MB, comprueba estructura y CRC PNG, preserva la imagen anterior antes de reemplazarla. No reencodifica el archivo elegido.
+El importador admite JPG/PNG hasta 1920×1080 y 4 MB, verifica integridad PNG y conserva la imagen anterior. No reencodifica tu ilustración.
 
-## Respaldo y rollback
+Respaldos: `respaldo/version-7.1/`, `respaldo/version-7.0/` y base original 6.0 en `respaldo/servidor/`. `preparar.py` actualiza sus catálogos con la IP elegida y verifica los ZIP previos sin recomprimirlos.
 
-- `respaldo/version-7.0/Widget/AlmaTV70_7.0.0.zip`: versión instalada por el propietario, SHA-256 `8de13daa70f719364c5e6a5cb966f53c73366b9b8e29424a9a9a35c47a24e9c3`, conservada sin recomprimir.
-- `respaldo/ALMA_TV_CODEX_STARTER_original.zip`: adjunto original completo.
-- `respaldo/servidor/Widget/AlmaTV60_6.0.0.zip`: app 6.0 original, archivos internos sin modificar; no se afirma validación física de esa base.
+Para ofrecer 7.1: `python3 servir.py --bind IP_MAC --rollback`. Para 7.0: `--rollback-7`. Para la base 6.0: `--rollback-6`. Usa sudo solo si el puerto 80 lo necesita. La sincronización siempre es manual; no se restablecen datos de Smart Hub.
 
-`preparar.py` actualiza la IP de todos los catálogos sin modificar el ZIP 7.0 de respaldo. Para ofrecer la versión instalada 7.0: detén el servidor actual y ejecuta `python3 servir.py --bind IP_MAC --rollback`. Para ofrecer la base 6.0: `--rollback-6`. Usa sudo solo si el puerto 80 lo exige. La sincronización es siempre manual y debe revisarse antes en la TV.
+## Control y desarrollo
 
-No se recibió una versión 3.x. Nunca restablezcas Smart Hub ni borres sus datos para probar una versión de Alma TV.
+Menú lateral: arriba/abajo seleccionan, Aceptar abre, derecha entra al contenido. Las cuatro flechas recorren tarjetas/listas; el carrusel se desplaza para mantener visible la selección. Volver restaura la vista anterior; Salir usa la API del sistema. Verde abre Inicio y amarillo Ajustes. Las animaciones no aplazan ninguna acción.
 
-## Control remoto
+En preview: flechas, Enter, Backspace y Escape. En calibración: arriba/abajo eligen escala/X/Y, izquierda/derecha cambian valor, Aceptar pasa a presets, verde guarda y Volver cancela. El teclado en pantalla y la entrada física admiten español.
 
-En el menú lateral: arriba/abajo cambian la opción; OK abre; derecha entra al contenido. Desde la primera tarjeta de una fila, izquierda vuelve al menú. En el contenido: las cuatro flechas recorren filas y columnas; RETURN restaura la vista y el foco anterior; EXIT pide la salida normal del sistema. Verde abre Inicio; amarillo Ajustes.
-
-Códigos reales: izquierda 4, derecha 5, arriba 29460, abajo 29461, OK 29443, RETURN 88, EXIT 45, verde 20, amarillo 21. En preview: flechas, Enter, Backspace y Escape. En calibración arriba/abajo eligen escala/X/Y, izquierda/derecha cambian valor, OK pasa a presets, verde guarda, RETURN cancela. Edición de IP/ciudad/enlaces con teclado en pantalla.
-
-## Lentitud general de la TV
-
-La optimización de este widget no libera RAM ni repara la lentitud de todo el sistema. Primer paso reversible: apagar normalmente, desconectar de corriente un minuto y volver a encender. Revisa después espacio y apps opcionales desde menús oficiales Samsung. Antes de desinstalar, confirma con el propietario cuáles no utiliza. No se borra nada desde Alma TV. No se usa root, ADB, menú de servicio, firmware ni restablecimiento de Smart Hub. No se cambian ajustes de sistema automáticamente.
-
-## Desarrollo y validación
-
-La TV no usa dependencias de ejecución: ES5, archivos locales, XHR asíncrono con timeout. En la Mac para desarrollo se requiere Node 22+ y un Chrome instalado; para instalar en la TV solo Python.
+Para desarrollo: Node 22+, Python y Chrome/Chromium instalado.
 
 ```sh
 npm ci --cache /tmp/figuremania-npm-cache
 npm run preview
+npm test
 ```
 
-En otra Terminal: `npm test`. El runner inicia su preview si falta y no contacta una TV. En Mac:
+En Mac selecciona el navegador instalado:
 
 ```sh
 PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" npm test
 ```
 
-Consulta [LIMITACIONES.md](LIMITACIONES.md), [VALIDACION.md](docs/VALIDACION.md), [RENDIMIENTO.md](docs/RENDIMIENTO.md) y [PRUEBA_TV.md](docs/PRUEBA_TV.md). Las nuevas funciones necesitan comprobarse físicamente en el WebKit del televisor; Chromium no certifica compatibilidad de hardware.
+El runner utiliza `.preview/app`, extraído del ZIP real, y un servidor local con solicitudes Range. Las pruebas nunca contactan la TV. Fuentes legibles en UTF-8; distribución HTML/CSS/JS segura para el motor antiguo; sin dependencias de ejecución ni CDN en el widget.
+
+Consulta [LIMITACIONES.md](LIMITACIONES.md), [VALIDACION.md](docs/VALIDACION.md), [RENDIMIENTO.md](docs/RENDIMIENTO.md), [LOGOTIPOS.md](docs/LOGOTIPOS.md) y [PRUEBA_TV.md](docs/PRUEBA_TV.md). La lentitud general del televisor no se repara borrando componentes desde este widget: reinicia completamente primero y revisa solo apps opcionales desde menús oficiales con el propietario.

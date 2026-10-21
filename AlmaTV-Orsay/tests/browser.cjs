@@ -16,7 +16,8 @@ const shot = async (name) => {
     );
   });
   return page.screenshot({
-    path: path.join(ROOT, "docs/capturas", name + ".png")
+    path: path.join(ROOT, "docs/capturas", name + ".png"),
+    animations: "disabled"
   });
 };
 async function editor(value) {
@@ -36,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="7.1.0"'))
+      if (!html.includes('name="alma-build" content="7.2.0"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -48,13 +49,13 @@ before(async () => {
     previewProcess = require("node:child_process").spawn(
       "python3",
       [
-        "-m",
-        "http.server",
+        "preview.py",
+        "--port",
         "8765",
         "--bind",
         "127.0.0.1",
         "--directory",
-        "app"
+        ".preview/app"
       ],
       { cwd: ROOT, stdio: "ignore" }
     );
@@ -317,14 +318,17 @@ test("Calibración global 3 %, 5 %, 8 %, guardado, cancelación y geometría seg
       "weather"
     ]) {
       await go(view);
+      await page.waitForTimeout(240);
       const limit = await page.locator("#view").boundingBox();
       const boxes = await page
         .locator("#view .card,#view .pill,#view h1,#view .panel")
         .evaluateAll((nodes) =>
-          nodes.map((n) => {
-            const r = n.getBoundingClientRect();
-            return { x: r.x, y: r.y, right: r.right, bottom: r.bottom };
-          })
+          nodes
+            .filter((n) => !n.closest(".app-carousel"))
+            .map((n) => {
+              const r = n.getBoundingClientRect();
+              return { x: r.x, y: r.y, right: r.right, bottom: r.bottom };
+            })
         );
       for (const r of boxes) {
         assert.ok(
@@ -333,7 +337,7 @@ test("Calibración global 3 %, 5 %, 8 %, guardado, cancelación y geometría seg
         );
       }
       for (const r of await page
-        .locator("#view > .panel")
+        .locator("#view .panel")
         .evaluateAll((nodes) =>
           nodes.map((n) => n.getBoundingClientRect().bottom)
         )) {
@@ -584,5 +588,289 @@ test("El puente del clima no desvía ni rompe los lanzamientos DIAL directos", a
   assert.equal(commands.length, 1);
   assert.match(commands[0].url, /192\.168\.1\.249:8080\/ws\/app\/Netflix$/);
   assert.equal(commands[0].method, "POST");
+  assert.deepEqual(errors, []);
+});
+
+test("El tema cubre la pantalla completa y el contenido mantiene la calibración", async () => {
+  for (const size of [
+    { width: 1920, height: 1080 },
+    { width: 960, height: 540 },
+    { width: 1280, height: 720 }
+  ]) {
+    await page.setViewportSize(size);
+    await page.waitForTimeout(100);
+    const stage = await page.locator("#stage").boundingBox(),
+      background = await page.locator("#wallpaper").boundingBox();
+    assert.ok(
+      Math.abs(stage.width - size.width) < 1 &&
+        Math.abs(stage.height - size.height) < 1
+    );
+    assert.ok(
+      Math.abs(background.width - size.width) < 1 &&
+        Math.abs(background.height - size.height) < 1
+    );
+    const safe = await page.locator("#safe").boundingBox();
+    assert.ok(safe.width < stage.width && safe.height < stage.height);
+  }
+  assert.deepEqual(errors, []);
+});
+test("El marco blanco se configura solo para el salvapantallas y persiste", async () => {
+  await go("saver");
+  assert.equal(await page.locator("#saver-wallpaper").isVisible(), false);
+  await go("settings");
+  await click("saver-frame");
+  await go("saver");
+  assert.equal(await page.locator("#saver-wallpaper").isVisible(), true);
+  await shot("18-salvapantallas-sin-marco");
+  const rect = await page.locator("#saver-wallpaper").boundingBox();
+  assert.equal(Math.round(rect.width), 1280);
+  assert.equal(Math.round(rect.height), 720);
+  await page.reload();
+  await go("saver");
+  assert.equal(await page.locator("#saver-wallpaper").isVisible(), true);
+  await go("home");
+  assert.equal(await page.locator("#wallpaper").isVisible(), true);
+  await go("settings");
+  await click("saver-frame");
+  await go("saver");
+  assert.equal(await page.locator("#saver-wallpaper").isVisible(), false);
+  await shot("19-salvapantallas-con-marco");
+  assert.deepEqual(errors, []);
+});
+test("Las páginas y selecciones se animan; movimiento reducido las desactiva", async () => {
+  await go("apps");
+  assert.equal(await page.locator(".page-enter").count(), 1);
+  assert.equal(
+    await page
+      .locator(".page-enter")
+      .evaluate((n) => getComputedStyle(n).animationName),
+    "alma-page-in"
+  );
+  await key(39);
+  assert.equal(
+    await page
+      .locator(".focus")
+      .evaluate((n) => getComputedStyle(n).animationName),
+    "alma-focus-in"
+  );
+  for (let i = 0; i < 25; i++) await key(i % 2 ? 37 : 39);
+  assert.equal(await page.locator(".focus").count(), 1);
+  await go("settings");
+  await click("motion");
+  await go("apps");
+  assert.equal(
+    await page
+      .locator(".focus")
+      .evaluate((n) => getComputedStyle(n).animationName),
+    "none"
+  );
+  assert.equal(await page.locator(".page-enter").count(), 0);
+  assert.deepEqual(errors, []);
+});
+test("Español con tildes y ñ, incluso al escribir desde el teclado", async () => {
+  await go("settings");
+  await click("location");
+  await editor("Peña, Chiapas, México");
+  assert.match(
+    await page.locator("#location").innerText(),
+    /Peña, Chiapas, México/
+  );
+  await go("saver");
+  assert.match(
+    await page.locator(".saver-location").innerText(),
+    /Peña, Chiapas, México/
+  );
+  await go("settings");
+  await click("location");
+  assert.match(await page.locator(".keyboard").innerText(), /Ñ/);
+  await key(88);
+  await go("home");
+  await page.evaluate(() => Alma.key(39));
+  await key(40);
+  await key(39);
+  assert.match(
+    await page.locator("#hero-copy").innerText(),
+    /Continúa viendo tus videos favoritos/
+  );
+  assert.doesNotMatch(await page.locator("body").innerText(), /Ã|Â|�/);
+  assert.deepEqual(errors, []);
+});
+test("Carrusel grande, encabezados personalizados y colores de marca en todas las vistas", async () => {
+  await key(39);
+  await key(40);
+  assert.match(
+    await page.locator("#hero-title").innerText(),
+    /WWE Raw on Netflix/
+  );
+  await key(39);
+  assert.match(
+    await page.locator("#hero-title").innerText(),
+    /Bienvenido, IWC/
+  );
+  await key(39);
+  assert.equal(
+    await page.locator("#hero-title").innerText(),
+    "La Última Palabra"
+  );
+  assert.match(
+    await page.locator("#hero-copy").innerText(),
+    /Disfrútalo solo por Fox con tu suscripción/
+  );
+  for (let i = 0; i < 6; i++) await key(39);
+  await page.waitForTimeout(300);
+  assert.ok(
+    (await page.locator(".app-carousel").evaluate((n) => n.scrollLeft)) > 0
+  );
+  const focused = await page.locator(".focus").boundingBox(),
+    container = await page.locator(".app-carousel").boundingBox();
+  assert.ok(
+    focused.x >= container.x - 1 &&
+      focused.x + focused.width <= container.x + container.width + 1
+  );
+  await shot("20-carrusel-desplazado");
+  await go("apps");
+  for (const id of ["app-0", "app-2", "app-3", "app-4", "app-5", "app-6"]) {
+    const color = await page
+      .locator("#" + id)
+      .evaluate((n) => getComputedStyle(n).backgroundColor);
+    assert.notEqual(color, "rgb(251, 253, 253)");
+    assert.notEqual(color, "rgb(255, 255, 255)");
+  }
+  assert.deepEqual(errors, []);
+});
+test("El reproductor decodifica audio real, permite pausa, salto y reproducción entre vistas", async () => {
+  await go("media");
+  await click("media-play");
+  await page.waitForFunction(
+    () => document.getElementById("media-audio").currentTime > 0.2,
+    {},
+    { timeout: 5000 }
+  );
+  assert.equal(
+    await page.locator("#media-audio").evaluate((n) => n.paused),
+    false
+  );
+  await click("media-play");
+  const paused = await page
+    .locator("#media-audio")
+    .evaluate((n) => n.currentTime);
+  await page.waitForTimeout(300);
+  assert.ok(
+    Math.abs(
+      (await page.locator("#media-audio").evaluate((n) => n.currentTime)) -
+        paused
+    ) < 0.1
+  );
+  await click("media-forward");
+  await page.waitForFunction(
+    () => document.getElementById("media-audio").currentTime > 8,
+    {},
+    { timeout: 5000 }
+  );
+  await click("media-stop");
+  assert.ok(
+    (await page.locator("#media-audio").evaluate((n) => n.currentTime)) < 0.1
+  );
+  await click("media-play");
+  await go("home");
+  await page.waitForTimeout(300);
+  assert.equal(
+    await page.locator("#media-audio").evaluate((n) => n.paused),
+    false
+  );
+  await go("media");
+  await shot("21-reproductor-audio");
+  await click("media-stop");
+  assert.deepEqual(errors, []);
+});
+test("Lista multimedia editable, rechazo de enlaces de plataformas y persistencia", async () => {
+  await go("media");
+  await click("media-add");
+  await editor("Mi canción");
+  await editor("https://www.youtube.com/watch?v=123");
+  assert.ok(await page.locator("#dialog").isVisible());
+  assert.match(await page.locator("#toast").innerText(), /enlace directo/);
+  await key(88);
+  await click("media-add");
+  await editor("Mi canción");
+  await editor("http://127.0.0.1:8765/assets/media/prueba-sonido.mp3");
+  assert.match(await page.locator(".media-list").innerText(), /Mi canción/);
+  await page.reload();
+  await go("media");
+  assert.match(await page.locator(".media-list").innerText(), /Mi canción/);
+  await click("media-item-1");
+  await page.waitForFunction(
+    () => document.getElementById("media-audio").currentTime > 0.1
+  );
+  assert.equal(await page.locator("#media-title").innerText(), "Mi canción");
+  await click("media-stop");
+  await click("media-remove-1");
+  assert.doesNotMatch(
+    await page.locator(".media-list").innerText(),
+    /Mi canción/
+  );
+  assert.deepEqual(errors, []);
+});
+
+test("El reproductor reproduce video MP4 real con sus controles", async () => {
+  await page.route("http://127.0.0.1:8765/video-prueba.mp4", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "video/mp4",
+      body: fs.readFileSync(path.join(ROOT, "tests/fixtures/video-prueba.mp4"))
+    })
+  );
+  await go("media");
+  await click("media-add");
+  await editor("Video de prueba");
+  await editor("http://127.0.0.1:8765/video-prueba.mp4");
+  await click("media-item-1");
+  await page.waitForFunction(
+    () => document.getElementById("media-video").currentTime > 0.1,
+    {},
+    { timeout: 5000 }
+  );
+  assert.equal(await page.locator("#media-video").isVisible(), true);
+  await click("media-play");
+  assert.equal(
+    await page.locator("#media-video").evaluate((n) => n.paused),
+    true
+  );
+  await shot("22-reproductor-video-respuesta-de-prueba");
+  await click("media-stop");
+  assert.deepEqual(errors, []);
+});
+
+test("Abrir una aplicación nativa pausa el audio propio", async () => {
+  await go("media");
+  await click("media-play");
+  await page.waitForFunction(
+    () => document.getElementById("media-audio").currentTime > 0.1
+  );
+  await go("apps");
+  await click("app-1");
+  await page.waitForTimeout(100);
+  assert.equal(
+    await page.locator("#media-audio").evaluate((n) => n.paused),
+    true
+  );
+  assert.match(commands[0].url, /YouTube$/);
+  assert.deepEqual(errors, []);
+});
+
+test("Un firmware sin reproducción HTML5 muestra una alternativa sin bloquear la interfaz", async () => {
+  await page
+    .locator("#media-audio")
+    .evaluate((n) =>
+      Object.defineProperty(n, "play", { value: undefined, configurable: true })
+    );
+  await go("media");
+  await click("media-play");
+  assert.match(
+    await page.locator("#media-state").innerText(),
+    /firmware no ofrece/
+  );
+  await go("home");
+  assert.ok(await page.locator("#hero-title").isVisible());
   assert.deepEqual(errors, []);
 });

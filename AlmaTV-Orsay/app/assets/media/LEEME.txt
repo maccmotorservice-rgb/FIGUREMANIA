@@ -1,0 +1,3 @@
+Prueba de sonido: composición y síntesis original de este proyecto, 12 segundos.
+No contiene música ni grabaciones de terceros y no representa un catálogo de Spotify.
+Fuente reproducible: tools/generar_prueba_audio.py (solo desarrollo, FFmpeg).

@@ -12,3 +12,5 @@
 SHA de CleanYourTV inspeccionado: `8de5533c58cf573abb2178754d15c782b65548a6`.
 
 Actualización 7.1: la referencia principal de composición es el menú lateral mostrado por el propietario en el chat, adaptado al tema claro que pidió después. Sus personajes, series, anuncios y catálogos no se copian. Logotipos locales: ver LOGOTIPOS.md y licencias incluidas. El salvapantallas incorpora clima real opcional, hora/fecha y ciudad configurada; el archivo de imagen sigue siendo el mismo.
+
+Actualización 7.2: los encabezados por aplicación son textos editoriales solicitados por el propietario, no datos extraídos de los servicios. El MP3 de prueba es una composición/síntesis original del proyecto; el patrón MP4 se limita a tests. Las transiciones, el carrusel y el marco opcional no alteran la imagen original. Ver MULTIMEDIA.md.

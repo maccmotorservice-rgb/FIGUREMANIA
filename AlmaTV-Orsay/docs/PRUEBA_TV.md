@@ -35,3 +35,13 @@ Si hay fallo, anota versión, pantalla, tecla, IP configurada, estado DIAL y men
 15. Salvapantallas: verifica hora, fecha con año, ciudad y bloque de clima, sin caja negra; el grupo completo debe moverse cada 15 s y permanecer dentro de la zona segura. Prueba con puente activo e inactivo.
 16. Activa solo Puente local para clima y verifica que Netflix/YouTube sigan por DIAL directo. Activa Relay DIAL únicamente si lo necesitas, con el servidor --allow-launch.
 17. Compara navegación física con 7.0. Si toda la TV sigue lenta, realiza el reinicio completo y revisa apps opcionales desde Samsung Apps con el propietario, sin borrar componentes del sistema.
+
+## Comprobaciones añadidas en 7.2
+
+18. Revisa tildes/ñ en «La Última Palabra», «Continúa», «Disfrútalo», ciudad y teclado. Si aparece algún texto alterado, fotografía el texto exacto: los recursos del ZIP se exportan con caracteres seguros para el motor antiguo.
+19. Cambia varias veces de página y mueve/activa opciones rápidamente. Las transiciones deben ser cortas y no perder teclas. Compara Ajustes → Animaciones activadas/reducidas.
+20. Comprueba que el fondo llegue a los bordes y que la calibración conserve seguros los botones. Alterna Marco del salvapantallas; solo esa pantalla debe mostrar el borde blanco opcional.
+21. Recorre el carrusel hasta Xbox y Más aplicaciones; la selección debe quedar visible y actualizar el encabezado sin cambiar el fondo elegido por el propietario.
+22. Abre Multimedia y reproduce la muestra MP3. Pausa/reanuda, adelanta 10 s y detén. Abre una aplicación nativa y comprueba que el audio propio se pausa.
+23. Inicia el puente con --media-dir apuntando a una carpeta dedicada de MP3/MP4 propios. Importa desde Multimedia → Archivos de la Mac. Prueba duración, búsqueda, volumen y video; registra el códec y mensaje exacto si el firmware no lo reproduce.
+24. Comprueba que el reproductor no anuncie Spotify o YouTube como archivos directos: los enlaces de sus páginas deben rechazarse y YouTube debe conservar su acceso nativo.

@@ -15,3 +15,9 @@ Si el televisor tarda al abrir la imagen: prueba un JPG baseline 1280×720 optim
 Se eliminan ampliación del foco, transiciones de escala, sombras de tarjeta y desenfoques. `htmlIfChanged` escribe en DOM solo si cambia el contenido; el movimiento del grupo del salvapantallas se actualiza una vez por posición de 15 s. Prueba con hora fija: cero mutaciones de DOM en reposo; mover foco no reconstruye `#view` ni las tarjetas. No es una medición de latencia, GPU o memoria del dispositivo.
 
 Los logotipos se rasterizan antes de empaquetar a PNG de 180×100, no durante la ejecución. Los pequeños sprites de navegación y clima son locales. El hero y salvapantallas reutilizan el mismo PNG del usuario; no se descarga publicidad ni se duplica el archivo de fondo.
+
+## Movimiento y multimedia 7.2
+
+Por petición del propietario se reintroducen transiciones breves de opacidad/transformación (140–300 ms) con prefijo WebKit y opción Animaciones reducidas. El foco y la confirmación no bloquean teclas ni usan mediciones de layout para forzar reinicios. No hay videos decorativos ni animaciones de fondo infinitas. Las barras del reproductor solo se animan cuando el audio realmente está reproduciéndose y solo existen en su vista.
+
+El audio/video utiliza elementos persistentes, con precarga desactivada para audio, sin recargar el archivo por cada movimiento del menú. El puente transmite bloques de 64 KiB y responde rangos; no carga un MP4 completo a RAM ni lo transcodifica. El formato/códec puede elevar el consumo real de la TV: no hay medición física de memoria/FPS, y se recomienda probar un MP3 y un MP4 sencillo antes de archivos grandes.

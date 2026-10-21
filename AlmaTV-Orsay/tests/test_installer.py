@@ -26,7 +26,7 @@ class InstallerTests(unittest.TestCase):
         self.files={str(p.relative_to(ROOT/'app')):p.read_bytes() for p in (ROOT/'app').rglob('*') if p.is_file()}
     def test_manifest_identity_plain_info_and_relative_resources(self):
         ident,version,_=preparar.validate(self.files)
-        self.assertEqual((ident,version),('AlmaTV71','7.1.0'))
+        self.assertEqual((ident,version),('AlmaTV72','7.2.0'))
         self.assertNotIn(b'<',self.files['widget.info'])
         self.assertIn(b'1280x720',self.files['widget.info'])
         with tempfile.TemporaryDirectory() as directory:
@@ -58,6 +58,19 @@ class InstallerTests(unittest.TestCase):
             self.assertEqual(tree.find('.//widget').get('id'),'AlmaTV70')
             self.assertIn('http://10.0.0.30/Widget/',tree.findtext('.//download'))
         self.assertEqual(archive.read_bytes(),data)
+    def test_spanish_assets_are_ascii_safe_without_losing_accents(self):
+        files=preparar.runtime_files(self.files)
+        for name,body in files.items():
+            if name.endswith(('.js','.css','.html')):self.assertTrue(body.isascii(),name)
+        self.assertIn(b'\\u00f1',files['main.js'])
+        self.assertIn(b'charset="UTF-8"',files['index.html'])
+        source={'test.js':'var value="Peña, México";'.encode('utf-8')}
+        encoded=preparar.runtime_files(source)['test.js']
+        self.assertEqual(encoded.decode('ascii').encode('ascii').decode('unicode_escape'),'var value="Peña, México";')
+    def test_version_71_backup_is_unchanged(self):
+        archive=ROOT/'respaldo/version-7.1/Widget/AlmaTV71_7.1.0.zip'
+        self.assertEqual(hashlib.sha256(archive.read_bytes()).hexdigest(),'f5558bd8152d8b3e0f3de5832d46a3ea0f9ccf519dfee044e1922d7dc578fc7d')
+        with ZipFile(str(archive)) as z:self.assertIsNone(z.testzip())
     def test_invalid_package_rejected(self):
         for name,body in [('widget.info',b'<widget/>'),('config.xml',b'<widget><cpname>bad id</cpname></widget>'),('index.html',b'<script src="https://cdn.example/app.js"></script>')]:
             files=dict(self.files);files[name]=body
@@ -149,6 +162,41 @@ class BridgeTests(unittest.TestCase):
             self.assertEqual(error.exception.code,502)
     def test_redirects_are_rejected_before_following(self):
         with self.assertRaises(ValueError):puente.NoRedirect().redirect_request(None,None,302,'',{},'https://evil.example')
+
+class LibraryTests(unittest.TestCase):
+    setUp=BridgeTests.setUp
+    tearDown=BridgeTests.tearDown
+    req=BridgeTests.req
+    def test_media_library_and_range_requests(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);track=root/'Mi canción.mp3'
+            data=(ROOT/'app/assets/media/prueba-sonido.mp3').read_bytes();track.write_bytes(data)
+            (root/'privado.txt').write_text('not served')
+            self.server.media_dir=root
+            with self.req('/media/library') as response:listing=json.load(response)
+            self.assertTrue(listing['enabled']);self.assertEqual(len(listing['items']),1)
+            item=listing['items'][0];self.assertEqual(item['name'],'Mi canción');self.assertEqual(item['kind'],'audio')
+            with self.req('/media/file/'+item['id']) as response:
+                self.assertEqual(response.headers['Content-Type'],'audio/mpeg');self.assertEqual(response.read(),data)
+            request=Request(self.base+'/media/file/'+item['id'],headers={'Origin':'null','Range':'bytes=100-299'})
+            with urlopen(request) as response:
+                self.assertEqual(response.status,206);self.assertEqual(response.read(),data[100:300]);self.assertEqual(response.headers['Content-Range'],'bytes 100-299/'+str(len(data)))
+    def test_media_does_not_expose_unselected_paths_or_symlinks(self):
+        with tempfile.TemporaryDirectory() as directory,tempfile.TemporaryDirectory() as external:
+            root=Path(directory);outside=Path(external)/'outside.mp3';outside.write_bytes(b'private')
+            (root/'outside.mp3').symlink_to(outside)
+            self.server.media_dir=root
+            with self.req('/media/library') as response:self.assertEqual(json.load(response)['items'],[])
+            for route in ['/media/file/0000000000000000','/media/file/../outside.mp3','/media/file/%2e%2e/outside.mp3']:
+                with self.assertRaises(HTTPError) as error:self.req(route)
+                self.assertEqual(error.exception.code,404)
+    def test_media_invalid_range_fails_without_returning_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);(root/'track.mp3').write_bytes(b'1234567890');self.server.media_dir=root
+            ident=next(iter(puente.media_files(root)))
+            for value in ['bytes=999-1000','bytes=7-3','bytes=1-2,4-5','invalid']:
+                with self.assertRaises(HTTPError) as error:urlopen(Request(self.base+'/media/file/'+ident,headers={'Range':value,'Origin':'null'}))
+                self.assertEqual(error.exception.code,416)
 
 class MediaTests(unittest.TestCase):
     def png(self,width=1,height=1):
