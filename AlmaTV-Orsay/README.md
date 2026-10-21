@@ -137,3 +137,12 @@ Necesita Python instalado; no eliminar esa instalación. Registros en
 `~/Library/Logs/AlmaTV`. Si cambia la IP, ejecuta de nuevo con la nueva dirección.
 Para desactivarlo: `python3 configurar_puente_mac.py --remove`.
 El funcionamiento de launchd y pantalla completa en Orsay requiere prueba física.
+
+### Alma TV 8.0.0
+
+Identificador independiente `AlmaTV80`, nombre en Samsung Apps **Alma TV 8** y
+marca visible **alma tv 8**. Distinguir esta instalación de Alma TV 7.2, que se
+conserva. Incluye reproductor ampliado, botón Pantalla completa y reproducción
+entre vistas de Alma TV; no continúa al salir de la aplicación o lanzar otra app.
+El vídeo activo se oculta con visibility al navegar, sin display:none para evitar
+la suspensión en motores antiguos. Comprobar reproducción y códecs en la TV real.

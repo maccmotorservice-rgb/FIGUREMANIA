@@ -1167,10 +1167,11 @@ var Alma = (function () {
       el("media-volume"),
       "Volumen: " + Math.round(player.volume * 100) + " %"
     );
+    // Keep the active video attached and laid out while browsing other views.
+    // Some legacy engines suspend media when display is set to none.
     el("media-video").style.display =
-      state.view === "media" && player.kind === "video" && player.index >= 0
-        ? "block"
-        : "none";
+      player.kind === "video" && player.index >= 0 ? "block" : "none";
+    el("media-video").style.visibility = state.view === "media" ? "visible" : "hidden";
     if (el("media-progress"))
       el("media-progress").style.width =
         (player.duration ? (player.time / player.duration) * 100 : 0) + "%";
@@ -1219,7 +1220,7 @@ var Alma = (function () {
     var h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor",
+        "Tu reproductor · Alma TV 8",
         "Archivos propios o enlaces directos. YouTube se abre en su aplicación; no se reproduce el catálogo de Spotify."
       ) +
       '<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +
