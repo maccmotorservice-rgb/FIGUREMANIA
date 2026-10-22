@@ -1,7 +1,7 @@
 /* Alma TV local controller. ES5; no native modules opened here. */
 var AlmaHub = (function () {
   "use strict";
-  var next=0,busy=false,failures=0,active=null,ended="",pins={pin:"",guest_pin:""},slide=null,slideIndex=0,lastSlide=0,seen=[],lastAck="",lastError="",seenFor="",timer=null,running=false,pollDelay=2000;
+  var next=0,busy=false,failures=0,active=null,ended="",pins={pin:"",guest_pin:""},slide=null,slideIndex=0,lastSlide=0,seen=[],lastAck="",lastError="",seenFor="",timer=null,running=false,pollDelay=2000,lastContact=0;
   function base(){return "http://"+Alma.hubConfig().macIp+":8088";}
   function request(body,callback){var x=new XMLHttpRequest();x.open("POST",base()+"/hub/tv",true);x.timeout=6000;x.setRequestHeader("Content-Type","application/json");x.onload=function(){try{callback(x.status===200?JSON.parse(x.responseText):null);}catch(e){callback(null);}};x.onerror=x.ontimeout=function(){callback(null);};x.send(JSON.stringify(body));}
   function show(item){
@@ -49,7 +49,7 @@ var AlmaHub = (function () {
     var status=Alma.hubStatus();if(slide&&slide.music&&status.state==="Finalizado")Alma.hubPlay(slide.music,true);if(lastError)status.error=lastError;var remote=Alma.hubRemoteStatus();status.view=remote.view;status.focus=remote.focus;status.focus_id=remote.focus_id;var event={telemetry:status};
     if(lastAck)event.ack=lastAck;
     if(active&&active.kind!=="photo"&&active.kind!=="card"&&ended!==active.play_id&&((status.kind==="youtube"||status.kind==="dailymotion")?status.finished:status.state==="Finalizado")) {event.ended=active.play_id;ended=active.play_id;}
-    request(event,function(data){busy=false;if(!data){failures++;next=new Date().getTime()+Math.min(30000,failures*5000);return;}failures=0;pollDelay=data.poll_ms===250?250:2000;next=new Date().getTime()+pollDelay;pins.pin=data.pin||"";pins.guest_pin=data.guest_pin||"";var commands=data.commands||[];if(commands.length){execute(commands[0]);next=0;}onRender();});
+    request(event,function(data){busy=false;if(!data){failures++;next=new Date().getTime()+Math.min(30000,failures*5000);return;}failures=0;lastContact=new Date().getTime();pollDelay=data.poll_ms===250?250:2000;next=new Date().getTime()+pollDelay;pins.pin=data.pin||"";pins.guest_pin=data.guest_pin||"";var commands=data.commands||[];if(commands.length){execute(commands[0]);next=0;}onRender();});
   }
   function onRender(){
     if(slide&&slide.items.length)show(slide.items[slideIndex]);
@@ -61,5 +61,5 @@ var AlmaHub = (function () {
   function pump(){if(!running)return;tick();timer=setTimeout(pump,busy?250:Math.max(250,Math.min(2000,next-new Date().getTime())));}
   function start(){if(running)return;running=true;next=0;pump();}
   function stop(){running=false;clearTimeout(timer);}
-  return {start:start,stop:stop,tick:tick,onRender:onRender,pairMarkup:pairMarkup,clear:clear};
+  return {connection:function(){return lastContact>0&&new Date().getTime()-lastContact<8000;},start:start,stop:stop,tick:tick,onRender:onRender,pairMarkup:pairMarkup,clear:clear};
 })();

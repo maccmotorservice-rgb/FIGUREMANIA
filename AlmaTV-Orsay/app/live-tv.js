@@ -1,0 +1,35 @@
+/* Catálogo piloto: fuentes públicas; disponibilidad pendiente de probar en la TV. */
+var AlmaLiveTV = [
+  {
+    "id": "capital21",
+    "name": "Capital 21",
+    "region": "Ciudad de México",
+    "url": "https://video.cdmx.gob.mx/redes/stream.m3u8",
+    "source": "https://www.capital21.cdmx.gob.mx/",
+    "note": "Puede emitir solo en determinados horarios."
+  },
+  {
+    "id": "canalonce",
+    "name": "Canal Once",
+    "region": "Nacional",
+    "url": "https://vivo.canaloncelive.tv/securepkgr3/oncemexico/playlist.m3u8",
+    "source": "https://canalonce.mx/",
+    "note": "La disponibilidad puede variar por programa y región."
+  },
+  {
+    "id": "chiapas10",
+    "name": "Canal 10 Chiapas",
+    "region": "Chiapas",
+    "url": "https://5ca9af4645e15.streamlock.net/chiapas/videochiapas/playlist.m3u8",
+    "source": "http://radiotvycine.chiapas.gob.mx/en-vivo/",
+    "note": "Señal pública estatal."
+  },
+  {
+    "id": "canal22",
+    "name": "Canal 22",
+    "region": "Nacional",
+    "url": "https://5fc584f3f19c9.streamlock.net/canal22/smil:canal22.smil/playlist.m3u8",
+    "source": "https://www.canal22.org.mx/",
+    "note": "Puede requerir conexión desde México."
+  }
+];

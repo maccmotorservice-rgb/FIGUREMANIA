@@ -33,6 +33,7 @@ var AlmaPlayer = (function () {
     return 0;
   }
   function savePosition(force, finished) {
+    if(index>=0&&tracks[index]&&tracks[index].live)return;
     if (!active || !activeUrl || stopped || pendingResume !== null) return;
     var now = new Date().getTime();
     if (!force && now - lastHistoryWrite < 5000) return;
@@ -117,6 +118,7 @@ var AlmaPlayer = (function () {
   function snapshot() {
     return {
       tracks: tracks.slice(),
+      live: index>=0&&tracks[index]&&tracks[index].live===true,
       index: index,
       title:
         index >= 0 && tracks[index]
@@ -160,14 +162,14 @@ var AlmaPlayer = (function () {
       active = next;
       index = number;
       activeUrl = tracks[number].url;
-      pendingResume = savedPosition() || null; stopped = false;
+      pendingResume = tracks[number].live ? null : (savedPosition() || null); stopped = false;
       active.src = tracks[number].url;
       try {
         active.volume = chosenLevel; active.muted = chosenMuted;
       } catch (volumeError) {}
       active.load();
     } else if (stopped) {
-      pendingResume = savedPosition() || null; stopped = false; restorePosition();
+      pendingResume = tracks[number].live ? null : (savedPosition() || null); stopped = false; restorePosition();
     }
     status = "Cargando…";
     error = "";
@@ -231,6 +233,7 @@ var AlmaPlayer = (function () {
     );
   }
   function seek(delta) {
+    if(index>=0&&tracks[index]&&tracks[index].live){error="La señal en vivo no admite saltos.";change();return;}
     if (!active || !isFinite(active.duration) || active.duration <= 0) return;
     var node = active;
     seekTarget = Math.max(0, Math.min(active.duration - 0.1, (seekTarget === null ? active.currentTime : seekTarget) + delta));

@@ -1843,3 +1843,29 @@ body>#video-help{z-index:112}
 #safe[data-view="media"][data-media-kind="video"] .media-stage{margin:5px auto 8px;padding:0;background:#000}
 .online-player #youtube-slot{margin:5px auto 8px;max-width:none}.online-player .page-head{margin:0 0 7px}.online-player #youtube-full{margin-bottom:8px}
 #stage[data-home-video="true"] #view{background:rgba(18,21,26,.55)}#stage[data-home-video="true"][data-view="home"] #view{background:transparent}
+/* Alma 10.1: compact home and consistently aligned brand carousel. */
+#header #nav .nav{height:39px;padding:8px 10px;margin-bottom:4px;font-size:14px;line-height:23px}
+#safe[data-view="home"] .hero,#stage[data-home-video="true"] .hero{height:205px;padding:32px 8px 8px}
+#safe[data-view="home"] .hero h1{font-size:32px;margin:8px 0;line-height:1.08}
+#safe[data-view="home"] .hero p{font-size:14px;line-height:1.35;margin:6px 0 10px}
+#stage[data-home-video="true"] .hero{padding-top:80px}
+#safe[data-view="home"] .home-apps{padding:4px 12px 0}
+#safe[data-view="home"] .section-title{font-size:16px;margin:8px 4px}
+.home-playback-actions{margin:10px 0;white-space:nowrap}
+.home-playback-actions .pill{vertical-align:middle;margin:0 9px 0 0;padding:8px 14px;font-size:13px}
+.home-tools{margin-top:12px}.home-tools .row{white-space:nowrap}
+.home-tools .card.tool{display:inline-block;vertical-align:top;width:15.7%;height:86px;margin:0 .85% 0 0;padding:10px 9px;border-radius:14px;text-align:left}
+.home-tools .card.tool .card-icon{display:block;position:static;margin:0 0 5px;width:24px;height:24px}
+.home-tools .card.tool strong{display:block;font-size:12px;line-height:16px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-tools .card.tool small{display:block;font-size:10px;line-height:14px;margin:2px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-photo-mount{display:none}#safe[data-hub-photo="true"] .home-photo-mount{display:block;height:160px}#safe[data-hub-photo="true"] .hero{display:none}
+.apps-carousel{padding:10px 5px 20px}.apps-carousel .card.app{padding:11px 8px;vertical-align:top}
+.app-track .card.app .app-mark{height:61px;line-height:61px;text-align:center;margin:0}
+.app-track .brand-logo{width:108px;height:60px;display:block;margin:0 auto;object-fit:contain}
+.app-track .card.app strong{display:block;text-align:center;font-size:14px;line-height:18px;margin:0}
+.app-track .card.app small{display:none}.app-track .card.app.focus{outline:3px solid #fff;outline-offset:2px}
+.live-controls{margin-bottom:14px}.live-channels .live-channel{width:75%;height:95px;padding:14px;margin:0 10px 14px 0;vertical-align:middle;text-align:left}
+.live-channel strong{font-size:20px}.live-channel small{display:block;line-height:19px;margin-top:8px}
+.live-channels .pill{vertical-align:middle}.hint{color:#c7ced9;font-size:13px;line-height:1.45}
+.card.app.netflix,.card.app.netflix.focus{background:#191317;color:#fff}.card.app.youtube,.card.app.youtube.focus{background:#fff;color:#161b22}.card.app.prime,.card.app.prime.focus{background:#087fb8;color:#fff}.card.app.disney,.card.app.disney.focus{background:#101c51;color:#fff}.card.app.apple,.card.app.apple.focus{background:#15191c;color:#fff}.card.app.max,.card.app.max.focus{background:#182ecf;color:#fff}.card.app.xbox,.card.app.xbox.focus{background:#167d31;color:#fff}.card.app.browser,.card.app.browser.focus,.card.app.more,.card.app.more.focus{background:#353c49;color:#fff}
+.home-tools .card.tool .card-icon{float:none}.home-tools .card.tool strong{color:#f5f5f7;font-size:13px}.home-tools .card.tool small{font-size:11px}

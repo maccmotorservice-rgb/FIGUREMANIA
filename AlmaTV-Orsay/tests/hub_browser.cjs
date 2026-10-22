@@ -88,3 +88,13 @@ async function dailymotionFixture(p){await p.route('https://api.dmcdn.net/all.js
  test('Dailymotion inicia desde En tiempo real del panel anterior, sin pulsar en la TV (SDK simulado)',{timeout:20000},async t=>{
  const p=await tv(t);await dailymotionFixture(p);const c=await browser.newContext();t.after(()=>c.close());const panel=await c.newPage();await panel.goto(base+'/enlaces');await panel.locator('#live-url').fill('https://dai.ly/x84sh87');await panel.locator('#live-play').click();await p.waitForFunction(()=>AlmaYouTube.snapshot().state===1);const frame=p.frame({url:/dailymotion\/player/});assert.equal(await frame.evaluate(()=>dmOptions.params.autoplay),true);assert.equal(await frame.evaluate(()=>dmLoaded.params.autoplay),true);await p.evaluate(()=>Alma.go('apps'));assert.equal(await p.evaluate(()=>AlmaYouTube.snapshot().state),1);
  });
+
+test('El panel manda un canal público y la TV recibe el vídeo sin usar el puente como transporte',{timeout:20000},async t=>{
+ const p=await tv(t),url='https://video.cdmx.gob.mx/alma-prueba.mp4';
+ await p.evaluate(url=>{AlmaLiveTV[0].url=url;},url);
+ await p.route(url,r=>r.fulfill({contentType:'video/mp4',body:fs.readFileSync(path.join(ROOT,'tests/fixtures/video-prueba.mp4'))}));
+ const c=await browser.newContext();t.after(()=>c.close());const panel=await c.newPage();await panel.goto(base+'/control');
+ await panel.locator('#tabs [data-tab="live-tv"]').click();await panel.locator('#live-channels .item').first().getByRole('button',{name:'Ver canal',exact:true}).click();
+ await p.waitForFunction(()=>AlmaPlayer.snapshot().playing&&AlmaPlayer.snapshot().live);await p.locator('#media-video').evaluate(n=>n.loop=true);
+ assert.equal(await p.locator('#media-video').getAttribute('src'),url);assert.equal(await p.locator('#safe').getAttribute('data-view'),'livetv');
+});
