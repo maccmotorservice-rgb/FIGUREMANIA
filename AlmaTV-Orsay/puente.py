@@ -2,6 +2,7 @@
 """Optional LAN bridge. Standard library only, Python 3.8+, verified HTTPS."""
 import argparse
 import hashlib
+import mimetypes
 import re
 from pathlib import Path
 import json
@@ -13,6 +14,8 @@ from urllib.request import urlopen, Request, build_opener, ProxyHandler, HTTPRed
 from urllib.error import HTTPError
 from preparar import private_ipv4
 from youtube_library import Library, Realtime
+from hub import Hub
+from hub_http import HubHTTP
 
 CACHE={}
 WEATHER_CODES={0:'Despejado',1:'Mayormente despejado',2:'Parcialmente nublado',3:'Nublado',45:'Niebla',48:'Niebla con escarcha',51:'Llovizna ligera',53:'Llovizna',55:'Llovizna intensa',61:'Lluvia ligera',63:'Lluvia',65:'Lluvia intensa',71:'Nieve ligera',73:'Nieve',75:'Nieve intensa',80:'Chubascos ligeros',81:'Chubascos',82:'Chubascos intensos',95:'Tormenta',96:'Tormenta con granizo',99:'Tormenta intensa con granizo'}
@@ -78,7 +81,7 @@ def stream_media(self,path):
     self.send_response(status)
     origin=self.headers.get('Origin')
     if origin in self.server.origins:self.send_header('Access-Control-Allow-Origin',origin)
-    self.send_header('Content-Type',MEDIA_TYPES[path.suffix.lower()][1])
+    self.send_header('Content-Type',MEDIA_TYPES.get(path.suffix.lower(),('photo',mimetypes.guess_type(path.name)[0] or 'application/octet-stream'))[1])
     self.send_header('Accept-Ranges','bytes')
     self.send_header('Content-Length',str(max(0,end-start+1)))
     if status==206:self.send_header('Content-Range','bytes %s-%s/%s'%(start,end,size))
@@ -93,7 +96,7 @@ def stream_media(self,path):
             remaining-=len(chunk)
 
 
-class Handler(BaseHTTPRequestHandler):
+class Handler(HubHTTP,BaseHTTPRequestHandler):
     def panel_origin(self):
         return 'http://%s:%s' % self.server.server_address[:2]
     def panel_host_allowed(self):
@@ -109,8 +112,9 @@ class Handler(BaseHTTPRequestHandler):
         if origin in self.server.origins or origin == self.panel_origin():
             self.send_header('Access-Control-Allow-Origin',origin)
             self.send_header('Vary','Origin')
+        self.send_header('Access-Control-Max-Age','600')
         self.send_header('Access-Control-Allow-Methods','GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers','Content-Type')
+        self.send_header('Access-Control-Allow-Headers','Content-Type, X-Alma-Token, X-Alma-Filename')
         self.send_header('Content-Type',content_type)
         self.send_header('Cache-Control','no-store')
         self.send_header('Referrer-Policy','origin')
@@ -135,11 +139,13 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             if method=='GET':
+                if live and hasattr(self.server,'hub') and self.client_address[0] in self.server.hub.data['channels'] and self.client_address[0]!=self.server.tv:
+                    self.reply(200,{'command':None,'status':'idle'});return
                 self.reply(200,self.server.realtime.snapshot() if live else {'items':library.read()})
                 return
             origin=self.headers.get('Origin')
             token=self.headers.get('X-Alma-Token','')
-            if origin!=self.panel_origin() or not secrets.compare_digest(token,getattr(self.server,'admin_token','')) or not token:
+            if not (self.hub_authorized() if hasattr(self.server,'hub') else (origin==self.panel_origin() and token and secrets.compare_digest(token,getattr(self.server,'admin_token','')))):
                 self.reply(403,{'error':'Actualiza la página de enlaces y vuelve a intentarlo.'})
                 return
             if self.headers.get('Content-Type','').split(';')[0].strip()!='application/json':
@@ -173,7 +179,8 @@ class Handler(BaseHTTPRequestHandler):
         if not self.panel_host_allowed():
             self.reply(403,{'error':'Dirección del puente no autorizada'})
             return
-        token=json.dumps(self.server.admin_token)
+        if hasattr(self.server,'hub') and not self.hub_session():self.serve_hub_panel();return
+        token=json.dumps(self.hub_session()['csrf'] if hasattr(self.server,'hub') else self.server.admin_token)
         page=(Path(__file__).resolve().parent/'link_panel.html').read_text(encoding='utf-8').replace('__ALMA_PANEL_TOKEN__',token)
         self.reply(200,page.encode('utf-8'),'text/html; charset=utf-8',{'X-Frame-Options':'DENY','Content-Security-Policy':"frame-ancestors 'none'"})
     def youtube_diagnostic(self,method):
@@ -209,12 +216,13 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(400,{'error':'Diagnóstico no válido'})
     def serve_youtube(self,query,standalone=False):
         video=query.get('video',['M7lc1UVf-VE' if standalone else ''])[0]
+        provider=query.get('provider',['youtube'])[0]
         token=secrets.token_hex(16) if standalone else query.get('token',[''])[0]
         parent=self.panel_origin() if standalone else query.get('parent',['null'])[0]
-        if not re.fullmatch(r'[A-Za-z0-9_-]{11}',video) or not re.fullmatch(r'[a-f0-9]{32}',token) or (not standalone and parent not in self.server.origins):
+        if provider not in ('youtube','dailymotion') or not (re.fullmatch(r'[A-Za-z0-9]{5,12}',video) if provider=='dailymotion' else re.fullmatch(r'[A-Za-z0-9_-]{11}',video)) or not re.fullmatch(r'[a-f0-9]{32}',token) or (not standalone and parent not in self.server.origins):
             self.reply(400,{'error':'Vídeo, sesión u origen del reproductor no válido'})
             return
-        config=json.dumps({'video':video,'token':token,'parent':parent,'standalone':standalone},ensure_ascii=True).replace('<','\\u003c')
+        config=json.dumps({'video':video,'provider':provider,'token':token,'parent':parent,'standalone':standalone},ensure_ascii=True).replace('<','\\u003c')
         template=(Path(__file__).resolve().parent/'youtube_player.html').read_text(encoding='utf-8')
         body=template.replace('__ALMA_YT_CONFIG__',config).encode('utf-8')
         self.reply(200,body,'text/html; charset=utf-8')
@@ -233,7 +241,11 @@ class Handler(BaseHTTPRequestHandler):
         parsed=urlsplit(self.path)
         query=parse_qs(parsed.query)
         try:
-            if method=='GET' and parsed.path=='/health':
+            if hasattr(self.server,'hub') and parsed.path.startswith('/hub/'):
+                self.hub_dispatch(method,parsed)
+            elif hasattr(self.server,'hub') and method=='GET' and parsed.path=='/control':
+                self.serve_hub_panel()
+            elif method=='GET' and parsed.path=='/health':
                 self.reply(200,{'service':'alma-lan-bridge','dial_launch_enabled':self.server.allow_launch})
             elif method=='GET' and parsed.path in ('/','/enlaces'):
                 self.serve_panel()
@@ -301,6 +313,7 @@ def main():
     server=ThreadingHTTPServer((private_ipv4(a.bind),a.port),Handler)
     server.media_dir=Path(a.media_dir).expanduser().resolve() if a.media_dir else None
     if server.media_dir is not None and not server.media_dir.is_dir():p.error('La carpeta de archivos multimedia no existe')
+    server.hub=Hub(Path(a.links_file).expanduser().parent/'hub',private_ipv4(a.tv))
     server.realtime=Realtime()
     server.youtube_library=Library(Path(a.links_file).expanduser())
     server.admin_token=secrets.token_urlsafe(32)

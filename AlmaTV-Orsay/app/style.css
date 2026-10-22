@@ -1915,3 +1915,10 @@ body > #youtube-host.youtube-full { left: 0; top: 0; }
 
 #safe[data-home-media="youtube"][data-youtube-mode="audio"] .home-audio { display: block; visibility: visible; }
 #safe[data-home-media="youtube"][data-youtube-mode="audio"] .home-player { height: 160px; }
+
+#safe[data-hub-photo="true"] .home-player {height:320px;background-color:#f4faf8;}
+#safe[data-hub-photo="true"] .home-audio {display:none!important;}
+#safe[data-hub-photo="true"] #media-video {visibility:hidden!important;}
+#hub-card {position:absolute;left:5%;top:10%;width:90%;max-height:80%;overflow:hidden;padding:20px;background:#f4faf8;color:#153f3d;text-align:center;z-index:2;}
+#hub-card h2 {font-size:32px;margin:0 0 16px;}#hub-card p {font-size:22px;white-space:pre-wrap;line-height:1.5;}
+#hub-pair-qr img {width:190px;height:190px;}#hub-pair-code {font-size:38px;letter-spacing:6px;}

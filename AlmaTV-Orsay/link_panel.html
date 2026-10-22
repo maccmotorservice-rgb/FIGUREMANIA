@@ -8,13 +8,13 @@
 </style>
 </head>
 <body><main>
-<header><div class="brand">alma<span>tv</span></div><div class="eyebrow">De tu Mac a tu pantalla</div><h1>Tus vídeos, a un enlace.</h1><p>Pega enlaces de YouTube y guárdalos aquí. En la TV, abre <strong>Multimedia → Enlaces de la Mac</strong>. Puedes añadir vídeos cuando quieras, sin reinstalar Alma TV.</p></header>
+<header><a href="/control">Abrir centro de control: música, fotos, cola y escenas</a><div class="brand">alma<span>tv</span></div><div class="eyebrow">De tu Mac a tu pantalla</div><h1>Tus vídeos, a un enlace.</h1><p>Pega enlaces de YouTube y guárdalos aquí. En la TV, abre <strong>Multimedia → Enlaces de la Mac</strong>. Puedes añadir vídeos cuando quieras, sin reinstalar Alma TV.</p></header>
 <section class="box"><h2>En tiempo real</h2><p>Con Alma TV abierta, envía un vídeo a Inicio o escucha solo su audio. Solo este botón solicita reproducción automática. No añade el enlace a tu lista.</p>
-<form id="live-form"><label for="live-url">Enlace de YouTube</label><input id="live-url" type="url" required maxlength="1000" placeholder="https://www.youtube.com/watch?v=…">
+<form id="live-form"><label for="live-url">Enlace de YouTube o Dailymotion</label><input id="live-url" type="url" required maxlength="1000" placeholder="https://www.youtube.com/watch?v=…">
 <label for="live-mode">Cómo reproducir</label><select id="live-mode"><option value="video">Vídeo en Inicio</option><option value="audio">Solo audio · sin imagen</option></select>
 <button id="live-play" type="submit">Reproducir ahora</button></form><p id="live-status" role="status">Abre Alma TV en la televisión para recibir enlaces.</p></section>
 <section class="box"><form id="add-form">
-<label for="urls">Enlaces de YouTube</label><textarea id="urls" name="urls" maxlength="16000" placeholder="https://www.youtube.com/watch?v=…" required></textarea>
+<label for="urls">Enlaces de YouTube o Dailymotion</label><textarea id="urls" name="urls" maxlength="16000" placeholder="https://www.youtube.com/watch?v=…" required></textarea>
 <p class="hint">Uno por línea. También puedes pegar enlaces de Shorts o youtu.be.</p>
 <label for="name">Nombre opcional</label><input id="name" name="name" maxlength="80" placeholder="Por ejemplo: Mi concierto favorito">
 <p class="hint">Para varios enlaces a la vez, deja el nombre vacío.</p>
@@ -37,10 +37,10 @@
     items.forEach(function (item) {
       var row = document.createElement("div"), info = document.createElement("div"), title = document.createElement("strong"), link = document.createElement("a"), remove = document.createElement("button");
       row.className = "item"; title.textContent = item.name;
-      link.href = "https://www.youtube.com/watch?v=" + item.id; link.textContent = link.href; link.target = "_blank"; link.rel = "noopener noreferrer";
+      link.href = (item.provider === "dailymotion" ? "https://www.dailymotion.com/video/" : "https://www.youtube.com/watch?v=") + item.id; link.textContent = link.href; link.target = "_blank"; link.rel = "noopener noreferrer";
       info.appendChild(title); info.appendChild(link); row.appendChild(info);
       remove.className = "remove"; remove.type = "button"; remove.textContent = "Quitar"; remove.setAttribute("aria-label", "Quitar " + item.name);
-      remove.onclick = function () { mutate({action:"remove",id:item.id}, "Enlace eliminado de tu lista."); };
+      remove.onclick = function () { mutate({action:"remove",id:item.id,provider:item.provider||"youtube"}, "Enlace eliminado de tu lista."); };
       row.appendChild(remove); list.appendChild(row);
     });
   }
@@ -88,7 +88,7 @@
     x.send(body ? JSON.stringify(body) : null);
   }
   function liveStatus(data) {
-    var labels={idle:"Abre Alma TV en la televisión para recibir enlaces.",waiting:"Enviado. Esperando a Alma TV…",received:"La TV recibió el enlace. Iniciando YouTube…",playing:"YouTube confirmó que está reproduciendo en la TV.",blocked:"YouTube bloqueó el inicio automático. Usa Reproducir en la TV.",error:"La TV recibió la orden, pero YouTube no pudo iniciarse.",expired:"La TV no recibió la orden a tiempo. Abre Alma TV y vuelve a pulsar Reproducir ahora."};
+    var labels={idle:"Abre Alma TV en la televisión para recibir enlaces.",waiting:"Enviado. Esperando a Alma TV…",received:"La TV recibió el enlace. Iniciando YouTube…",playing:"El reproductor confirmó que está reproduciendo en la TV.",blocked:"El proveedor bloqueó el inicio automático. Usa Reproducir en la TV.",error:"La TV recibió la orden, pero el vídeo no pudo iniciarse.",expired:"La TV no recibió la orden a tiempo. Abre Alma TV y vuelve a pulsar Reproducir ahora."};
     document.getElementById("live-status").textContent=labels[data.status] || "Estado no disponible.";
   }
   document.getElementById("live-form").onsubmit=function(event){

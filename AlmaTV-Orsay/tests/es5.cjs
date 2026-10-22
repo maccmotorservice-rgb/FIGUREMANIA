@@ -9,7 +9,7 @@ function check(directory) {
   }
 }
 check(path.join(__dirname,'../app'));
-for (const file of ['youtube_player.html','link_panel.html']) {
+for (const file of ['youtube_player.html','link_panel.html','hub_panel.html']) {
   const template = fs.readFileSync(path.join(__dirname,'../',file),'utf8');
   for (const script of template.matchAll(/<script>([\s\S]*?)<\/script>/g)) acorn.parse(script[1],{ecmaVersion:5});
 }

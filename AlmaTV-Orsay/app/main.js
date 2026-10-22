@@ -17,7 +17,7 @@ var Alma = (function () {
       x: 0,
       y: 0,
       animations: true,
-      seekStep: 10,
+      seekStep: 10, appVolume: 70, appMuted: false,
       saverFrame: true,
       city: "Tuxtla Gutiérrez, Chiapas, México",
       links: [],
@@ -249,6 +249,8 @@ var Alma = (function () {
     prefs.relay = prefs.relay === true;
     prefs.animations = prefs.animations !== false;
     prefs.seekStep = [5, 10, 30].indexOf(Number(prefs.seekStep)) !== -1 ? Number(prefs.seekStep) : 10;
+    prefs.appVolume = isFinite(Number(prefs.appVolume)) ? clamp(Number(prefs.appVolume),0,100) : 70;
+    prefs.appMuted = prefs.appMuted === true;
     prefs.saverFrame = prefs.saverFrame !== false;
     if (Object.prototype.toString.call(prefs.links) !== "[object Array]")
       prefs.links = [];
@@ -267,7 +269,7 @@ var Alma = (function () {
     });
     if (Object.prototype.toString.call(prefs.youtubeLinks) !== "[object Array]") prefs.youtubeLinks = [];
     prefs.youtubeLinks = prefs.youtubeLinks.slice(0, 20).filter(function (item) {
-      return item && /^[A-Za-z0-9_-]{11}$/.test(item.id) && typeof item.name === "string";
+      return item && (item.provider === "dailymotion" ? /^[A-Za-z0-9]{5,12}$/ : /^[A-Za-z0-9_-]{11}$/).test(item.id) && typeof item.name === "string";
     });
   }
   function mediaTracks() {
@@ -716,6 +718,7 @@ var Alma = (function () {
           render();
         }
       ],
+      ["pair-phone", "Conectar celular", "Control, música, fotos y cola por QR", function () { go("pair-phone"); }],
       ["tv-volume", "Volumen del control remoto", AlmaTVAudio.active() ? "Control nativo activo · pulsa para desactivar" : "Activar control nativo de la TV", toggleTVVolume],
       ["seek-step", "Avanzar y retroceder", prefs.seekStep + " segundos · elegir 5, 10 o 30", cycleSeekStep],
       [
@@ -1133,6 +1136,7 @@ var Alma = (function () {
   function closeYoutube() {
     AlmaYouTube.close();
     youtubeLoaded = "";
+    hubAutoplay = false;
     el("safe").setAttribute("data-youtube", "none");
     if (youtubeFull) youtubeFullscreen(false);
   }
@@ -1152,12 +1156,12 @@ var Alma = (function () {
       liveFailures = 0;
       try {
         var data = JSON.parse(body), command = data.command;
-        if (data.status !== "waiting" || !command || !/^[a-f0-9]{32}$/.test(command.id) || !/^[A-Za-z0-9_-]{11}$/.test(command.video) || (command.mode !== "audio" && command.mode !== "video")) return;
+        if (data.status !== "waiting" || !command || !/^[a-f0-9]{32}$/.test(command.id) || !(command.provider === "dailymotion" ? /^[A-Za-z0-9]{5,12}$/ : /^[A-Za-z0-9_-]{11}$/).test(command.video) || (command.mode !== "audio" && command.mode !== "video")) return;
         var storage = "alma.live.last." + mac;
         if (livePending && livePending.id === command.id) return;
         try { if (localStorage.getItem(storage) === command.id) return; localStorage.setItem(storage, command.id); } catch (ignore) {}
         livePending = {id: command.id, sent: false, confirmed: false};
-        openYoutube({id: command.video, name: typeof command.name === "string" ? command.name.slice(0,80) : "YouTube en tiempo real"}, command.mode === "audio");
+        openYoutube({id: command.video, provider:command.provider, name: typeof command.name === "string" ? command.name.slice(0,80) : "YouTube en tiempo real"}, command.mode === "audio");
         go("home");
         liveAck(livePending, "received");
       } catch (error) {}
@@ -1183,6 +1187,7 @@ var Alma = (function () {
   function updateYoutube() {
     var value = AlmaYouTube.snapshot(), host = el("youtube-host");
     el("safe").setAttribute("data-youtube-mode", youtubeAudioOnly ? "audio" : "video");
+    if (hubAutoplay && value.ready) {hubAutoplay=false;AlmaYouTube.send("play");}
     if (livePending && !livePending.confirmed) {
       if (value.state === 1) { livePending.confirmed = true; liveAck(livePending, "playing"); }
       else if (value.failed) { livePending.confirmed = true; liveAck(livePending, /ACTIVACION/.test(value.status) ? "blocked" : "error"); }
@@ -1254,15 +1259,15 @@ var Alma = (function () {
     go("youtube");
   }
   function saveYoutube(url, name) {
-    var id = AlmaYouTube.parseUrl(url);
+    var parsed = AlmaYouTube.parseLink(url), id = parsed && parsed.id;
     if (!id) { notice("Usa un enlace de YouTube a un vídeo individual. Para otros archivos, usa un enlace directo MP3 o MP4."); return false; }
     if (prefs.youtubeLinks.length >= 20) { notice("Puedes guardar hasta 20 enlaces de YouTube."); return false; }
-    prefs.youtubeLinks.push({ id: id, name: name || "YouTube · " + id });
+    prefs.youtubeLinks.push({ id: id, provider:parsed.provider, name: name || (parsed.provider === "dailymotion" ? "Dailymotion" : "YouTube") + " · " + id });
     save();
     return true;
   }
   function youtubeView() {
-    var h = head("YOUTUBE INTEGRADO · EXPERIMENTAL", youtubeSelection ? youtubeSelection.name : "YouTube", "Reproductor oficial · requiere el puente actualizado e internet en la TV.");
+    var h = head((youtubeSelection && youtubeSelection.provider === "dailymotion" ? "DAILYMOTION" : "YOUTUBE") + " INTEGRADO", youtubeSelection ? youtubeSelection.name : "YouTube", "Reproductor oficial · requiere el puente actualizado e internet en la TV.");
     h = h.replace("<h1>", '<h1 id="youtube-title">');
     h += '<div id="youtube-slot" tabindex="0" role="region" aria-label="Video de YouTube: Aceptar reproduce o pausa"></div><p id="youtube-state" class="youtube-state"></p><div class="youtube-controls">';
     actions["youtube-slot"] = function () { AlmaYouTube.send("toggle"); };
@@ -1378,7 +1383,7 @@ var Alma = (function () {
         var data = JSON.parse(body);
         if (code !== 200 || Object.prototype.toString.call(data.items) !== "[object Array]") throw new Error();
         var next = data.items.slice(0, 50).filter(function (item) {
-          return item && typeof item.id === "string" && /^[A-Za-z0-9_-]{11}$/.test(item.id) && typeof item.name === "string" && item.name.length <= 80;
+          return item && typeof item.id === "string" && (item.provider === "dailymotion" ? /^[A-Za-z0-9]{5,12}$/ : /^[A-Za-z0-9_-]{11}$/).test(item.id) && typeof item.name === "string" && item.name.length <= 80;
         });
         changed = JSON.stringify(next) !== JSON.stringify(macYoutubeLinks);
         macYoutubeLinks = next;
@@ -1445,7 +1450,7 @@ var Alma = (function () {
     var h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor · Alma TV 8.7.0",
+        "Tu reproductor · Alma TV 9.0.0",
         "Archivos propios, enlaces directos y YouTube integrado experimental mediante el puente de la Mac."
       ) +
       '<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +
@@ -1502,10 +1507,10 @@ var Alma = (function () {
       pill("media-youtube", "YouTube en línea", function () { editor("youtubeUrl", "Pega un enlace de YouTube", "", "text"); }) +
       pill("media-youtube-test", "Probar YouTube", function () { openYoutube({ id: "M7lc1UVf-VE", name: "Prueba de compatibilidad de YouTube" }); }) +
       pill("media-vol-down", "− Volumen", function () {
-        AlmaPlayer.volume(-0.1);
+        setAppAudio(-10, false);
       }) +
       pill("media-vol-up", "+ Volumen", function () {
-        AlmaPlayer.volume(0.1);
+        setAppAudio(10, false);
       }) +
       '<span id="media-volume">Volumen: ' +
       Math.round(player.volume * 100) +
@@ -1609,6 +1614,9 @@ var Alma = (function () {
       case "links":
         h = linksView();
         break;
+      case "pair-phone":
+        h = AlmaHub.pairMarkup();
+        break;
       case "clock":
         h =
           head("AHORA", "Un momento para ti", "Hora y fecha del televisor") +
@@ -1660,7 +1668,7 @@ var Alma = (function () {
     if (state.view === "youtube" && youtubeSelection) {
       if (youtubeLoaded !== youtubeSelection.id) {
         youtubeLoaded = youtubeSelection.id;
-        AlmaYouTube.open(el("youtube-host"), prefs.macIp, youtubeSelection.id, updateYoutube);
+        AlmaYouTube.open(el("youtube-host"), prefs.macIp, youtubeSelection.id, updateYoutube, youtubeSelection.provider);
       }
       updateYoutube();
       setTimeout(function () { if (state.view === "youtube") updateYoutube(); }, 250);
@@ -1674,6 +1682,7 @@ var Alma = (function () {
     if (!modal) focus();
     rendering = false;
     if (youtubeLoaded) updateYoutube();
+    if (typeof AlmaHub !== "undefined") AlmaHub.onRender();
   }
   function focusedId() {
     return rows[state.row] && rows[state.row][state.col];
@@ -2351,6 +2360,7 @@ var Alma = (function () {
   }
   function tick() {
     pollLive();
+    if (typeof AlmaHub !== "undefined") AlmaHub.tick();
     if ((state.view === "media" || state.view === "youtube-list") && !modal && (macLinksHost !== prefs.macIp || new Date().getTime() - macLinksLast >= 15000)) loadMacYoutube(true);
     htmlIfChanged(el("time"), time());
     updateNetwork();
@@ -2584,6 +2594,7 @@ var Alma = (function () {
     AlmaYouTube.init();
     document.addEventListener("visibilitychange", youtubeHidden, false);
     AlmaPlayer.init(el("media-audio"), el("media-video"), updatePlayer);
+    AlmaPlayer.setLevel(prefs.appVolume/100,prefs.appMuted); AlmaYouTube.level(prefs.appVolume,prefs.appMuted);
     AlmaPlayer.setTracks(mediaTracks());
     document.onkeydown = function (e) {
       e = e || window.event;
@@ -2656,6 +2667,37 @@ var Alma = (function () {
     clearInterval(interval);
     clearTimeout(toastTimer);
     invalidate();
+  };
+  var hubAutoplay = false;
+  A.hubConfig = function () {return {macIp:prefs.macIp,view:state.view};};
+  A.hubNotice = notice;
+  A.hubPhoto = function () {closeYoutube();el("media-video").style.visibility="hidden";go("home");};
+  A.hubPlay = function(item, keepView) {
+    if(item.kind==="youtube"){
+      livePending=null;openYoutube({id:item.video,provider:item.provider,name:item.name},item.mode==="audio");hubAutoplay=true;go("home");updateYoutube();
+    }else{
+      closeYoutube();var url="http://"+prefs.macIp+":8088"+item.path;
+      if(!/^\/(?:hub\/(?:file|stream)\/|media\/file\/)[A-Za-z0-9]+$/.test(item.path))throw new Error("Dirección de archivo no válida");
+      AlmaPlayer.setTracks([{name:item.name,url:url,kind:item.kind==="video"?"video":"audio"}]);AlmaPlayer.play(0);if(!keepView)go("home");
+    }
+  };
+  function setAppAudio(delta, toggleMute) {
+    if (toggleMute) prefs.appMuted = !prefs.appMuted;
+    else { prefs.appVolume = clamp(prefs.appVolume + delta,0,100); if(delta>0) prefs.appMuted=false; }
+    save(); AlmaPlayer.setLevel(prefs.appVolume/100,prefs.appMuted); AlmaYouTube.level(prefs.appVolume,prefs.appMuted);
+  }
+  A.hubControl = function(action,seconds) {
+    if(action==="home"||action==="media"||action==="saver"){go(action);return;}
+    if(action==="volume-up"||action==="volume-down"||action==="mute"){
+      setAppAudio(action==="volume-up"?10:action==="volume-down"?-10:0,action==="mute");return;
+    }
+    if(action==="stop"){hubAutoplay=false;closeYoutube();AlmaPlayer.stop();return;}
+    if(youtubeLoaded){if(action==="seek")AlmaYouTube.send(seconds<0?"back":"forward",Math.abs(seconds));else AlmaYouTube.send(action);}
+    else if(action==="play")AlmaPlayer.play();else if(action==="pause")AlmaPlayer.pause();else if(action==="toggle")AlmaPlayer.toggle();else if(action==="seek")AlmaPlayer.seek(seconds);
+  };
+  A.hubStatus = function(){
+    if(youtubeLoaded){var value=AlmaYouTube.snapshot();return {title:value.title||(youtubeSelection&&youtubeSelection.name)||"Vídeo",kind:(youtubeSelection&&youtubeSelection.provider)||"youtube",state:value.failed?"Error":(value.state===1?"Reproduciendo":(value.state===2?"En pausa":"Preparado")),seconds:value.seconds||0,duration:value.duration||0,volume:value.volume,muted:value.muted,finished:value.state===0,error:value.failed?value.status:""};}
+    var current=AlmaPlayer.snapshot();return {title:current.index>=0?current.title:"Sin reproducción",kind:current.kind,state:current.status,seconds:current.time,duration:current.duration,error:current.error,volume:Math.round(current.volume*100),muted:current.muted};
   };
   A.key = key;
   A.go = go;

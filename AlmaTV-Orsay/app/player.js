@@ -10,10 +10,53 @@ var AlmaPlayer = (function () {
     error = "",
     notify = function () {},
     listeners = [], seekTimer = null, seekTarget = null;
+  var activeUrl = "", positions = [], lastHistoryWrite = 0, pendingResume = null, stopped = false;
+  var chosenLevel = 0.7, chosenMuted = false;
+  var historyKey = "alma.media.positions.v1";
+  function identity(url) {
+    var match = String(url || "").match(/\/(?:media|hub)\/file\/([a-f0-9]{16,24})(?:[?#]|$)/i);
+    return match ? "mac:" + match[1].toLowerCase() : String(url || "");
+  }
+  function loadPositions() {
+    try {
+      var data = JSON.parse(localStorage.getItem(historyKey) || "[]");
+      if (Object.prototype.toString.call(data) === "[object Array]") positions = data.filter(function (entry) {
+        return entry && typeof entry.url === "string" && entry.url.length <= 2048 && typeof entry.time === "number" && isFinite(entry.time) && entry.time >= 0 && typeof entry.updated === "number" && isFinite(entry.updated);
+      }).slice(0, 100);
+    } catch (e) { positions = []; }
+  }
+  function writePositions() { try { localStorage.setItem(historyKey, JSON.stringify(positions)); } catch (e) {} }
+  function savedPosition() {
+    if (index < 0 || !tracks[index]) return 0;
+    var key = identity(tracks[index].url);
+    for (var i = 0; i < positions.length; i++) if (positions[i].url === key) return positions[i].time;
+    return 0;
+  }
+  function savePosition(force, finished) {
+    if (!active || !activeUrl || stopped || pendingResume !== null) return;
+    var now = new Date().getTime();
+    if (!force && now - lastHistoryWrite < 5000) return;
+    var seconds = active.currentTime, duration = active.duration;
+    if (typeof seconds !== "number" || !isFinite(seconds) || !isFinite(duration) || duration <= 0) return;
+    lastHistoryWrite = now;
+    var key = identity(activeUrl);
+    positions = positions.filter(function (entry) { return entry.url !== key; });
+    if (!finished && seconds >= 0.5 && seconds < duration - Math.min(5, duration * 0.02)) positions.unshift({ url: key, time: seconds, updated: now });
+    positions = positions.slice(0, 100);
+    writePositions();
+  }
+  function restorePosition() {
+    if (!active || pendingResume === null || !isFinite(active.duration) || active.duration <= 0) return;
+    var value = pendingResume;
+    if (value >= active.duration - Math.min(5, active.duration * 0.02)) value = 0;
+    try { active.currentTime = value; pendingResume = null; }
+    catch (e) {} // Retry on canplay on engines that reject seeking during metadata.
+  }
   function change() {
     notify();
   }
   function init(a, v, callback) {
+    loadPositions();
     audio = a;
     video = v;
     notify = callback || function () {};
@@ -32,6 +75,7 @@ var AlmaPlayer = (function () {
       on("pause", function () {
         if (node === active && status !== "Detenido") {
           status = "En pausa";
+          savePosition(true);
           change();
         }
       });
@@ -41,12 +85,14 @@ var AlmaPlayer = (function () {
           change();
         }
       });
-      on("loadedmetadata", change);
+      on("loadedmetadata", function () { if (node === active) restorePosition(); change(); });
+      on("canplay", function () { if (node === active) restorePosition(); });
       on("durationchange", change);
-      on("timeupdate", change);
+      on("timeupdate", function () { if (node === active) savePosition(false); change(); });
       on("volumechange", change);
       on("ended", function () {
         if (node !== active) return;
+        savePosition(true, true);
         if (index + 1 < tracks.length) play(index + 1);
         else {
           status = "Finalizado";
@@ -82,7 +128,7 @@ var AlmaPlayer = (function () {
       playing: !!active && !active.paused && !active.ended,
       time: active && isFinite(active.currentTime) ? active.currentTime : 0,
       duration: active && isFinite(active.duration) ? active.duration : 0,
-      volume: active ? active.volume : 0.7
+      volume: active ? active.volume : chosenLevel, muted: active ? active.muted : chosenMuted
     };
   }
   function cancelSeek() { clearTimeout(seekTimer); seekTarget = null; }
@@ -108,15 +154,20 @@ var AlmaPlayer = (function () {
       change();
       return;
     }
-    if (index !== number || active !== next) {
+    if (index !== number || active !== next || activeUrl !== tracks[number].url) {
+      savePosition(true);
       if (active) active.pause();
       active = next;
       index = number;
+      activeUrl = tracks[number].url;
+      pendingResume = savedPosition() || null; stopped = false;
       active.src = tracks[number].url;
       try {
-        active.volume = 0.7;
+        active.volume = chosenLevel; active.muted = chosenMuted;
       } catch (volumeError) {}
       active.load();
+    } else if (stopped) {
+      pendingResume = savedPosition() || null; stopped = false; restorePosition();
     }
     status = "Cargando…";
     error = "";
@@ -148,9 +199,12 @@ var AlmaPlayer = (function () {
     } else play();
   }
   function pause() {
+    savePosition(true);
     if (active) active.pause();
   }
   function stop() {
+    savePosition(true);
+    stopped = true;
     cancelSeek();
     if (active) {
       active.pause();
@@ -161,6 +215,14 @@ var AlmaPlayer = (function () {
     status = "Detenido";
     error = "";
     change();
+  }
+  function restart() {
+    if (!active || index < 0 || !tracks[index]) return;
+    var key = identity(activeUrl);
+    positions = positions.filter(function (entry) { return entry.url !== key; }); writePositions();
+    pendingResume = null; stopped = false; cancelSeek();
+    try { active.currentTime = 0; } catch (e) {}
+    play(index);
   }
   function step(delta) {
     if (!tracks.length) return;
@@ -180,17 +242,15 @@ var AlmaPlayer = (function () {
       catch (e) { error = "Este archivo no permite adelantar ni retroceder."; change(); }
     }, 180);
   }
-  function volume(delta) {
-    if (!active) return;
-    try {
-      active.volume = Math.max(0, Math.min(1, active.volume + delta));
-      change();
-    } catch (e) {
-      error = "Ajusta el volumen con el control del televisor.";
-      change();
-    }
+  function setLevel(level, muted) {
+    chosenLevel = Math.max(0, Math.min(1, Number(level) || 0)); chosenMuted = muted === true;
+    try { if (active) { active.volume = chosenLevel; active.muted = chosenMuted; } }
+    catch (e) { error = "Este reproductor no permite regular su audio desde la app."; }
+    change();
   }
+  function volume(delta) { setLevel(chosenLevel + delta, false); }
   function destroy() {
+    savePosition(true);
     cancelSeek();
     if (active) active.pause();
     for (var i = 0; i < listeners.length; i++)
@@ -199,7 +259,7 @@ var AlmaPlayer = (function () {
         listeners[i][2],
         false
       );
-    listeners = [], seekTimer = null, seekTarget = null;
+    listeners = [];
   }
   return {
     init: init,
@@ -209,9 +269,10 @@ var AlmaPlayer = (function () {
     toggle: toggle,
     pause: pause,
     stop: stop,
+    restart: restart,
     step: step,
     seek: seek,
-    volume: volume,
+    volume: volume, setLevel: setLevel,
     destroy: destroy
   };
 })();

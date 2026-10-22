@@ -1,0 +1,51 @@
+const {test,before,after}=require('node:test');
+const assert=require('node:assert/strict');
+const {chromium}=require('@playwright/test');
+const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),{spawn}=require('node:child_process');
+const ROOT=path.resolve(__dirname,'..');let browser,bridge,preview,base,tmp;
+before(async()=>{
+  tmp=fs.mkdtempSync(path.join(os.tmpdir(),'alma-hub-ui-'));
+  const script=`from http.server import ThreadingHTTPServer
+from pathlib import Path
+import sys
+from puente import Handler
+from hub import Hub
+from youtube_library import Library,Realtime
+s=ThreadingHTTPServer(('127.0.0.1',0),Handler)
+s.tv='127.0.0.1';s.admin_token='owner';s.origins=['null','http://127.0.0.1:8766'];s.allow_launch=False
+s.media_dir=Path('tests/fixtures').resolve();s.hub=Hub(Path(sys.argv[1])/'hub',s.tv);s.youtube_library=Library(Path(sys.argv[1])/'links.json');s.realtime=Realtime()
+print(s.server_port,flush=True);s.serve_forever()`;
+  bridge=spawn('python3',['-u','-c',script,tmp],{cwd:ROOT,stdio:['ignore','pipe','pipe']});
+  let output='';base=await new Promise((resolve,reject)=>{bridge.stdout.on('data',b=>{output+=b;if(/^\d+\n/.test(output))resolve('http://127.0.0.1:'+output.split('\n')[0]);});bridge.on('exit',code=>reject(new Error('Bridge exit '+code)));});
+  preview=spawn('python3',['preview.py','--port','8766','--bind','127.0.0.1','--directory','.preview/app'],{cwd:ROOT,stdio:'ignore'});
+  for(let i=0;i<50;i++){try{await fetch('http://127.0.0.1:8766');break;}catch(e){await new Promise(r=>setTimeout(r,50));}}
+  browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox']});
+});
+after(async()=>{if(browser)await browser.close();if(bridge)bridge.kill();if(preview)preview.kill();if(tmp)fs.rmSync(tmp,{recursive:true,force:true});});
+async function action(body){const r=await fetch(base+'/hub/action',{method:'POST',headers:{Origin:base,'Content-Type':'application/json','X-Alma-Token':'owner'},body:JSON.stringify(body)});const data=await r.json();assert.equal(r.status,200,JSON.stringify(data));return data;}
+async function tv(t){const c=await browser.newContext({viewport:{width:1280,height:720}});t.after(()=>c.close());const p=await c.newPage();await p.route('**/$MANAGER_WIDGET/**',r=>r.fulfill({contentType:'application/javascript',body:''}));await p.route('http://192.168.1.249:8080/**',r=>r.fulfill({body:'<state>running</state>'}));await p.route('http://192.168.1.30:8088/**',async r=>{const u=new URL(r.request().url());if(r.request().method()==='OPTIONS')return r.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Methods':'GET, POST, OPTIONS'}});try{const response=await fetch(base+u.pathname+u.search,{method:r.request().method(),headers:{Origin:'http://127.0.0.1:8766',...(r.request().postData()?{'Content-Type':'application/json'}:{})},body:r.request().postData()||undefined});const headers=Object.fromEntries(response.headers);delete headers['content-length'];headers['access-control-allow-origin']='*';return r.fulfill({status:response.status,headers,body:Buffer.from(await response.arrayBuffer())});}catch(e){return r.fulfill({status:502,body:'{}'});}});await p.goto('http://127.0.0.1:8766');return p;}
+
+test('Centro de control real reproduce MP4 de la biblioteca y controla pausa, continuación y cola',{timeout:25000},async t=>{
+ const p=await tv(t),c=await browser.newContext();t.after(()=>c.close());const panel=await c.newPage();await panel.goto(base+'/control');await panel.getByRole('button',{name:'Biblioteca',exact:true}).click();await panel.locator('#sources .item').filter({hasText:'video-prueba'}).getByRole('button',{name:'Reproducir ahora',exact:true}).click();
+ await p.waitForFunction(()=>AlmaPlayer.snapshot().playing);assert.equal(await p.locator('#safe').getAttribute('data-view'),'home');await panel.getByRole('button',{name:'Control',exact:true}).click();await panel.getByRole('button',{name:'Pausar',exact:true}).click();await p.waitForFunction(()=>AlmaPlayer.snapshot().status==='En pausa');await panel.getByRole('button',{name:'Reproducir',exact:true}).click();await p.waitForFunction(()=>AlmaPlayer.snapshot().playing);
+ await panel.locator('[data-command="volume-down"]').click();await p.waitForFunction(()=>Math.abs(AlmaPlayer.snapshot().volume-0.6)<0.001);assert.equal(await p.evaluate(()=>AlmaTVAudio.active()),false);
+ await panel.locator('[data-command="mute"]').click();await p.waitForFunction(()=>AlmaPlayer.snapshot().muted);await panel.locator('[data-command="volume-up"]').click();await p.waitForFunction(()=>!AlmaPlayer.snapshot().muted&&Math.abs(AlmaPlayer.snapshot().volume-0.7)<0.001);
+ await panel.getByRole('button',{name:'Biblioteca',exact:true}).click();await panel.locator('#sources .item').filter({hasText:'video-prueba'}).getByRole('button',{name:'Añadir a la cola',exact:true}).click();await panel.getByRole('button',{name:'Cola',exact:true}).click();await panel.locator('#queue-list .item').first().waitFor();assert.ok((await panel.locator('#queue-list').innerText()).includes('video-prueba'));
+});
+
+test('Fotos, tarjeta, escena y QR se muestran en TV usando el puente real',{timeout:25000},async t=>{
+ const p=await tv(t);const raw=fs.readFileSync(path.join(ROOT,'app/assets/salvapantallas.png'));
+ const upload=await fetch(base+'/hub/upload',{method:'POST',headers:{Origin:base,'X-Alma-Token':'owner','X-Alma-Filename':'foto.png','Content-Type':'application/octet-stream'},body:raw});assert.equal(upload.status,200);const photo=(await upload.json()).item;
+ await action({action:'play',source:photo.id});await p.waitForFunction(()=>document.getElementById('safe').getAttribute('data-hub-photo')==='true');assert.match(await p.locator('#home-player').evaluate(n=>n.style.backgroundImage),/hub\/file/);
+ const state=await action({action:'source',kind:'card',name:'Menú <b>seguro</b>',body:'Comida $100\nSin ejecución de HTML'});const card=state.sources.find(s=>s.kind==='card');const scenes=await action({action:'scene',name:'Menú y foto',items:[card.id,photo.id],interval:5});await action({action:'play-scene',id:scenes.scenes[0].id});await p.waitForFunction(()=>document.getElementById('hub-card'));assert.ok((await p.locator('#hub-card h2').innerText()).includes('<b>seguro</b>'));assert.equal(await p.locator('#hub-card b').count(),0);assert.equal(await p.locator('#safe').getAttribute('data-view'),'saver');
+ await p.evaluate(()=>Alma.go('pair-phone'));await p.waitForFunction(()=>/^\d{6}$/.test(document.getElementById('hub-pair-code').textContent));assert.ok(await p.locator('#hub-pair-qr img').getAttribute('src'));
+});
+
+test('Invitado vinculado ve cola y no controles de propietario; el servidor rechaza cambiar reproducción',{timeout:15000},async t=>{
+ const state=await (await fetch(base+'/hub/state')).json();const c=await browser.newContext();t.after(()=>c.close());const response=await c.request.post(base+'/hub/pair',{headers:{Origin:base},data:{pin:state.guest_pin}});assert.equal(response.status(),200);const panel=await c.newPage();await panel.goto(base+'/control');assert.ok(!(await panel.locator('#online-play').isVisible()));await panel.locator('#online-url').fill('https://youtu.be/M7lc1UVf-VE');await panel.locator('#online-queue').click();await panel.waitForFunction(()=>document.getElementById('message').textContent.indexOf('recibida')>=0);const config=await panel.evaluate(()=>JSON.parse(document.documentElement.innerHTML.match(/var config=(\{[^;]+\}),state=/)[1]));const bad=await c.request.post(base+'/hub/action',{headers:{Origin:base,'X-Alma-Token':config.token},data:{action:'control',command:'stop'}});assert.equal(bad.status(),403);
+});
+
+test('Dailymotion usa SDK, confirma reproducción y permite pausa y saltos sin extraer vídeo (SDK simulado)',{timeout:20000},async t=>{
+ const p=await tv(t);await p.route('https://api.dmcdn.net/all.js',r=>r.fulfill({contentType:'application/javascript',body:`window.DM={player:function(node,options){var f=document.createElement('iframe');f.id='dm-official';node.parentNode.replaceChild(f,node);var handlers={};f.addEventListener=function(n,fn){handlers[n]=fn;};f.title='Dailymotion';f.currentTime=0;f.duration=120;f.setVolume=function(v){window.dmVolume=v;};f.setMuted=function(v){window.dmMuted=v;};f.play=function(){window.dmPlays=(window.dmPlays||0)+1;handlers.playing();};f.pause=function(){handlers.pause();};f.seek=function(n){f.currentTime=n;if(handlers.timeupdate)handlers.timeupdate({time:n});};setTimeout(function(){handlers.apiready();},10);return f;}};if(window.dmAsyncInit)window.dmAsyncInit();`}));
+ await action({action:'play',youtube:'https://dai.ly/x84sh87',name:'Dailymotion prueba'});await p.waitForFunction(()=>AlmaYouTube.snapshot().state===1);assert.match(await p.locator('#youtube-frame').getAttribute('src'),/provider=dailymotion/);await action({action:'control',command:'pause'});await p.waitForFunction(()=>AlmaYouTube.snapshot().state===2);await action({action:'control',command:'play'});await p.waitForFunction(()=>AlmaYouTube.snapshot().state===1);const frame=p.frame({url:/youtube\/player/});assert.equal(await frame.evaluate(()=>dmPlays),2);await action({action:"control",command:"volume-down"});await frame.waitForFunction(()=>Math.abs(window.dmVolume-0.6)<0.001);await action({action:"control",command:"mute"});await frame.waitForFunction(()=>window.dmMuted===true);
+});

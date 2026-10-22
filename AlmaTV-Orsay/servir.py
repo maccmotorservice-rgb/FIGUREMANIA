@@ -2,6 +2,7 @@
 """HTTP installer server. Only catalogue and widget ZIPs are exposed."""
 import argparse
 import json
+import threading
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -31,11 +32,13 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--bind',required=True, help='IP privada de la Mac; no 0.0.0.0')
     p.add_argument('--port',type=int,default=80)
+    p.add_argument('--duration',type=int,default=0,help='Detener tras N segundos; 0 mantiene el modo manual')
     group=p.add_mutually_exclusive_group()
     group.add_argument('--rollback',action='store_true',help='Restaurar versión 7.1 conservada')
     group.add_argument('--rollback-7',action='store_true',help='Ofrecer versión 7.0')
     group.add_argument('--rollback-6',action='store_true',help='Ofrecer la base 6.0 original')
     a=p.parse_args()
+    if not 0<=a.duration<=3600:p.error('Duración no válida')
     bind=private_ipv4(a.bind)
     directory=ROOT/('respaldo/version-7.1' if a.rollback else 'respaldo/version-7.0' if a.rollback_7 else 'respaldo/servidor' if a.rollback_6 else 'servidor')
     if not (directory/'widgetlist.xml').exists():
@@ -44,7 +47,11 @@ def main():
     print('Instalador: %s · versión %s · %s' % (manifest['id'],manifest['version'],manifest['archive']),flush=True)
     print('Solo red local: http://%s:%s/widgetlist.xml · Ctrl+C detiene' % (bind,a.port),flush=True)
     try:
-        ThreadingHTTPServer((bind,a.port),partial(Handler,directory=str(directory))).serve_forever()
+        server=ThreadingHTTPServer((bind,a.port),partial(Handler,directory=str(directory)))
+        if a.duration:
+            timer=threading.Timer(a.duration,server.shutdown);timer.daemon=True;timer.start()
+        try:server.serve_forever()
+        finally:server.server_close()
     except PermissionError:
         p.exit(1,'macOS requiere permisos para puerto 80: repite solo este comando con sudo.\n')
     except KeyboardInterrupt:

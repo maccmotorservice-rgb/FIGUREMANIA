@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="8.7.0"'))
+      if (!html.includes('name="alma-build" content="9.0.0"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -117,11 +117,12 @@ beforeEach(async (t) => {
   });
   await page.route("http://192.168.1.30:8088/youtube/diagnostic", r => r.fulfill({status:200,contentType:"application/json",body:JSON.stringify({ok:true,report:null})}));
   await page.route("http://192.168.1.30:8088/youtube/library", r => r.fulfill({status:200,contentType:"application/json",headers:{"Access-Control-Allow-Origin":"*"},body:JSON.stringify({items:[]})}));
+  await page.route("http://192.168.1.30:8088/hub/**",r=>r.fulfill({status:200,contentType:"application/json",headers:{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type","Access-Control-Allow-Methods":"POST"},body:JSON.stringify({commands:[],pin:"",guest_pin:""})}));
   await page.route("http://192.168.1.30:8088/youtube/live",r=>r.fulfill({status:200,contentType:"application/json",headers:{"Access-Control-Allow-Origin":"*"},body:JSON.stringify({command:null,status:"idle"})}));
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /8\.7\.0/);
+  assert.match(await page.locator(".brand").innerText(), /9\.0\.0/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -956,6 +957,7 @@ async function officialYouTubeFixture(code = 0, behavior = "normal") {
       var node=document.getElementById(id);node.parentNode.replaceChild(iframe,node);
       var state=-1,time=20;window.testYoutube={play:0,pause:0,seek:0,load:0,size:null,sizeCount:0,options:options};
       this.getPlayerState=function(){return state;}; this.getCurrentTime=function(){return time;};
+      this.setVolume=function(v){testYoutube.volume=v;};this.getVolume=function(){return testYoutube.volume;};this.mute=function(){testYoutube.muted=true;};this.unMute=function(){testYoutube.muted=false;};this.isMuted=function(){return testYoutube.muted;};
       this.getVideoData=function(){return {title:'Vídeo de prueba · API simulada'};};
       this.setSize=function(w,h){window.testYoutube.sizeCount++;window.testYoutube.size=[w,h];};
       this.playVideo=function(){window.testYoutube.play++;window.testYoutube.activation=navigator.userActivation ? navigator.userActivation.isActive : null;${code ? `options.events.onError({data:${code}});` : behavior === "stalled" ? "" : behavior === "blocked" ? "options.events.onAutoplayBlocked();" : "state=1;options.events.onStateChange({data:1});"}};
@@ -1622,3 +1624,12 @@ test("En tiempo real informa bloqueo de autoplay sin anunciar reproducción ni r
   await page.clock.runFor(5000);assert.equal(await child.evaluate(()=>testYoutube.play),1);
   assert.deepEqual(errors,[]);
 });
+
+ test("El volumen de Alma TV regula YouTube sin módulo Samsung y se guarda entre aperturas (API simulada)",async()=>{
+ await officialYouTubeFixture();await savedYouTube();const frame=page.frame({url:/youtube\/player/});await frame.waitForFunction(()=>testYoutube.volume===70);
+ await page.evaluate(()=>Alma.hubControl("volume-down"));await frame.waitForFunction(()=>testYoutube.volume===60);
+ await page.evaluate(()=>Alma.hubControl("mute"));await frame.waitForFunction(()=>testYoutube.muted===true);
+ assert.equal(await page.evaluate(()=>AlmaTVAudio.active()),false);
+ await page.reload();await go("media");await click("youtube-item-0");await page.waitForFunction(()=>AlmaYouTube.snapshot().ready);const reopened=page.frame({url:/youtube\/player/});await reopened.waitForFunction(()=>testYoutube.volume===60&&testYoutube.muted===true);
+ await page.evaluate(()=>Alma.hubControl("volume-up"));await reopened.waitForFunction(()=>testYoutube.volume===70&&testYoutube.muted===false);
+ });

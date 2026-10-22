@@ -15,14 +15,15 @@
   "use strict";
   var config = __ALMA_YT_CONFIG__, player = null, ready = false, watchdog = null, initialTime = null, layoutWidth = 0, layoutHeight = 0, fittedWidth = 0, fittedHeight = 0, seekTimer = null, seekTarget = null;
   function details() {
-    var state = null, seconds = null, muted = null;
+    var state = null, seconds = null, muted = null, volume = null;
     try { if (ready && player && typeof player.getPlayerState === "function") state = player.getPlayerState(); } catch (e) {}
     try { if (ready && player && typeof player.getCurrentTime === "function") seconds = player.getCurrentTime(); } catch (e) {}
     try { if (ready && player && typeof player.isMuted === "function") muted = player.isMuted(); } catch (e) {}
+    try { if(ready && player && typeof player.getVolume === "function") volume=player.getVolume(); } catch(e) {}
     var node = document.querySelector("#surface iframe"), box = node && node.getBoundingClientRect();
     var video = document.createElement("video"), h264 = "";
     try { h264 = video.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"'); } catch (e) {}
-    return { state: state, seconds: seconds, muted: muted, width: box ? Math.round(box.width) : 0, height: box ? Math.round(box.height) : 0, h264: h264, mse: !!(window.MediaSource || window.WebKitMediaSource) };
+    return { state: state, seconds: seconds, volume:volume, muted: muted, width: box ? Math.round(box.width) : 0, height: box ? Math.round(box.height) : 0, h264: h264, mse: !!(window.MediaSource || window.WebKitMediaSource) };
   }
   function report(phase, status) {
     try {
@@ -167,6 +168,16 @@
       surface.style.clip = data.visible ? "auto" : "rect(0px,0px,0px,0px)";
       return;
     }
+    if (data.command === "volume") {
+      if (!ready || !player || typeof data.level !== "number" || !isFinite(data.level) || data.level<0 || data.level>100 || typeof data.muted!=="boolean") return;
+      try {
+        if(typeof player.setVolume!=="function") throw new Error("No volume API");
+        player.setVolume(data.level);
+        if(data.muted) { if(typeof player.mute!=="function") throw new Error("No mute API"); player.mute(); }
+        else if(typeof player.unMute==="function") player.unMute();
+      } catch(e) { tell("status","El reproductor no permite ajustar su audio desde la app."); }
+      return;
+    }
     if (data.command === "resize") {
       if (typeof data.width !== "number" || typeof data.height !== "number" || !isFinite(data.width) || !isFinite(data.height) || data.width < 200 || data.height < 200 || data.width > 4096 || data.height > 2160) return;
       layoutWidth = data.width; layoutHeight = data.height; fit();
@@ -185,6 +196,41 @@
   }
   window.addEventListener("resize", fit, false);
   fit();
+  setInterval(function(){
+    if(!ready||window.parent===window)return;
+    var data=details(),duration=0;
+    try{duration=Number(player.getDuration())||0;}catch(ignore){}
+    window.parent.postMessage(JSON.stringify({channel:"alma-youtube",token:config.token,type:"progress",state:data.state,seconds:data.seconds,duration:duration,volume:data.volume,muted:data.muted}),config.parent==="null"?"*":config.parent);
+  },2000);
+  if (config.provider === "dailymotion") {
+    var dmStarted = false, dmState = -1, dmTime = 0;
+    function initDM() {
+      if (dmStarted || typeof DM === "undefined" || typeof DM.player !== "function") return;
+      dmStarted = true;
+      try {
+        var dm = DM.player(document.getElementById("player"), {video:config.video,width:"100%",height:"100%",params:{autoplay:false,controls:true,mute:false}});
+        player = {
+          getPlayerState:function(){return dmState;}, getCurrentTime:function(){return dmTime;},
+          getVolume:function(){return typeof dm.volume==="number"?dm.volume*100:null;},isMuted:function(){return typeof dm.muted==="boolean"?dm.muted:null;},setVolume:function(v){dm.setVolume(v/100);},mute:function(){dm.setMuted(true);},unMute:function(){dm.setMuted(false);},
+          getDuration:function(){return Number(dm.duration)||0;},getVideoData:function(){return {title:dm.title||"Dailymotion"};},
+          playVideo:function(){dm.play();},loadVideoById:function(){dm.play();},pauseVideo:function(){dm.pause();},
+          seekTo:function(seconds){dm.seek(seconds);},setSize:function(w,h){dm.width=w;dm.height=h;dm.style.width=w+"px";dm.style.height=h+"px";}
+        };
+        dm.addEventListener("apiready",function(){ready=true;fittedWidth=0;fittedHeight=0;fit();tell("ready","Dailymotion está listo. Pulsa Reproducir.",-1);});
+        dm.addEventListener("timeupdate",function(event){dmTime=Number(event.time)||Number(dm.currentTime)||0;});
+        dm.addEventListener("playing",function(){dmState=1;tell("state","Reproduciendo en Dailymotion",1);});
+        dm.addEventListener("pause",function(){dmState=2;clearTimeout(watchdog);tell("state","Dailymotion en pausa",2);});
+        dm.addEventListener("waiting",function(){dmState=3;tell("state","Cargando Dailymotion…",3);});
+        function ended(){dmState=0;tell("state","Finalizado",0);}
+        dm.addEventListener("video_end",ended);dm.addEventListener("ended",ended);
+        dm.addEventListener("error",function(){clearTimeout(watchdog);tell("error","Dailymotion no pudo reproducir este vídeo en el navegador de la TV.",-1);});
+      } catch(error) {tell("error","El navegador no pudo iniciar el reproductor oficial de Dailymotion.",-1);}
+    }
+    window.dmAsyncInit=initDM;
+    var dmScript=document.createElement("script");dmScript.src="https://api.dmcdn.net/all.js";dmScript.onload=initDM;
+    dmScript.onerror=function(){tell("error","No se pudo cargar Dailymotion. Comprueba internet o compatibilidad HTTPS de la TV.",-1);};
+    document.head.appendChild(dmScript);return;
+  }
   var script = document.createElement("script");
   script.src = "https://www.youtube.com/iframe_api";
   script.onerror = function () { tell("error", "No se pudo cargar YouTube. Comprueba internet y la compatibilidad HTTPS del televisor.", -1); report("error", "No se pudo cargar la API de YouTube."); };

@@ -36,6 +36,20 @@ def video_id(value):
         return ''
 
 
+def parse_video(value):
+    ident=video_id(value)
+    if ident:return {'provider':'youtube','id':ident}
+    if not isinstance(value,str) or len(value)>1000:return None
+    try:
+        url=urlsplit(value.strip())
+        if url.scheme not in ('http','https') or url.username or url.password or url.port not in (None,80,443):return None
+        host=(url.hostname or '').lower();parts=url.path.strip('/').split('/')
+        ident=parts[0] if host=='dai.ly' else (parts[1] if host in ('dailymotion.com','www.dailymotion.com','m.dailymotion.com') and len(parts)>=2 and parts[0]=='video' else '')
+        ident=ident.split('_')[0]
+        return {'provider':'dailymotion','id':ident} if re.fullmatch(r'[A-Za-z0-9]{5,12}',ident) else None
+    except ValueError:return None
+
+
 class Library:
     def __init__(self, path):
         self.path = Path(path)
@@ -56,10 +70,10 @@ class Library:
                 result = []
                 for item in items:
                     ident, name = item['id'], item['name']
-                    if not isinstance(ident, str) or not VIDEO_ID.fullmatch(ident) or not isinstance(name, str) or not 0 < len(name) <= 80 or ident in found:
+                    if not isinstance(ident, str) or not (re.fullmatch(r'[A-Za-z0-9]{5,12}',ident) if item.get('provider')=='dailymotion' else VIDEO_ID.fullmatch(ident)) or not isinstance(name, str) or not 0 < len(name) <= 80 or (ident,item.get('provider','youtube')) in found:
                         raise ValueError()
-                    result.append({'id': ident, 'name': name})
-                    found.add(ident)
+                    result.append(dict({'id': ident, 'name': name},**({'provider':'dailymotion'} if item.get('provider')=='dailymotion' else {})))
+                    found.add((ident,item.get('provider','youtube')))
                 return result
             except (ValueError, KeyError, TypeError):
                 raise ValueError('No se pudo leer la lista guardada. No se ha modificado.') from None
@@ -82,26 +96,30 @@ class Library:
                     raise ValueError('Para varios enlaces, deja el nombre vacío.')
                 ids = []
                 for number, line in enumerate(lines, 1):
-                    ident = video_id(line)
+                    parsed = parse_video(line)
+                    ident = parsed['id'] if parsed else ''
                     if not ident:
                         raise ValueError('Revisa el enlace de la línea %s: debe ser un vídeo individual de YouTube.' % number)
-                    ids.append(ident)
-                existing = {item['id']: item for item in items}
-                for ident in ids:
-                    if ident in existing:
+                    ids.append((ident,parsed['provider']))
+                existing = {(item['id'],item.get('provider','youtube')): item for item in items}
+                for ident,provider in ids:
+                    key=(ident,provider)
+                    if key in existing:
                         if name:
-                            existing[ident]['name'] = name
+                            existing[key]['name'] = name
                     else:
-                        item = {'id': ident, 'name': name or 'YouTube · ' + ident}
+                        item = {'id': ident, 'name': name or ('Dailymotion' if provider=='dailymotion' else 'YouTube') + ' · ' + ident}
+                        if provider=='dailymotion':item['provider']=provider
                         items.append(item)
-                        existing[ident] = item
+                        existing[key] = item
                 if len(items) > LIMIT:
                     raise ValueError('La lista admite hasta 50 vídeos. Quita alguno antes de añadir más.')
             elif action == 'remove':
                 ident = data.get('id', '')
-                if not isinstance(ident, str) or not VIDEO_ID.fullmatch(ident):
+                provider=data.get('provider','youtube')
+                if not isinstance(ident,str) or not (re.fullmatch(r'[A-Za-z0-9]{5,12}',ident) if provider=='dailymotion' else VIDEO_ID.fullmatch(ident)):
                     raise ValueError('El vídeo no es válido.')
-                items = [item for item in items if item['id'] != ident]
+                items=[item for item in items if not (item['id']==ident and item.get('provider','youtube')==provider)]
             else:
                 raise ValueError('Acción no disponible.')
             self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -132,13 +150,13 @@ class Realtime:
         import secrets
         if not isinstance(data, dict):
             raise ValueError('Solicitud no válida.')
-        ident = video_id(data.get('url'))
+        parsed = parse_video(data.get('url'));ident=parsed['id'] if parsed else ''
         mode = data.get('mode')
         name = data.get('name', '').strip() if isinstance(data.get('name', ''), str) else None
         if not ident or mode not in ('video', 'audio') or name is None or len(name) > 80:
             raise ValueError('Usa un enlace individual de YouTube y elige vídeo o solo audio.')
         with self.lock:
-            self.command = {'id': secrets.token_hex(16), 'video': ident, 'name': name or 'YouTube en tiempo real', 'mode': mode, 'expires': self.clock() + 45}
+            self.command = {'id': secrets.token_hex(16), 'video': ident, 'name': name or 'YouTube en tiempo real', 'mode': mode, 'provider':parsed['provider'], 'expires': self.clock() + 45}
             self.status = 'waiting'
             return self.snapshot()
 
