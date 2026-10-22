@@ -87,3 +87,33 @@ class IPTVTests(unittest.TestCase):
                 state=hub.tv('127.0.0.3',event);self.assertEqual(state['live_edit_ack'],['f1']);self.assertEqual(state['live_catalog'][0]['category'],'Noticias')
             bad=hub.tv('127.0.0.3',{'live_edits':[{'op':'bad','action':'restore','id':'capital21'}]})
             self.assertIn('live_edit_error',bad);self.assertEqual(bad['live_edit_ack'],['bad'])
+
+    def test_guide_filters_all_imported_lists_not_only_tv_catalogue_and_pins_remote_selection(self):
+        raw=('#EXTM3U\n'+''.join('#EXTINF:-1 tvg-country="MX",Primera %d\nhttps://example.org/%d.m3u8\n'%(i,i) for i in range(530))).encode()
+        second=b'#EXTM3U\n#EXTINF:-1 tvg-country="MX",Compartido\nhttps://example.org/0.m3u8\n#EXTINF:-1 tvg-country="US",Exclusivo segunda\nhttps://example.org/second.m3u8\n'
+        with tempfile.TemporaryDirectory() as tmp:
+            hub=Hub(tmp,'127.0.0.3');lib=hub.iptv
+            for url,content in [('https://example.org/primera.m3u',raw),('https://example.org/segunda.m3u',second)]:lib.mutate({'action':'import','url':url},lambda *a,raw=content,**k:response(raw))
+            self.assertEqual(len(lib.catalog),504);before=lib.revision
+            all_channels=lib.guide();self.assertEqual(all_channels['total'],535);self.assertEqual(len(all_channels['channels']),20)
+            first,second_list=all_channels['lists'];self.assertEqual((first['count'],second_list['count']),(530,2))
+            result=lib.guide(source=second_list['id']);self.assertEqual(result['total'],2);self.assertEqual(lib.revision,before,'Browsing must not replace the TV catalogue')
+            selected=next(c for c in result['channels'] if c['name']=='Exclusivo segunda');self.assertNotIn('url',selected)
+            self.assertFalse(any(c['id']==selected['id'] for c in lib.catalog))
+            hub.mutate({'action':'control','command':'live-channel','view':selected['id']},'owner','127.0.0.3')
+            packet=hub.tv('127.0.0.3',{'live_revision':before});self.assertTrue(any(c['id']==selected['id'] for c in packet['live_catalog']));self.assertEqual(len(packet['live_catalog']),504)
+            lib.edit({'action':'favorite','id':selected['id'],'enabled':True,'category':'Noticias'})
+            self.assertEqual(lib.guide(source=second_list['id'],category='category:Noticias')['total'],1)
+            self.assertEqual(lib.guide(source=first['id'],category='category:Noticias')['total'],0)
+            lib.edit({'action':'delete-channel','id':selected['id']});self.assertEqual(lib.guide(source=second_list['id'])['total'],1)
+            lib.mutate({'action':'refresh','url':'https://example.org/segunda.m3u'},lambda *a,**k:response(second));self.assertEqual(lib.guide(source=second_list['id'])['total'],1)
+            lib.mutate({'action':'remove','url':'https://example.org/segunda.m3u'},None);self.assertEqual(lib.guide(source=second_list['id'])['source'],'all')
+
+    def test_rapid_channel_choices_keep_latest_command_and_refreshed_recent_metadata(self):
+        raw=('#EXTM3U\n'+''.join('#EXTINF:-1 tvg-country="US",Canal %d\nhttps://example.org/zap%d.m3u8\n'%(i,i) for i in range(12))).encode()
+        with tempfile.TemporaryDirectory() as tmp:
+            hub=Hub(tmp,'127.0.0.3');lib=hub.iptv;lib.mutate({'action':'import','url':'https://example.org/list'},lambda *a,**k:response(raw))
+            for channel in lib.guide()['channels'][4:]:hub.mutate({'action':'control','command':'live-channel','view':channel['id']},'owner','127.0.0.3')
+            commands=hub.tv('127.0.0.3')['commands'];self.assertEqual(len(commands),1);selected=commands[0]['view'];self.assertTrue(any(c['id']==selected for c in lib.catalog))
+            lib.mutate({'action':'refresh','url':'https://example.org/list'},lambda *a,**k:response(raw.replace(b'Canal 11',b'Nuevo nombre')))
+            self.assertEqual(next(c for c in lib.catalog if c['id']==selected)['name'],'Nuevo nombre')

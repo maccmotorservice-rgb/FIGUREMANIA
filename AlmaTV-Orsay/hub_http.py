@@ -59,6 +59,8 @@ class HubHTTP:
                 session={'role':'tv'}
             if not session:raise PermissionError('Vincula este dispositivo con el código de la TV.')
             target=query.get('target',[self.server.tv])[0]
+            if path=='/hub/guide' and method=='GET':
+                self.reply(200,hub.iptv.guide(query.get('list',['all'])[0],query.get('category',['all'])[0],query.get('q',[''])[0],query.get('page',['0'])[0]));return
             if path=='/hub/state' and method=='GET':
                 from puente import media_files, MEDIA_TYPES
                 hub.mac_files={ 'mac:'+ident:(file,MEDIA_TYPES[file.suffix.lower()][0]) for ident,file in media_files(getattr(self.server,'media_dir',None)).items() }

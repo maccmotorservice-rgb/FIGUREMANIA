@@ -55,9 +55,26 @@ class IPTV:
         self.data={'sources':[],'country':'mx','search':'','published':[]}
         if path.exists():self.data=json.loads(path.read_text(encoding='utf-8'))
         self.data.setdefault('edit_receipts',[]);self.data.setdefault('favorites',{});self.data.setdefault('deleted',{});self.data.setdefault('categories',['Deportes','Entretenimiento','Películas','Series','Documentales','Noticias','Streaming'])
-        self.rebuild()
+        self.data.setdefault('recent_channels',[])
+        self.reindex();self.rebuild()
+    def reindex(self):
+        self.channel_index={c['id']:c for c in self.builtins};self.memberships={};self.list_info=[]
+        digest=hashlib.sha256()
+        for source in self.data['sources']:
+            ident='list-'+hashlib.sha256(source['url'].encode()).hexdigest()[:20]
+            parsed=urlsplit(source['url']);path='/'.join(parsed.path.rstrip('/').split('/')[-2:]).lstrip('/');name=((path+' · ' if path else '')+parsed.hostname)[:150]
+            self.list_info.append({'id':ident,'name':name})
+            digest.update(source['url'].encode())
+            for channel in source['channels']:
+                key=channel['id'];self.channel_index[key]=channel;self.memberships.setdefault(key,[]).append(ident)
+                digest.update(json.dumps(channel,sort_keys=True).encode())
+        self.source_revision=digest.hexdigest()[:24]
     def rebuild(self):
-        candidates=self.builtins+[v['channel'] for v in self.data['favorites'].values()]+self.data['published']
+        recent=[]
+        for previous in self.data['recent_channels']:
+            current=self.channel_index.get(previous['id']) or self.data['favorites'].get(previous['id'],{}).get('channel')
+            if current:recent.append(current)
+        candidates=self.builtins+recent+[v['channel'] for v in self.data['favorites'].values()]+self.data['published']
         self.catalog=[];seen=set()
         for channel in candidates:
             ident=channel['id']
@@ -65,6 +82,7 @@ class IPTV:
             seen.add(ident);favorite=self.data['favorites'].get(ident)
             self.catalog.append(dict(channel,favorite=bool(favorite),category=favorite['category'] if favorite else ''))
         self.catalog=self.catalog[:504]
+        self.guide_revision=hashlib.sha256(json.dumps([self.source_revision,self.data['favorites'],self.data['deleted'],self.data['categories']],sort_keys=True).encode()).hexdigest()[:24]
         self.revision=hashlib.sha256(json.dumps([self.catalog,self.data["categories"]],sort_keys=True).encode()).hexdigest()[:24]
     def save(self):
         tmp=self.path.with_suffix('.tmp');tmp.write_text(json.dumps(self.data,ensure_ascii=False),encoding='utf-8');tmp.replace(self.path);self.rebuild()
@@ -73,7 +91,7 @@ class IPTV:
         return sum(c["id"] not in builtin_ids for c in self.catalog)
     def info(self):
         with self.lock:
-            return {'sources':[{k:v for k,v in s.items() if k!='channels'} for s in self.data['sources']], 'country':self.data['country'],'search':self.data['search'],'published':self.published_count(),'matched':self.data.get('matched',len(self.data['published'])),'limit':LIMIT,'revision':self.revision,'categories':self.data['categories'],'deleted':[{'id':k,'name':v['name']} for k,v in self.data['deleted'].items()]}
+            return {'sources':[{k:v for k,v in s.items() if k!='channels'} for s in self.data['sources']], 'country':self.data['country'],'search':self.data['search'],'published':self.published_count(),'matched':self.data.get('matched',len(self.data['published'])),'limit':LIMIT,'revision':self.revision,'guide_revision':self.guide_revision,'categories':self.data['categories'],'deleted':[{'id':k,'name':v['name']} for k,v in self.data['deleted'].items()]}
     def publish(self,country,search):
         country=str(country).lower()[:8];search=str(search)[:100];found=[];seen=set()
         for source in self.data['sources']:
@@ -82,8 +100,51 @@ class IPTV:
                 if country and c['country']!=country:continue
                 if search and search.casefold() not in (c['name']+' '+c['group']).casefold():continue
                 if c['url'] not in seen:seen.add(c['url']);found.append(c)
-        self.data.update(country=country,search=search,published=found[:LIMIT],matched=len(found));self.save()
+        self.data.update(country=country,search=search,published=found[:LIMIT],matched=len(found));self.reindex();self.save()
         return len(found)
+    def resolve_channel(self,ident):
+        if not isinstance(ident,str) or ident in self.data['deleted']:raise ValueError('Canal no disponible.')
+        channel=self.channel_index.get(ident) or self.data['favorites'].get(ident,{}).get('channel')
+        if not channel:raise ValueError('Canal no disponible.')
+        return channel
+    def ensure_channel(self,ident):
+        with self.lock:
+            channel=self.resolve_channel(ident)
+            if not any(c['id']==ident for c in self.catalog):
+                self.data['recent_channels']=([channel]+[c for c in self.data['recent_channels'] if c['id']!=ident])[:8]
+                self.save()
+            return channel
+    def guide(self,source='all',category='all',query='',page=0):
+        with self.lock:
+            if not isinstance(source,str) or len(source)>80 or not isinstance(category,str) or len(category)>60 or not isinstance(query,str) or len(query)>100:raise ValueError('Filtro de guía no válido.')
+            page=max(0,int(page));query=query.strip().casefold()
+            source_ids={item['id'] for item in self.list_info}
+            if source not in source_ids|{'all','builtin'}:source='all'
+            channels=dict(self.channel_index)
+            for ident,favorite in self.data['favorites'].items():channels.setdefault(ident,favorite['channel'])
+            builtins={c['id'] for c in self.builtins};counts={ident:0 for ident in source_ids};base=[];builtin_count=0
+            for ident,channel in channels.items():
+                if ident in self.data['deleted']:continue
+                memberships=self.memberships.get(ident,[])
+                for membership in memberships:counts[membership]+=1
+                if ident in builtins:builtin_count+=1
+                if source=='builtin' and ident not in builtins:continue
+                if source not in ('all','builtin') and source not in memberships:continue
+                if query and query not in (channel['name']+' '+channel.get('region','')+' '+channel.get('group','')).casefold():continue
+                favorite=self.data['favorites'].get(ident)
+                base.append(dict(channel,favorite=bool(favorite),category=favorite['category'] if favorite else ''))
+            facets=[{'id':'all','name':'Todos los canales','count':len(base)},{'id':'favorites','name':'★ Favoritos','count':sum(c['favorite'] for c in base)},{'id':'uncategorized','name':'Sin categoría','count':sum(c['favorite'] and not c['category'] for c in base)}]
+            facets.extend({'id':'category:'+name,'name':name,'count':sum(c['favorite'] and c['category']==name for c in base)} for name in self.data['categories'])
+            if category not in {f['id'] for f in facets}:category='all'
+            def matches(c):
+                if category=='all':return True
+                if category=='favorites':return c['favorite']
+                if category=='uncategorized':return c['favorite'] and not c['category']
+                return c['favorite'] and c['category']==category[9:]
+            matching=[c for c in base if matches(c)];pages=max(1,(len(matching)+19)//20);page=min(page,pages-1)
+            # The web guide never transfers the complete source catalogue to the TV.
+            items=[{k:v for k,v in c.items() if k!='url'} for c in matching[page*20:(page+1)*20]]
+            return {'channels':items,'source':source,'category':category,'page':page,'pages':pages,'total':len(matching),'facets':facets,'categories':self.data['categories'],'lists':[dict(item,count=counts[item['id']]) for item in self.list_info],'builtin_count':builtin_count,'revision':self.guide_revision}
     def edit(self,data):
         with self.lock:
             action=data.get('action');ident=data.get('id');op=data.get('op')

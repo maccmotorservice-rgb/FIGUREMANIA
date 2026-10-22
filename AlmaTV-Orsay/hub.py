@@ -189,7 +189,9 @@ class Hub:
                 if command=='volume' and (type(seconds) is not int or not 0<=seconds<=100):raise ValueError('Volumen no válido.')
                 if command=='seek' and seconds not in (-30,-10,-5,5,10,30):raise ValueError('Salto no válido.')
                 view=data.get('view','')
-                if command=='live-channel' and view not in {c['id'] for c in self.iptv.catalog}:raise ValueError('Canal no disponible.')
+                if command=='live-channel':
+                    self.iptv.ensure_channel(view)
+                    self.commands=[c for c in self.commands if not (c['target']==target and c.get('action')=='live-channel')]
                 if command=='navigate' and view not in VIEWS:raise ValueError('Menú no disponible.')
                 self.remote_until[target]=self.clock()+5
                 if command=='volume':self.commands=[c for c in self.commands if not (c['target']==target and c.get('action')=='volume')]
