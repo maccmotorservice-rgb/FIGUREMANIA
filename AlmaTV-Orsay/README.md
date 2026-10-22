@@ -259,3 +259,12 @@ cambiar, detener y salir. Al seleccionarlos se reanudan; «Desde el principio»
 borra ese punto. Se conservan hasta 100 posiciones. Los archivos de la Mac se
 identifican por su ID aunque cambie la IP del puente. El almacenamiento depende
 de que el navegador del televisor conserve sus datos locales.
+
+### 8.6.1: aislar el arranque de módulos nativos opcionales
+
+Tras el informe de que 8.6 no abre en la TV, se retira la instancia automática
+de los tres objetos SEF del HTML y la apertura de Audio/AppCommon al iniciar o
+recuperar foco. Los objetos reciben su classid solo al solicitar HDMI o volumen.
+El arranque conserva la cesión clásica de teclas. La causa física exacta sigue
+sin confirmar; la prueba de regresión comprueba que no se llama a SEF al arrancar
+y que una excepción del módulo opcional no impide navegar.

@@ -31,6 +31,8 @@ var AlmaTVAudio = (function () {
     update = callback || function () {}; keys = codes.slice(0, 3);
     audio = document.getElementById("alma-audio-plugin");
     common = document.getElementById("alma-keys-plugin");
+    if (audio && !audio.getAttribute("classid")) audio.setAttribute("classid", audio.getAttribute("data-native-classid"));
+    if (common && !common.getAttribute("classid")) common.setAttribute("classid", common.getAttribute("data-native-classid"));
     if (!audio || !common || typeof audio.Open !== "function" || typeof audio.Execute !== "function" || typeof common.Open !== "function" || typeof common.Execute !== "function") return false;
     try {
       try { audio.Close(); common.Close(); } catch (notOpen) {}

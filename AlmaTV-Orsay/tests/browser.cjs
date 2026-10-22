@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="8.6.0"'))
+      if (!html.includes('name="alma-build" content="8.6.1"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -120,7 +120,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /8\.6\.0/);
+  assert.match(await page.locator(".brand").innerText(), /8\.6\.1/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -1484,9 +1484,13 @@ async function nativeAudioFixture(mode="normal") {
 
 test("Volumen físico utiliza Audio nativo, cambia un paso real por tecla y Silencio sin salir (API Samsung simulada)", async () => {
   await nativeAudioFixture();
+  assert.equal(await page.evaluate(()=>AlmaTVAudio.active()),false);
+  assert.deepEqual(await page.evaluate(()=>audioCalls),[]);
+  assert.equal(await key(7),true);
   assert.equal(await page.evaluate(()=>AlmaTVAudio.active()),true);
   assert.deepEqual((await page.evaluate(()=>audioCalls)).filter(c=>c[0]==="RegisterKey").map(c=>c[1]),[7,11,27]);
-  assert.equal(await key(7),true);
+  await page.evaluate(()=>window.dispatchEvent(new Event("focus")));
+  assert.equal((await page.evaluate(()=>audioCalls)).filter(c=>c[0]==="UnregisterKey").length,0);
   assert.equal(await page.evaluate(()=>tvLevel),21);
   assert.match(await page.locator("#toast").innerText(),/Volumen de la TV: 21/);
   await key(11); assert.equal(await page.evaluate(()=>tvLevel),20);
@@ -1501,7 +1505,7 @@ test("Volumen físico utiliza Audio nativo, cambia un paso real por tecla y Sile
 for(const mode of ["open","read","register","write"]) {
   test("Audio nativo rechaza fallo "+mode+" y devuelve las teclas al sistema (API simulada)",async()=>{
     await nativeAudioFixture(mode);
-    if(mode==="write") await key(7);
+    await key(7);
     assert.equal(await page.evaluate(()=>AlmaTVAudio.active()),false);
     assert.equal(await page.evaluate(()=>tvLevel),20);
     assert.equal(await key(7),false);
@@ -1611,5 +1615,25 @@ test("Memoria de archivos de la Mac conserva el punto al cambiar la IP del puent
   await click("media-add"); await editor("Mismo archivo con otra IP"); await editor("http://192.168.1.31:8088/media/file/0123456789abcdef?name=video.mp4");
   await click("media-item-2");
   await page.waitForFunction(()=>document.getElementById("media-video").currentTime>=1);
+  assert.deepEqual(errors,[]);
+});
+
+
+test("El arranque y recuperar foco no instancian ni abren módulos SEF opcionales", async () => {
+  await page.addInitScript(()=>{
+    window.nativeStartupCalls=[];
+    HTMLObjectElement.prototype.Open=function(){nativeStartupCalls.push("Open");throw new Error("SEF no disponible");};
+    HTMLObjectElement.prototype.Execute=function(){nativeStartupCalls.push("Execute");throw new Error("SEF no disponible");};
+  });
+  await page.reload();
+  await page.evaluate(()=>window.dispatchEvent(new Event("focus")));
+  assert.match(await page.locator(".brand").innerText(),/8\.6\.1/);
+  assert.ok(await page.locator("#app-0").isVisible());
+  assert.deepEqual(await page.evaluate(()=>nativeStartupCalls),[]);
+  for(const id of ["alma-window-plugin","alma-audio-plugin","alma-keys-plugin"]) assert.equal(await page.locator("#"+id).getAttribute("classid"),null);
+  await key(7);
+  assert.equal(await page.evaluate(()=>nativeStartupCalls.length),1);
+  await go("apps");
+  assert.ok(await page.locator("#app-0").isVisible());
   assert.deepEqual(errors,[]);
 });

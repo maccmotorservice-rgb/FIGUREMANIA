@@ -2451,6 +2451,7 @@ var Alma = (function () {
   }
   var volumeKeyCodes = [7, 11, 27], nativeKeyPlugin = null;
   function releaseVolumeKeys() {
+    if (AlmaTVAudio.active()) return;
     try {
       var commonAPI = typeof Common !== "undefined" && Common.API;
       if (commonAPI && typeof commonAPI.TVKeyValue === "function") {
@@ -2459,8 +2460,7 @@ var Alma = (function () {
       }
       // Unregister alone did not work on the owner's TV. Use native Audio
       // and AppCommon when available; fall back to system handling otherwise.
-      if (AlmaTVAudio.init(volumeKeyCodes, notice)) return;
-      AlmaTVAudio.release(volumeKeyCodes);
+      // Native SEF modules must never open during application startup.
       if (!nativeKeyPlugin && commonAPI && typeof commonAPI.Plugin === "function") nativeKeyPlugin = new commonAPI.Plugin();
       if (!nativeKeyPlugin || typeof nativeKeyPlugin.unregistKey !== "function") return;
       for (var i = 0; i < volumeKeyCodes.length; i++) {
@@ -2470,7 +2470,10 @@ var Alma = (function () {
   }
   function key(code) {
     // Only consume a volume key when the native Audio API handled it.
-    if (volumeKeyCodes.indexOf(code) !== -1) return AlmaTVAudio.handle(code);
+    if (volumeKeyCodes.indexOf(code) !== -1) {
+      if (!AlmaTVAudio.active()) AlmaTVAudio.init(volumeKeyCodes, notice);
+      return AlmaTVAudio.handle(code);
+    }
 
     var map = {
         4: "left",

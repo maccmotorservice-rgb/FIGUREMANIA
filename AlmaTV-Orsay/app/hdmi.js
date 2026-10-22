@@ -11,6 +11,7 @@ var AlmaHDMI = (function () {
   var changed = function () {}, status = "HDMI 2 sin abrir", confirmed = false;
   function available() {
     var object = document.getElementById("alma-window-plugin");
+    if (object && !object.getAttribute("classid")) object.setAttribute("classid", object.getAttribute("data-native-classid"));
     var api = typeof webapis !== "undefined" && webapis.tv && webapis.tv.window;
     return !!(object && typeof object.Open === "function" && typeof object.Execute === "function" && typeof object.Close === "function" && api && typeof api.getSource === "function" && typeof api.setRect === "function" && typeof api.show === "function" && typeof api.hide === "function");
   }
