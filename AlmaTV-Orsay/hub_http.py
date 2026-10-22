@@ -68,7 +68,9 @@ class HubHTTP:
                 if not auth:raise PermissionError('Acción no autorizada. Recarga el panel.')
                 data=self.hub_json()
                 if path=='/hub/iptv':
-                    result=hub.iptv.mutate(data,public_open);self.reply(200,result);return
+                    try:result=hub.iptv.mutate(data,public_open)
+                    except OSError as error:raise ValueError('No se pudo descargar o guardar la lista: '+str(error)[:180])
+                    self.reply(200,result);return
                 if path=='/hub/podcast':self.reply(200,{'imported':hub.podcast(data.get('url',''))});return
                 if path=='/hub/convert':hub.convert(data.get('id'));self.reply(200,{'status':'Convirtiendo'});return
                 self.reply(200,hub.mutate(data,auth['role'],self.server.tv));return

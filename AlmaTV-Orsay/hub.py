@@ -125,7 +125,17 @@ class Hub:
     def tv(self,target,event=None):
         with self.lock:
             channel=self.channel(target);self.schedules();channel['seen']=self.clock()
+            live_ack=[];live_error=''
             if event:
+                edits=event.get('live_edits',[])
+                if isinstance(edits,list):
+                    for edit in edits[:20]:
+                        if not isinstance(edit,dict) or not isinstance(edit.get('op'),str) or len(edit['op'])>80:continue
+                        try:
+                            if edit.get('action') not in ('favorite','delete-channel'):raise ValueError('Acción de canal no válida.')
+                            self.iptv.edit(edit)
+                        except ValueError as error:live_error=str(error)
+                        live_ack.append(edit['op'])
                 if event.get('ack'):
                     self.commands=[command for command in self.commands if not (command['target']==target and command['id']==event['ack'])]
                 if event.get('ended') and channel['current'] and event['ended']==channel['current'].get('play_id'):
@@ -135,8 +145,11 @@ class Hub:
                 telemetry=event.get('telemetry')
                 if isinstance(telemetry,dict):channel['telemetry']={k:v for k,v in telemetry.items() if k in ('title','state','seconds','duration','kind','error','volume','muted','observed_volume','observed_muted','engine','view','focus','focus_id') and isinstance(v,(str,int,float,bool)) and len(str(v))<=300}
             result={'commands':[dict(command) for command in self.commands if command['target']==target and command['expires']>self.clock()], 'pin':self.pin,'guest_pin':self.guest_pin,'poll_ms':250 if self.remote_until.get(target,0)>self.clock() else 2000}
+            result['live_edit_ack']=live_ack
+            if live_error:result['live_edit_error']=live_error
             result['live_revision']=self.iptv.revision
-            if not event or event.get('live_revision')!=self.iptv.revision:result['live_catalog']=self.iptv.catalog
+            if live_ack or not event or event.get('live_revision')!=self.iptv.revision:
+                result['live_catalog']=self.iptv.catalog;result['live_categories']=self.iptv.data['categories']
             return result
     def snapshot(self,target,role):
         with self.lock:

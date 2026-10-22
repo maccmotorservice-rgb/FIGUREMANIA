@@ -1,4 +1,17 @@
-# Alma TV 10.2.0 · Listas de TV en vivo
+# Alma TV 10.3.0 · Favoritos a tu manera
+
+En **TV en vivo**, pulsa ☆ Favorito para guardar un canal sin clasificar. **Organizar** permite asignar manualmente Deportes, Entretenimiento, Películas, Series, Documentales, Noticias o Streaming, o eliminarlo. Entra en **★ Favoritos → Categorías** para consultar cada sección. No se clasifica ningún canal automáticamente.
+
+En el control web `http://192.168.1.30:8088/control` → **TV en vivo**, puedes marcar favoritos, asignar categorías y crear categorías propias (hasta 30). **Eliminar canal** lo oculta aunque vuelvas a actualizar su lista; **Canales eliminados → Restaurar canal** lo recupera. Los favoritos se mantienen disponibles al cambiar el filtro de importación, dentro del límite de 504 señales del catálogo.
+
+Los cambios desde la TV se guardan localmente incluso sin la Mac y se sincronizan al reconectarla. Las órdenes de favoritos son absolutas e idempotentes: reenviar una petición no invierte la selección. Los favoritos antiguos de la TV se migran sin categorías. Las listas anteriores se conservan.
+
+**Aplicaciones**, exclusivamente, usa filas de hasta cuatro tarjetas e incorpora **TV en vivo**. Inicio mantiene su carrusel y distribución. Al salir de TV Samsung se libera su indicador nativo, para que el volumen de YouTube vuelva a funcionar. YouTube informa su motor explícitamente al panel. El volumen de una señal HLS nativa sigue dependiendo del control Samsung; este cambio recupera los controles independientes al volver a YouTube o archivos propios.
+
+Los fallos de descarga de listas muestran el motivo disponible; una lista leída sin coincidencias informa del filtro, en lugar de anunciar una importación de cero canales. Continúa el límite de espera de 60 segundos por señal.
+
+## Listas M3U (10.2.0)
+
 
 Desde `http://192.168.1.30:8088/control`, abre **TV en vivo → Mis listas M3U**, pega una URL pública (por ejemplo `https://iptv-org.github.io/iptv/index.m3u`) y pulsa **Importar lista**. Después usa **Actualizar lista** para renovar sus enlaces sin reinstalar Alma TV. Hasta ocho listas, 16 MB y 50 000 entradas por lista. Las importaciones fallidas conservan los canales anteriores.
 
@@ -10,7 +23,7 @@ La carga de señales nativas y HTML5 espera **60 segundos** antes de mostrar un 
 
 ## Base técnica de Samsung Orsay
 
-Aplicación ES5 para Samsung UN50J5200, con puente local en una Mac. El proyecto anterior FIGUREMANIA se conserva. Identificador estable `AlmaTV86`; versión interna **10.2.0**.
+Aplicación ES5 para Samsung UN50J5200, con puente local en una Mac. El proyecto anterior FIGUREMANIA se conserva. Identificador estable `AlmaTV86`; versión interna **10.3.0**.
 
 ## Corrección de carga 10.1.1
 
@@ -70,7 +83,7 @@ Corrección 10.1.1: [Multimedia con MP4 real de prueba](docs/capturas/34-alma10-
 
 ## Instalar y actualizar
 
-El paquete `instaladores/AlmaTV-10.2.0-instalador.zip` contiene el widget, los archivos del puente y `Instalar Alma TV.app`. Descomprime y abre el asistente en macOS: instala el puente al iniciar sesión y publica el instalador Wi-Fi durante diez minutos. Sincroniza aplicaciones en la TV usando la IP de la Mac. El asistente requiere Python 3.8 o posterior y todavía no tiene firma ni notarización de Apple; su ejecución física en macOS está pendiente de validación. Incluye recuperación del widget 8.7.0.
+El paquete `instaladores/AlmaTV-10.3.0-instalador.zip` contiene el widget, los archivos del puente y `Instalar Alma TV.app`. Descomprime y abre el asistente en macOS: instala el puente al iniciar sesión y publica el instalador Wi-Fi durante diez minutos. Sincroniza aplicaciones en la TV usando la IP de la Mac. El asistente requiere Python 3.8 o posterior y todavía no tiene firma ni notarización de Apple; su ejecución física en macOS está pendiente de validación. Incluye recuperación del widget 8.7.0.
 
 Alternativa en Terminal, dentro de la carpeta descomprimida:
 
@@ -122,3 +135,6 @@ Python ≥3.8, Node ≥22 para pruebas. La app no requiere Node en la TV ni en l
 Para distribuir comercialmente faltan firma/notarización, pruebas de hardware por modelo, licencias de contenidos y servicios de cuentas/pagos si se necesitan. Este repositorio implementa un sistema local; no simula esos servicios. Consulta el historial en [docs/HISTORIAL-HASTA-8.7.md](docs/HISTORIAL-HASTA-8.7.md).
 
 Validación 10.2.0: 46 pruebas Python; 85 pruebas previas de interfaz y una prueba nueva de importación/sincronización/caché M3U. La prueba nueva utiliza una lista y señales simuladas; no confirma disponibilidad de emisoras. El lector también procesó la lista global pública de iptv-org (10 623 señales únicas aceptadas, 172 identificadas como México en el momento de la consulta).
+
+
+Validación 10.3.0: 48 pruebas Python y 89 pruebas de interfaz completas pasaron. Las pruebas específicas comprueban clasificación manual, categorías propias, eliminación/restauración, persistencia tras refrescar listas, cambios TV↔panel y trabajo sin puente. Se reproduce el paso Samsung HLS→YouTube y se verifica que el deslizador del panel vuelve a habilitarse y envía 25 % y 80 % al SDK simulado. Las API Samsung/YouTube se simulan; falta confirmar físicamente la versión 10.3.0 en el televisor. Capturas de pruebas locales: [Aplicaciones, cuatro por fila](docs/capturas/41-apps-cuatro-por-fila.png), [favoritos clasificados](docs/capturas/42-favoritos-categorias-TV-prueba.png) y [categoría propia desde el celular](docs/capturas/43-favoritos-celular-prueba.png).

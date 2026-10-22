@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="10.2.0"'))
+      if (!html.includes('name="alma-build" content="10.3.0"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -122,7 +122,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /10\.2\.0/);
+  assert.match(await page.locator(".brand").innerText(), /10\.3\.0/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -1785,15 +1785,18 @@ test("TV en vivo recibe la señal directamente sin puente y conserva fondo, cont
  assert.deepEqual(errors,[]);
 });
 
-test("Aplicaciones se recorren lateralmente con marcas alineadas y color estable; Inicio no necesita scroll",async()=>{
- await go('home');await shot('37-inicio-compacto-TV-en-vivo');assert.equal(await page.locator('.home-tools h2').count(),0);assert.match(await page.locator('#tool-4').innerText(),/Conexión/);
- await go('apps');await shot('39-aplicaciones-marcas-alineadas');const colors=await page.locator('.app').evaluateAll(nodes=>nodes.map(n=>getComputedStyle(n).backgroundColor));
- for(let i=0;i<9;i++){
-  assert.equal(await page.locator('.focus').getAttribute('id'),'app-'+i);
-  const b=await page.locator('#app-'+i).boundingBox(),v=await page.locator('.apps-carousel').boundingBox();assert.ok(b.x>=v.x-1&&b.x+b.width<=v.x+v.width+1,JSON.stringify(b));
-  assert.equal(await page.locator('#app-'+i).evaluate(n=>getComputedStyle(n).backgroundColor),colors[i]);
-  await key(39);
+test("Aplicaciones tiene filas de hasta cuatro marcas alineadas y TV en vivo; el carrusel de Inicio se conserva",async()=>{
+ await go('home');assert.equal(await page.locator('.home-tools h2').count(),0);assert.match(await page.locator('#tool-4').innerText(),/Conexión/);assert.equal(await page.locator('.home-apps .app').count(),9);
+ await go('apps');const colors=await page.locator('.app').evaluateAll(nodes=>nodes.map(n=>getComputedStyle(n).backgroundColor));assert.equal(colors.length,10);
+ const boxes=await page.locator('.apps-grid .app').evaluateAll(nodes=>nodes.map(n=>{const b=n.getBoundingClientRect();return {x:b.x,y:b.y,width:b.width};}));
+ assert.equal(new Set(boxes.slice(0,4).map(b=>b.y)).size,1);assert.ok(boxes[4].y>boxes[0].y);assert.ok(boxes[8].y>boxes[4].y);
+ for(let row=0;row<3;row++){
+  for(let col=0;col<Math.min(4,10-row*4);col++){
+   const i=row*4+col;assert.equal(await page.locator('.focus').getAttribute('id'),'app-'+i);assert.equal(await page.locator('#app-'+i).evaluate(n=>getComputedStyle(n).backgroundColor),colors[i]);if(col<Math.min(4,10-row*4)-1)await key(39);
+  }
+  if(row<2){await key(40);for(let left=0;left<3&&(await page.locator('.focus').getAttribute('id'))!=='app-'+((row+1)*4);left++)await key(37);}
  }
+ await page.screenshot({path:'/tmp/alma103-apps-four.png'});await click('app-9');assert.equal(await page.locator('#safe').getAttribute('data-view'),'livetv');
  await go('settings');await click('startup');assert.match(await page.locator('#dialog').innerText(),/no puede modificar el arranque/);assert.deepEqual(errors,[]);
 });
 
@@ -1867,4 +1870,21 @@ test('El fallback HTML5 de HLS también tiene límite de espera (motor simulado 
  await page.evaluate(()=>{HTMLMediaElement.prototype.canPlayType=function(){return 'maybe';};HTMLMediaElement.prototype.load=function(){};HTMLMediaElement.prototype.play=function(){return Promise.resolve();};HTMLMediaElement.prototype.pause=function(){};});
  await go('livetv');await click('live-capital21');await page.clock.runFor(61000);
  assert.equal(await page.evaluate(()=>AlmaPlayer.snapshot().status),'No disponible');assert.match(await page.locator('#live-status').innerText(),/60 segundos/);assert.deepEqual(errors,[]);
+});
+
+test('Pasar de TV Samsung a YouTube libera el motor nativo y recupera volumen en ambas direcciones (API simulada)',async()=>{
+ await samsungLiveFixture('render');await go('livetv');await click('live-capital21');assert.equal(await page.evaluate(()=>AlmaPlayer.snapshot().native),true);
+ await officialYouTubeFixture();await savedYouTube();await click('youtube-play');await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
+ assert.equal(await page.evaluate(()=>!!AlmaPlayer.snapshot().native),false);assert.equal(await page.evaluate(()=>Alma.hubStatus().engine),'youtube');
+ await page.evaluate(()=>Alma.hubControl('volume',25));const frame=page.frame({url:/youtube\/player/});await frame.waitForFunction(()=>testYoutube.volume===25);
+ await page.evaluate(()=>Alma.hubControl('volume',80));await frame.waitForFunction(()=>testYoutube.volume===80);
+ assert.equal(await page.evaluate(()=>Alma.hubStatus().volume),80);assert.deepEqual(errors,[]);
+});
+
+test('Favoritos de TV se clasifican manualmente y se pueden eliminar sin Mac',async()=>{
+ await go('livetv');await click('favorite-capital21');assert.match(await page.locator('#favorite-capital21').innerText(),/★/);
+ await click('live-favorites');assert.equal(await page.locator('.live-channel').count(),1);await click('organize-capital21');await page.getByRole('button',{name:'Deportes',exact:true}).click();
+ await click('live-category');await page.getByRole('button',{name:'Deportes',exact:true}).click();assert.equal(await page.locator('.live-channel').count(),1);await page.screenshot({path:'/tmp/alma103-favorites-tv.png'});
+ await click('organize-capital21');await page.getByRole('button',{name:'Eliminar canal',exact:true}).click();await page.getByRole('button',{name:'Eliminar',exact:true}).click();assert.equal(await page.locator('.live-channel').count(),0);
+ await page.reload();await go('livetv');assert.equal(await page.locator('#live-capital21').count(),0);assert.ok(await page.evaluate(()=>JSON.parse(localStorage.getItem('alma.live.edits')).length>=3));assert.deepEqual(errors,[]);
 });

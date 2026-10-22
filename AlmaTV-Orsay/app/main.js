@@ -496,7 +496,7 @@ var Alma = (function () {
       '<span class="app-mark">' +
       (a.logo
         ? '<img class="brand-logo" src="' + a.logo + '" alt="">'
-        : '<span aria-hidden="true" class="app-symbol nav-icon icon-' + (a.id === "browser" ? "browser" : "apps") + '"></span>') +
+        : '<span aria-hidden="true" class="app-symbol nav-icon icon-' + (a.id === "browser" ? "browser" : a.id === "livetv" ? "hub" : "apps") + '"></span>') +
       "</span><strong>" +
       esc(a.name) +
       "</strong><small>" +
@@ -628,7 +628,7 @@ var Alma = (function () {
     return h + "</div></section>";
   }
   function catalog(kind) {
-    var list = kind === "apps" ? apps : tools,
+    var list = kind === "apps" ? apps.concat([{id:"livetv",name:"TV en vivo",detail:"Tus canales y favoritos"}]) : tools,
       h =
         head(
           kind === "apps" ? "ENTRETENIMIENTO" : "A TU RITMO",
@@ -636,7 +636,7 @@ var Alma = (function () {
           kind === "apps"
             ? "Elige una aplicación. Algunos servicios requieren un dispositivo compatible."
             : "Funciones locales, sin cuentas ni catálogos simulados."
-        ) + (kind==="apps"?'<div class="app-carousel apps-carousel"><div class="row app-track">':'<div class="grid">'),
+        ) + (kind==="apps"?'<div class="apps-grid app-track">':'<div class="grid">'),
       ids = [],
       i;
     for (i = 0; i < list.length; i++) {
@@ -650,13 +650,13 @@ var Alma = (function () {
               });
         ids.push((kind === "apps" ? "app-" : "tool-") + i);
       })(i);
-      if (kind!=="apps" && ids.length === 3) {
+      if (ids.length === (kind==="apps"?4:3)) {
         row(ids);
         ids = [];
       }
     }
     if (ids.length) row(ids);
-    return h + (kind==="apps"?"</div></div>":"</div>");
+    return h + "</div>";
   }
   function playLive(id){
     var index=-1;for(var i=0;i<AlmaLiveTV.length;i++)if(AlmaLiveTV[i].id===id)index=i;
@@ -666,21 +666,32 @@ var Alma = (function () {
     var channel=AlmaLiveTV[index];AlmaPlayer.setTracks([{name:channel.name,url:channel.url,kind:"video",live:true}]);
     AlmaPlayer.play(0);go("livetv");
   }
-  var livePage=0;
-  function liveTVView(){
-    livePage=Math.min(livePage,Math.max(0,Math.ceil(AlmaLiveTV.length/12)-1));
-    var current=AlmaPlayer.snapshot(),h=head("CANALES · TV EN VIVO","TV en vivo","Conexión directa a internet, sin Mac. Añade listas desde el control de tu celular o laptop.");
-    h+='<div class="live-controls">'+pill("live-full","Pantalla completa",fullscreenCurrent)+pill("live-media","Ver reproductor",function(){go("media");})+pill("live-retry","Reintentar canal",function(){if(current.live)AlmaPlayer.play(current.index);else notice("Elige primero un canal.");})+'</div>';
-    row(["live-full","live-media","live-retry"]);
-    h+='<p id="live-status" role="status">'+esc(current.live?(current.title+" · "+(current.error||current.status)):"Selecciona un canal. Sin anuncios ni cuentas añadidas por Alma TV.")+'</p><div class="live-channels">';
-    for(var i=livePage*12;i<Math.min(AlmaLiveTV.length,(livePage+1)*12);i++)(function(c){
-      var favorite=prefs.liveFavorites.indexOf(c.id)>=0;
-      h+=button("live-"+c.id,c.name,c.region+" · "+c.note,function(){playLive(c.id);},"card live-channel")+pill("favorite-"+c.id,favorite?"★ Favorito":"☆ Favorito",function(){var at=prefs.liveFavorites.indexOf(c.id);if(at<0)prefs.liveFavorites.push(c.id);else prefs.liveFavorites.splice(at,1);save();render();});
-      row(["live-"+c.id,"favorite-"+c.id]);
-    })(AlmaLiveTV[i]);
-    h+='</div>'+pill("live-prev","Página anterior",function(){livePage=Math.max(0,livePage-1);render();})+pill("live-next","Página siguiente",function(){livePage=Math.min(Math.max(0,Math.ceil(AlmaLiveTV.length/12)-1),livePage+1);render();});row(["live-prev","live-next"]);
-    return h+'<p class="hint">Página '+(livePage+1)+' de '+Math.max(1,Math.ceil(AlmaLiveTV.length/12))+'. Si una señal no abre, puede estar fuera de horario, restringida por región o usar TLS/códecs incompatibles. No se activa un puente ni se descarga contenido.</p>';
+  var livePage=0,liveFavoritesOnly=false,liveCategory="";
+  function liveDialog(title,buttons){showDialog(title,"Tú decides cómo organizar tus canales.",buttons);el("dialog").className="live-organizer";rows=[];for(var i=0;i<buttons.length;i+=3){var ids=[];for(var j=i;j<Math.min(i+3,buttons.length);j++)ids.push("dialog-"+j);row(ids);}focus();}
+  function chooseLiveCategory(channel){
+    var buttons=[{label:"Sin categoría",action:function(){closeDialog();AlmaHub.editLive("favorite",channel.id,true,"");}}];
+    AlmaHub.liveCategories().forEach(function(category){buttons.push({label:category,action:function(){closeDialog();AlmaHub.editLive("favorite",channel.id,true,category);}});});
+    buttons.push({label:"Eliminar canal",action:function(){closeDialog();liveDialog("¿Eliminar "+channel.name+"?",[{label:"Eliminar",action:function(){closeDialog();AlmaHub.editLive("delete-channel",channel.id);notice("Canal eliminado. Puedes restaurarlo desde el control web.");}},{label:"Cancelar",action:closeDialog}]);}});
+    buttons.push({label:"Cancelar",action:closeDialog});liveDialog(channel.name,buttons);
   }
+  function liveTVView(){
+    var list=AlmaLiveTV.filter(function(c){return !liveFavoritesOnly||(c.favorite===true&&(!liveCategory||(liveCategory==="__none"?!c.category:c.category===liveCategory)));});
+    livePage=Math.min(livePage,Math.max(0,Math.ceil(list.length/12)-1));
+    var current=AlmaPlayer.snapshot(),h=head("CANALES · TV EN VIVO",liveFavoritesOnly?"Favoritos"+(liveCategory?" · "+(liveCategory==="__none"?"Sin categoría":liveCategory):""):"TV en vivo","Tus categorías se asignan manualmente. Las señales se reproducen directamente desde internet.");
+    h+='<div class="live-controls">'+pill("live-full","Pantalla completa",fullscreenCurrent)+pill("live-media","Ver reproductor",function(){go("media");})+pill("live-retry","Reintentar canal",function(){if(current.live)AlmaPlayer.play(current.index);else notice("Elige primero un canal.");})+'</div>';row(["live-full","live-media","live-retry"]);
+    h+='<div class="live-filter">'+pill("live-all","Todos",function(){liveFavoritesOnly=false;liveCategory="";livePage=0;render();})+pill("live-favorites","★ Favoritos",function(){liveFavoritesOnly=true;liveCategory="";livePage=0;render();})+pill("live-category","Categorías",function(){
+      var categories=["", "__none"].concat(AlmaHub.liveCategories()),buttons=[];categories.forEach(function(category){buttons.push({label:category==="__none"?"Sin categoría":category||"Todos los favoritos",action:function(){closeDialog();liveFavoritesOnly=true;liveCategory=category;livePage=0;render();}});});buttons.push({label:"Cancelar",action:closeDialog});liveDialog("Categorías de favoritos",buttons);
+    })+'</div>';row(["live-all","live-favorites","live-category"]);
+    h+='<p id="live-status" role="status">'+esc(current.live?(current.title+" · "+(current.error||current.status)):"Selecciona un canal.")+'</p><div class="live-channels">';
+    if(!list.length)h+='<p>No hay canales en esta selección. Añade favoritos o elige Todos.</p>';
+    for(var i=livePage*12;i<Math.min(list.length,(livePage+1)*12);i++)(function(c){
+      h+=button("live-"+c.id,c.name,(c.favorite?(c.category||"Sin categoría")+" · ":"")+c.region,function(){playLive(c.id);},"card live-channel")+pill("favorite-"+c.id,c.favorite?"★ Favorito":"☆ Favorito",function(){AlmaHub.editLive("favorite",c.id,!c.favorite,c.category||"");})+pill("organize-"+c.id,"Organizar",function(){chooseLiveCategory(c);});
+      row(["live-"+c.id,"favorite-"+c.id,"organize-"+c.id]);
+    })(list[i]);
+    h+='</div>'+pill("live-prev","Página anterior",function(){livePage=Math.max(0,livePage-1);render();})+pill("live-next","Página siguiente",function(){livePage=Math.min(Math.max(0,Math.ceil(list.length/12)-1),livePage+1);render();});row(["live-prev","live-next"]);
+    return h+'<p class="hint">Página '+(livePage+1)+' de '+Math.max(1,Math.ceil(list.length/12))+'. Organizar permite asignar categoría o eliminar. Para restaurar canales o crear categorías, usa el control web. Una señal puede estar fuera de horario o no ser compatible.</p>';
+  }
+  A.refreshLive=function(){if(state.view==="livetv"&&!modal)render();};
   function settings() {
     var items = [
       [
@@ -1506,7 +1517,7 @@ var Alma = (function () {
     else{h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor · Alma TV 10.2.0",
+        "Tu reproductor · Alma TV 10.3.0",
         "Archivos propios, enlaces directos y YouTube integrado experimental mediante el puente de la Mac."
       ) +
       pill("media-fullscreen","Pantalla completa",function(){fullscreenVideo(true);})+'<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +
@@ -1787,6 +1798,11 @@ var Alma = (function () {
         }
         parent = parent.parentNode;
       }
+      if(modal&&el("dialog").contains(target)){
+        var dialogBox=el("dialog"),dialogRect=dialogBox.getBoundingClientRect(),targetRect=target.getBoundingClientRect(),dialogRatio=dialogBox.offsetHeight/dialogRect.height;
+        if(targetRect.top<dialogRect.top)dialogBox.scrollTop-=(dialogRect.top-targetRect.top)*dialogRatio+8;
+        else if(targetRect.bottom>dialogRect.bottom)dialogBox.scrollTop+=(targetRect.bottom-dialogRect.bottom)*dialogRatio+8;
+      }
       if (el("view").contains(target)) {
         var viewport = el("view"), visible = viewport.getBoundingClientRect();
         var bounds = target.getBoundingClientRect();
@@ -1829,6 +1845,7 @@ var Alma = (function () {
     render();
   }
   function showDialog(title, body, buttons) {
+    el("dialog").className="";
     modal = { state: copy(state), rows: rows, actions: actions };
     if (youtubeLoaded) updateYoutube();
     if(!backdropView())el("media-video").style.visibility="hidden";el("video-help").style.display="none";
@@ -2174,6 +2191,7 @@ var Alma = (function () {
     updateNetwork();
   }
   function launch(a) {
+    if(a.id==="livetv"){go("livetv");return;}
     closeYoutube();
     if (a.dial) {
       if (pending) {
@@ -2713,6 +2731,7 @@ var Alma = (function () {
     }
     render();
     interval = setInterval(tick, 1000);
+    if(prefs.liveFavorites.length){prefs.liveFavorites=prefs.liveFavorites.filter(function(id){return !AlmaHub.editLive("favorite",id,true,"");});save();}
     AlmaHub.start();
   };
   A.destroy = function () {
@@ -2764,7 +2783,7 @@ var Alma = (function () {
       else throw new Error("No hay un vídeo abierto para ampliar");return;
     }
     if(action==="home"||action==="media"||action==="saver"){go(action);return;}
-    if(AlmaPlayer.snapshot().native&&["volume","volume-up","volume-down","mute"].indexOf(action)>=0){notice("Esta señal utiliza el volumen del control Samsung.");return;}
+    if(!youtubeLoaded&&AlmaPlayer.snapshot().native&&["volume","volume-up","volume-down","mute"].indexOf(action)>=0){notice("Esta señal utiliza el volumen del control Samsung.");return;}
     if(action==="volume"){
       if(typeof seconds!=="number"||!isFinite(seconds)||seconds<0||seconds>100)throw new Error("Volumen no válido");
       prefs.appMuted=false;setAppAudio(Math.round(seconds)-prefs.appVolume,false);return;
@@ -2782,7 +2801,7 @@ var Alma = (function () {
     return {view:state.view,focus:node?String(parts.length?parts.join(" · "):node.textContent||"").replace(/\s+/g," ").slice(0,160):"",focus_id:id||""};
   };
   A.hubStatus = function(){
-    if(youtubeLoaded){var value=AlmaYouTube.snapshot();return {title:value.title||(youtubeSelection&&youtubeSelection.name)||"Vídeo",kind:(youtubeSelection&&youtubeSelection.provider)||"youtube",state:value.failed?"Error":(value.state===1?"Reproduciendo":(value.state===2?"En pausa":"Preparado")),seconds:value.seconds||0,duration:value.duration||0,volume:prefs.appVolume,muted:prefs.appMuted,observed_volume:value.volume,observed_muted:value.muted,finished:value.finished,error:value.failed?value.status:""};}
+    if(youtubeLoaded){var value=AlmaYouTube.snapshot();return {title:value.title||(youtubeSelection&&youtubeSelection.name)||"Vídeo",kind:(youtubeSelection&&youtubeSelection.provider)||"youtube",engine:(youtubeSelection&&youtubeSelection.provider)||"youtube",state:value.failed?"Error":(value.state===1?"Reproduciendo":(value.state===2?"En pausa":"Preparado")),seconds:value.seconds||0,duration:value.duration||0,volume:prefs.appVolume,muted:prefs.appMuted,observed_volume:value.volume,observed_muted:value.muted,finished:value.finished,error:value.failed?value.status:""};}
     var current=AlmaPlayer.snapshot();return {title:current.index>=0?current.title:"Sin reproducción",kind:current.kind,state:current.status,seconds:current.time,duration:current.duration,error:current.error,engine:current.native?"samsung-hls":"html5",volume:prefs.appVolume,muted:prefs.appMuted,observed_volume:current.native?null:Math.round(current.volume*100),observed_muted:current.muted};
   };
   A.key = key;

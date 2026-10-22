@@ -216,13 +216,13 @@ var AlmaPlayer = (function () {
   }
   function pause() {
     clearTimeout(liveDeadline);
-    if(nativeMode){AlmaNativeLive.stop(true);return;}
+    if(nativeMode){nativeMode=false;status="En pausa";error="";AlmaNativeLive.stop(true);change();return;}
     savePosition(true);
     if (active) active.pause();
   }
   function stop() {
     clearTimeout(liveDeadline);
-    if(nativeMode){AlmaNativeLive.stop(false);return;}
+    if(nativeMode){nativeMode=false;status="Detenido";error="";AlmaNativeLive.stop(false);change();return;}
     savePosition(true);
     stopped = true;
     cancelSeek();

@@ -1879,3 +1879,15 @@ html.native-live #stage[data-view="saver"]{background:#fff}
 html.native-live #stage[data-view="saver"] #wallpaper{visibility:visible!important}
 html.native-live #dialog{background:#292f3a}
 html.native-live.native-live-full #stage{visibility:hidden}
+
+/* Only Applications uses four columns; the Home dock is unchanged. */
+.apps-grid{white-space:normal;padding:10px 5px 20px}
+.apps-grid .card.app{display:inline-block;vertical-align:top;width:23%;margin:0 1.5% 16px 0;height:126px;padding:14px 10px;box-sizing:border-box}
+.apps-grid .brand-logo{width:120px;height:72px}.apps-grid .card.app .app-mark{height:72px;line-height:72px}
+.apps-grid .card.app.livetv{background:#235a65!important;color:#fff!important}
+.live-channels .live-channel{width:58%}.live-channels .pill{font-size:12px;padding:9px;margin-right:5px}
+.live-filter{margin:12px 0}.live-filter .pill{margin-right:6px}
+
+#dialog.live-organizer .pill{display:inline-block;width:30%;margin:0 2% 12px 0;white-space:normal;vertical-align:top;min-height:44px}
+
+.apps-grid .app-symbol.nav-icon{background-position:0 0}

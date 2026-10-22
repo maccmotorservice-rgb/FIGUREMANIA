@@ -37,7 +37,7 @@ class IPTVTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/'iptv.json';lib=IPTV(path,[])
             result=lib.mutate({'action':'import','url':'https://example.org/list.m3u'},lambda *a,**k:response())
-            self.assertEqual(result,{'matched':1,'published':1});revision=lib.revision
+            self.assertEqual(result,{'matched':1,'published':1,'available':2});revision=lib.revision
             self.assertEqual(IPTV(path,[]).catalog,lib.catalog)
             with self.assertRaises(ValueError):lib.mutate({'action':'refresh','url':'https://example.org/list.m3u'},lambda *a,**k:response(b'bad'))
             self.assertEqual(revision,lib.revision)
@@ -48,7 +48,7 @@ class IPTVTests(unittest.TestCase):
         raw=('#EXTM3U\n'+''.join('#EXTINF:-1 tvg-country="MX",Canal %d\nhttps://example.org/%d.m3u8\n'%(i,i) for i in range(510))).encode()
         with tempfile.TemporaryDirectory() as tmp:
             hub=Hub(tmp,'127.0.0.3');result=hub.iptv.mutate({'action':'import','url':'https://example.org/list'},lambda *a,**k:response(raw))
-            self.assertEqual(result,{'matched':510,'published':500});first=hub.tv('127.0.0.3',{})
+            self.assertEqual(result,{'matched':510,'published':500,'available':510});first=hub.tv('127.0.0.3',{})
             self.assertEqual(len(first['live_catalog']),504)
             self.assertNotIn('live_catalog',hub.tv('127.0.0.3',{'live_revision':first['live_revision']}))
             hub.mutate({'action':'control','command':'live-channel','view':hub.iptv.catalog[-1]['id']},'owner','127.0.0.3')
@@ -59,3 +59,31 @@ class IPTVTests(unittest.TestCase):
             opener=Mock(return_value=(conn,res))
             with self.assertRaises(ValueError):IPTV(Path(tmp)/'iptv.json',[]).mutate({'action':'import','url':'https://example.org/list'},opener)
             self.assertEqual(opener.call_count,1);conn.close.assert_called_once()
+
+    def test_manual_categories_favorites_delete_refresh_restore_and_migration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'iptv.json';path.write_text(json.dumps({'sources':[],'country':'mx','search':'','published':[]}))
+            lib=IPTV(path,[]);lib.mutate({'action':'import','url':'https://example.org/list'},lambda *a,**k:response())
+            channel=lib.catalog[0];self.assertFalse(channel['favorite']);self.assertEqual(channel['category'],'')
+            lib.edit({'action':'favorite','id':channel['id'],'enabled':True});self.assertEqual(lib.catalog[0]['category'],'')
+            lib.edit({'action':'favorite','id':channel['id'],'enabled':True,'category':'Deportes'})
+            self.assertEqual(lib.catalog[0]['category'],'Deportes')
+            with self.assertRaises(ValueError):lib.edit({'action':'favorite','id':channel['id'],'enabled':True,'category':'Inventada'})
+            lib.edit({'action':'category','name':'Mis especiales'});lib.edit({'action':'favorite','id':channel['id'],'enabled':True,'category':'Mis especiales'})
+            lib.mutate({'action':'refresh','url':'https://example.org/list'},lambda *a,**k:response(SAMPLE.replace(b'Canal Uno',b'Canal nuevo')))
+            self.assertEqual(lib.catalog[0]['name'],'Canal nuevo')
+            lib.mutate({'action':'publish','country':'us'},None);self.assertTrue(any(c['id']==channel['id'] for c in lib.catalog),'Favorite survives selection changes')
+            lib.edit({'action':'delete-channel','id':channel['id'],'op':'delete-1'})
+            lib.edit({'action':'delete-channel','id':channel['id'],'op':'delete-1'})
+            self.assertFalse(any(c['id']==channel['id'] for c in lib.catalog))
+            lib.mutate({'action':'refresh','url':'https://example.org/list'},lambda *a,**k:response())
+            lib=IPTV(path,[]);self.assertEqual(len(lib.info()['deleted']),1)
+            self.assertFalse(any(c['id']==channel['id'] for c in lib.catalog))
+            lib.edit({'action':'restore','id':channel['id']});self.assertEqual(next(c for c in lib.catalog if c['id']==channel['id'])['category'],'Mis especiales')
+    def test_tv_edits_are_acknowledged_and_idempotent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            hub=Hub(tmp,'127.0.0.3');event={'live_edits':[{'op':'f1','action':'favorite','id':'capital21','enabled':True,'category':'Noticias'}]}
+            for attempt in range(2):
+                state=hub.tv('127.0.0.3',event);self.assertEqual(state['live_edit_ack'],['f1']);self.assertEqual(state['live_catalog'][0]['category'],'Noticias')
+            bad=hub.tv('127.0.0.3',{'live_edits':[{'op':'bad','action':'restore','id':'capital21'}]})
+            self.assertIn('live_edit_error',bad);self.assertEqual(bad['live_edit_ack'],['bad'])
