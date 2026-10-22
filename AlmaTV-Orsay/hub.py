@@ -17,7 +17,7 @@ import time
 from urllib.parse import urlsplit
 from xml.etree import ElementTree as ET
 
-ACTIONS = {'play','pause','toggle','stop','seek','home','media','saver','volume-up','volume-down','mute','navigate','up','down','left','right','ok','back','fullscreen'}
+ACTIONS = {'play','pause','toggle','stop','seek','home','media','saver','volume-up','volume-down','volume','mute','navigate','up','down','left','right','ok','back','fullscreen'}
 VIEWS={'home','search','apps','media','hub','clock','weather','calendar','timer','settings','saver'}
 EXTENSIONS = {'.mp3':'audio','.m4a':'audio','.wav':'audio','.mp4':'video','.m4v':'video','.jpg':'photo','.jpeg':'photo','.png':'photo','.mov':'convert','.mkv':'convert'}
 
@@ -168,6 +168,7 @@ class Hub:
                 command=data.get('command')
                 if command not in ACTIONS:raise ValueError('Control no disponible.')
                 seconds=data.get('seconds',10)
+                if command=='volume' and (type(seconds) is not int or not 0<=seconds<=100):raise ValueError('Volumen no válido.')
                 if command=='seek' and seconds not in (-30,-10,-5,5,10,30):raise ValueError('Salto no válido.')
                 view=data.get('view','')
                 if command=='navigate' and view not in VIEWS:raise ValueError('Menú no disponible.')

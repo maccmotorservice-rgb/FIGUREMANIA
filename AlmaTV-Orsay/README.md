@@ -1,6 +1,6 @@
-# Alma TV 10.0.1 · Samsung Orsay
+# Alma TV 10.0.2 · Samsung Orsay
 
-Aplicación ES5 para Samsung UN50J5200, con puente local en una Mac. El proyecto anterior FIGUREMANIA se conserva. Identificador estable `AlmaTV86`; versión interna **10.0.1**.
+Aplicación ES5 para Samsung UN50J5200, con puente local en una Mac. El proyecto anterior FIGUREMANIA se conserva. Identificador estable `AlmaTV86`; versión interna **10.0.2**.
 
 ## Tema 10
 
@@ -12,11 +12,11 @@ Las animaciones y transiciones están desactivadas, también al cargar preferenc
 
 Vistas de prueba en navegador: [Inicio](docs/capturas/30-alma10-inicio.png), [fondo con MP4 real de prueba](docs/capturas/31-alma10-video-fondo-MP4-prueba.png), [control en celular](docs/capturas/32-alma10-control-celular.png) y [control en Mac](docs/capturas/33-alma10-control-mac.png). No son fotografías de la TV.
 
-Corrección 10.0.1: [Multimedia con MP4 real de prueba](docs/capturas/34-alma10-1-multimedia-MP4-prueba.png) y [botones visibles de Inicio](docs/capturas/35-alma10-1-controles-inicio.png). Se comprueba el desplazamiento con códigos del control Samsung, pantalla completa desde Inicio y continuidad de la misma sesión al pasar por Inicio, Aplicaciones, Ajustes y Multimedia. Las pruebas de YouTube emplean su API simulada.
+Corrección 10.0.2: [Multimedia con MP4 real de prueba](docs/capturas/34-alma10-1-multimedia-MP4-prueba.png) y [botones visibles de Inicio](docs/capturas/35-alma10-1-controles-inicio.png). Se comprueba el desplazamiento con códigos del control Samsung, pantalla completa desde Inicio y continuidad de la misma sesión al pasar por Inicio, Aplicaciones, Ajustes y Multimedia. Las pruebas de YouTube emplean su API simulada.
 
 ## Instalar y actualizar
 
-El paquete `instaladores/AlmaTV-10.0.1-instalador.zip` contiene el widget, los archivos del puente y `Instalar Alma TV.app`. Descomprime y abre el asistente en macOS: instala el puente al iniciar sesión y publica el instalador Wi-Fi durante diez minutos. Sincroniza aplicaciones en la TV usando la IP de la Mac. El asistente requiere Python 3.8 o posterior y todavía no tiene firma ni notarización de Apple; su ejecución física en macOS está pendiente de validación. Incluye recuperación del widget 8.7.0.
+El paquete `instaladores/AlmaTV-10.0.2-instalador.zip` contiene el widget, los archivos del puente y `Instalar Alma TV.app`. Descomprime y abre el asistente en macOS: instala el puente al iniciar sesión y publica el instalador Wi-Fi durante diez minutos. Sincroniza aplicaciones en la TV usando la IP de la Mac. El asistente requiere Python 3.8 o posterior y todavía no tiene firma ni notarización de Apple; su ejecución física en macOS está pendiente de validación. Incluye recuperación del widget 8.7.0.
 
 Alternativa en Terminal, dentro de la carpeta descomprimida:
 
@@ -33,6 +33,7 @@ Abre **http://192.168.1.30:8088/control** en la misma red Wi-Fi. El PIN y el QR 
 
 - Menús de la TV en el celular con los mismos iconos, acceso directo a cada sección, flechas, Aceptar, Volver y pantalla completa. El panel muestra el menú y el foco confirmados por la TV. Las pulsaciones se envían en orden; el sondeo se acelera brevemente después de una orden y vuelve a reposo aunque el panel siga abierto. Controla Alma TV; al salir a Smart Hub, HDMI o una app nativa no controla sus menús.
 - Reproducir ahora, pausa, continuar, detener, anterior/siguiente y saltos de 5, 10 o 30 segundos.
+- [Deslizador vertical de volumen](docs/capturas/36-control-volumen-barras.png) con diez barras, porcentaje y control por arrastre, similar al brillo del iPhone. Envía el nivel absoluto de 0 a 100 y agrupa los movimientos rápidos para no saturar la TV. Conserva los botones Vol−, Vol+ y Silencio.
 - Volumen de **Alma TV**, independiente del volumen general de la televisión: bajar, subir y silenciar. Guarda el nivel al cambiar de archivo y entre aperturas. Utiliza HTML5 para archivos y las API oficiales para YouTube/Dailymotion; depende de que el motor del televisor exponga esas funciones.
 - Enlaces de YouTube y Dailymotion, video o solo audio. La reproducción automática se solicita únicamente al pulsar Reproducir ahora, tanto en `/enlaces` como en `/control`. YouTube recupera el arranque de 8.7: autoplay del SDK desactivado y orden play/loadVideoById después de ready. El arranque no envía órdenes de volumen o unMute. Para servicios en línea, el volumen se modifica al usar sus botones desde el celular; al cambiar de enlace se conserva la sesión del proveedor. El nivel automático al abrir se mantiene para archivos propios. Dailymotion tiene una página independiente, sin SDK ni avisos de YouTube. Dailymotion carga el vídeo con autoplay al recibir la orden, en lugar de enviar solamente play a una API todavía sin vídeo preparado. Los enlaces guardados permanecen manuales. Al enviar un segundo enlace del mismo proveedor se reutiliza la sesión ya lista: no se descarga de nuevo el SDK ni se destruye el iframe; también se permite repetir el mismo vídeo. El proveedor puede impedir la reproducción o exigir interacción.
 - Cola, favoritos, listas con nombre, orden, mezcla y repetición. Biblioteca de `~/Music/AlmaTV` y archivos subidos desde el panel.
@@ -50,7 +51,7 @@ Conversión opcional de videos subidos a MP4 H.264/AAC: requiere FFmpeg instalad
 
 ## Compatibilidad y pruebas
 
-El propietario confirmó anteriormente reproducción de YouTube por enlaces y de archivos propios en esta TV. **El propietario confirmó la reproducción de YouTube en 9.1.2; el tema y las capas de vídeo de 10.0.1 necesitan validación física**. Las pruebas automatizadas usan Chromium, puente HTTP real y archivos multimedia reales; las API de YouTube y Dailymotion se simulan. Una simulación no demuestra que Dailymotion decodifique en el firmware Samsung.
+El propietario confirmó anteriormente reproducción de YouTube por enlaces y de archivos propios en esta TV. **El propietario confirmó la reproducción de YouTube en 9.1.2; el tema y las capas de vídeo de 10.0.2 necesitan validación física**. Las pruebas automatizadas usan Chromium, puente HTTP real y archivos multimedia reales; las API de YouTube y Dailymotion se simulan. Una simulación no demuestra que Dailymotion decodifique en el firmware Samsung.
 
 No se añade Spotify: no hay un receptor Spotify Connect verificado para este Orsay. Tampoco se añade soporte DRM para Disney+, Prime Video o Max. Xbox conserva el acceso existente a HDMI 2; no se promete previsualización HDMI dentro del reproductor. El control de volumen del celular no depende del módulo opcional de volumen del control remoto.
 

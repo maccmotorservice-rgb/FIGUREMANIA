@@ -36,6 +36,13 @@ class HubTests(unittest.TestCase):
         self.assertEqual(self.hub.snapshot(self.target,'owner')['telemetry']['focus'],'Netflix')
         self.now[0]+=6;self.hub.snapshot(self.target,'owner');self.assertEqual(self.hub.tv(self.target)['poll_ms'],2000)
         with self.assertRaises(PermissionError):self.hub.mutate({'action':'control','command':'ok'},'guest',self.target)
+    def test_absolute_volume_bounds_and_owner_only(self):
+        for invalid in (-1,101,True,1.5,'50'):
+            with self.assertRaises(ValueError):self.action(action='control',command='volume',seconds=invalid)
+        self.action(action='control',command='volume',seconds=27)
+        command=self.hub.tv(self.target)['commands'][0]
+        self.assertEqual((command['action'],command['seconds']),('volume',27))
+        with self.assertRaises(PermissionError):self.hub.mutate({'action':'control','command':'volume','seconds':50},'guest',self.target)
     def test_pin_roles_rate_limit_revoke_and_persistence(self):
         token,session=self.hub.pair(self.hub.pin,'phone');self.assertEqual(session['role'],'owner')
         guest,session=self.hub.pair(self.hub.guest_pin,'guest');self.assertEqual(session['role'],'guest')

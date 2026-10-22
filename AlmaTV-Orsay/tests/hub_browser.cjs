@@ -30,6 +30,15 @@ test('Centro de control real reproduce MP4 de la biblioteca y controla pausa, co
  await p.waitForFunction(()=>AlmaPlayer.snapshot().playing);assert.equal(await p.locator('#safe').getAttribute('data-view'),'home');await panel.getByRole('button',{name:'Control',exact:true}).click();await panel.getByRole('button',{name:'Pausar',exact:true}).click();await p.waitForFunction(()=>AlmaPlayer.snapshot().status==='En pausa');await panel.getByRole('button',{name:'Reproducir',exact:true}).click();await p.waitForFunction(()=>AlmaPlayer.snapshot().playing);
  await panel.screenshot({path:'/tmp/alma10-control-mac.png',fullPage:true});await panel.locator('[data-command="volume-down"]').click();await p.waitForFunction(()=>Math.abs(AlmaPlayer.snapshot().volume-0.6)<0.001);assert.equal(await p.evaluate(()=>AlmaTVAudio.active()),false);
  await panel.locator('[data-command="mute"]').click();await p.waitForFunction(()=>AlmaPlayer.snapshot().muted);await panel.locator('[data-command="volume-up"]').click();await p.waitForFunction(()=>!AlmaPlayer.snapshot().muted&&Math.abs(AlmaPlayer.snapshot().volume-0.7)<0.001);
+ let volumeRequests=0;panel.on('request',r=>{if(r.url().endsWith('/hub/action')&&r.postDataJSON()?.command==='volume')volumeRequests++;});
+ await panel.setViewportSize({width:390,height:844});
+ await panel.locator('#volume-slider').evaluate(n=>{for(let i=0;i<=27;i++){n.value=i;n.dispatchEvent(new Event('input',{bubbles:true}));}n.dispatchEvent(new Event('change',{bubbles:true}));});
+ await p.waitForFunction(()=>Math.abs(AlmaPlayer.snapshot().volume-.27)<.001&&!AlmaPlayer.snapshot().muted);
+ assert.equal(await panel.locator('#volume-value').innerText(),'27 %');assert.equal(volumeRequests,1);
+ await panel.screenshot({path:'/tmp/alma-volume-phone.png',fullPage:true});
+
+ await panel.locator('#volume-slider').focus();await panel.keyboard.press('End');await p.waitForFunction(()=>AlmaPlayer.snapshot().volume===1);
+ await panel.keyboard.press('Home');await p.waitForFunction(()=>AlmaPlayer.snapshot().volume===0);
  await panel.getByRole('button',{name:'Biblioteca',exact:true}).click();await panel.locator('#sources .item').filter({hasText:'video-prueba'}).getByRole('button',{name:'Añadir a la cola',exact:true}).click();await panel.getByRole('button',{name:'Cola',exact:true}).click();await panel.locator('#queue-list .item').first().waitFor();assert.ok((await panel.locator('#queue-list').innerText()).includes('video-prueba'));
 });
 

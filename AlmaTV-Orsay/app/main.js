@@ -1465,7 +1465,7 @@ var Alma = (function () {
     else{h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor · Alma TV 10.0.1",
+        "Tu reproductor · Alma TV 10.0.2",
         "Archivos propios, enlaces directos y YouTube integrado experimental mediante el puente de la Mac."
       ) +
       pill("media-fullscreen","Pantalla completa",function(){fullscreenVideo(true);})+'<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +
@@ -2719,6 +2719,10 @@ var Alma = (function () {
       else throw new Error("No hay un vídeo abierto para ampliar");return;
     }
     if(action==="home"||action==="media"||action==="saver"){go(action);return;}
+    if(action==="volume"){
+      if(typeof seconds!=="number"||!isFinite(seconds)||seconds<0||seconds>100)throw new Error("Volumen no válido");
+      prefs.appMuted=false;setAppAudio(Math.round(seconds)-prefs.appVolume,false);return;
+    }
     if(action==="volume-up"||action==="volume-down"||action==="mute"){
       setAppAudio(action==="volume-up"?10:action==="volume-down"?-10:0,action==="mute");return;
     }
