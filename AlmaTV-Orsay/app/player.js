@@ -242,8 +242,9 @@ var AlmaPlayer = (function () {
       catch (e) { error = "Este archivo no permite adelantar ni retroceder."; change(); }
     }, 180);
   }
-  function setLevel(level, muted) {
+  function setLevel(level, muted, passive) {
     chosenLevel = Math.max(0, Math.min(1, Number(level) || 0)); chosenMuted = muted === true;
+    if(passive===true)return;
     try { if (active) { active.volume = chosenLevel; active.muted = chosenMuted; } }
     catch (e) { error = "Este reproductor no permite regular su audio desde la app."; }
     change();

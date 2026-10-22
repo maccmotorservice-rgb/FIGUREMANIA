@@ -42,6 +42,9 @@ class HubTests(unittest.TestCase):
         self.action(action='control',command='volume',seconds=27)
         command=self.hub.tv(self.target)['commands'][0]
         self.assertEqual((command['action'],command['seconds']),('volume',27))
+        for level in range(28,101):self.action(action='control',command='volume',seconds=level)
+        pending=self.hub.tv(self.target)['commands']
+        self.assertEqual(len(pending),1);self.assertEqual(pending[0]['seconds'],100)
         with self.assertRaises(PermissionError):self.hub.mutate({'action':'control','command':'volume','seconds':50},'guest',self.target)
     def test_pin_roles_rate_limit_revoke_and_persistence(self):
         token,session=self.hub.pair(self.hub.pin,'phone');self.assertEqual(session['role'],'owner')

@@ -173,6 +173,7 @@ class Hub:
                 view=data.get('view','')
                 if command=='navigate' and view not in VIEWS:raise ValueError('Menú no disponible.')
                 self.remote_until[target]=self.clock()+5
+                if command=='volume':self.commands=[c for c in self.commands if not (c['target']==target and c.get('action')=='volume')]
                 self.emit(target,{'kind':'control','action':command,'seconds':seconds,'view':view})
             elif action in ('next','previous'):self.advance(target,action=='previous')
             elif action=='remove-queue':

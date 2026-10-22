@@ -172,9 +172,9 @@
       if (!ready || !player || typeof data.level !== "number" || !isFinite(data.level) || data.level<0 || data.level>100 || typeof data.muted!=="boolean") return;
       try {
         if(typeof player.setVolume!=="function") throw new Error("No volume API");
-        player.setVolume(data.level);
+        if(typeof player.getVolume!=="function"||player.getVolume()!==data.level)player.setVolume(data.level);
         if(data.muted) { if(typeof player.mute!=="function") throw new Error("No mute API"); player.mute(); }
-        else if(typeof player.unMute==="function") player.unMute();
+        else if(typeof player.unMute==="function" && (typeof player.isMuted!=="function" || player.isMuted()!==false)) player.unMute();
       } catch(e) { tell("status","El reproductor no permite ajustar su audio desde la app."); }
       return;
     }
