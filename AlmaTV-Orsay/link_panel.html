@@ -8,7 +8,7 @@
 </style>
 </head>
 <body><main>
-<header><a href="/control">Abrir centro de control: música, fotos, cola y escenas</a><div class="brand">alma<span>tv</span></div><div class="eyebrow">De tu Mac a tu pantalla</div><h1>Tus vídeos, a un enlace.</h1><p>Pega enlaces de YouTube y guárdalos aquí. En la TV, abre <strong>Multimedia → Enlaces de la Mac</strong>. Puedes añadir vídeos cuando quieras, sin reinstalar Alma TV.</p></header>
+<header><a href="/control">Abrir centro de control: música, fotos, cola y escenas</a><div class="brand">alma<span>tv</span></div><div class="eyebrow">De tu Mac a tu pantalla</div><h1>Tus vídeos, a un enlace.</h1><p>Pega enlaces de YouTube o Dailymotion y guárdalos aquí. En la TV, abre <strong>Multimedia → Enlaces de la Mac</strong>. Puedes añadir vídeos cuando quieras, sin reinstalar Alma TV.</p></header>
 <section class="box"><h2>En tiempo real</h2><p>Con Alma TV abierta, envía un vídeo a Inicio o escucha solo su audio. Solo este botón solicita reproducción automática. No añade el enlace a tu lista.</p>
 <form id="live-form"><label for="live-url">Enlace de YouTube o Dailymotion</label><input id="live-url" type="url" required maxlength="1000" placeholder="https://www.youtube.com/watch?v=…">
 <label for="live-mode">Cómo reproducir</label><select id="live-mode"><option value="video">Vídeo en Inicio</option><option value="audio">Solo audio · sin imagen</option></select>
@@ -22,7 +22,7 @@
 </form></section>
 <section class="box"><div class="list-header"><h2>Tu lista <span id="count"></span></h2><button class="quiet" id="refresh" type="button">Actualizar</button></div><div id="list"></div></section>
 <section class="box"><h2>Estado del reproductor</h2><p id="player-status" role="status">Todavía no se ha consultado el estado.</p><button id="player-refresh" type="button">Actualizar estado</button> <a href="/youtube/prueba" target="_blank" rel="noopener">Probar YouTube en esta Mac</a></section>
-<footer>Hasta 50 vídeos. Mantén la Mac encendida y despierta. La reproducción integrada de YouTube requiere compatibilidad con tu TV.</footer>
+<footer>Hasta 50 vídeos. Mantén la Mac encendida y despierta. La reproducción integrada depende de la compatibilidad del proveedor con tu TV.</footer>
 </main>
 <script>
 (function () {
@@ -88,7 +88,7 @@
     x.send(body ? JSON.stringify(body) : null);
   }
   function liveStatus(data) {
-    var labels={idle:"Abre Alma TV en la televisión para recibir enlaces.",waiting:"Enviado. Esperando a Alma TV…",received:"La TV recibió el enlace. Iniciando YouTube…",playing:"El reproductor confirmó que está reproduciendo en la TV.",blocked:"El proveedor bloqueó el inicio automático. Usa Reproducir en la TV.",error:"La TV recibió la orden, pero el vídeo no pudo iniciarse.",expired:"La TV no recibió la orden a tiempo. Abre Alma TV y vuelve a pulsar Reproducir ahora."};
+    var labels={idle:"Abre Alma TV en la televisión para recibir enlaces.",waiting:"Enviado. Esperando a Alma TV…",received:"La TV recibió el enlace. Iniciando el reproductor…",playing:"El reproductor confirmó que está reproduciendo en la TV.",blocked:"El proveedor bloqueó el inicio automático. Usa Reproducir en la TV.",error:"La TV recibió la orden, pero el vídeo no pudo iniciarse.",expired:"La TV no recibió la orden a tiempo. Abre Alma TV y vuelve a pulsar Reproducir ahora."};
     document.getElementById("live-status").textContent=labels[data.status] || "Estado no disponible.";
   }
   document.getElementById("live-form").onsubmit=function(event){

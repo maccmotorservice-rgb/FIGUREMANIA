@@ -1261,8 +1261,8 @@ var Alma = (function () {
   }
   function saveYoutube(url, name) {
     var parsed = AlmaYouTube.parseLink(url), id = parsed && parsed.id;
-    if (!id) { notice("Usa un enlace de YouTube a un vídeo individual. Para otros archivos, usa un enlace directo MP3 o MP4."); return false; }
-    if (prefs.youtubeLinks.length >= 20) { notice("Puedes guardar hasta 20 enlaces de YouTube."); return false; }
+    if (!id) { notice("Usa un enlace individual de YouTube o Dailymotion. Para archivos, usa un enlace directo MP3 o MP4."); return false; }
+    if (prefs.youtubeLinks.length >= 20) { notice("Puedes guardar hasta 20 enlaces."); return false; }
     prefs.youtubeLinks.push({ id: id, provider:parsed.provider, name: name || (parsed.provider === "dailymotion" ? "Dailymotion" : "YouTube") + " · " + id });
     save();
     return true;
@@ -1270,7 +1270,7 @@ var Alma = (function () {
   function youtubeView() {
     var h = head((youtubeSelection && youtubeSelection.provider === "dailymotion" ? "DAILYMOTION" : "YOUTUBE") + " INTEGRADO", youtubeSelection ? youtubeSelection.name : "YouTube", "Reproductor oficial · requiere el puente actualizado e internet en la TV.");
     h = h.replace("<h1>", '<h1 id="youtube-title">');
-    h += '<div id="youtube-slot" tabindex="0" role="region" aria-label="Video de YouTube: Aceptar reproduce o pausa"></div><p id="youtube-state" class="youtube-state"></p><div class="youtube-controls">';
+    h += '<div id="youtube-slot" tabindex="0" role="region" aria-label="Vídeo: Aceptar reproduce o pausa"></div><p id="youtube-state" class="youtube-state"></p><div class="youtube-controls">';
     actions["youtube-slot"] = function () { AlmaYouTube.send("toggle"); };
     row(["youtube-slot"]);
     var controls = [
@@ -1286,8 +1286,9 @@ var Alma = (function () {
       h += pill(controls[i][0], controls[i][1], controls[i][2]); ids.push(controls[i][0]);
     }
     row(ids);
-    h += '</div><div class="youtube-options">' + pill("youtube-native", "Abrir app de YouTube", function () { launch(apps[1]); }) + pill("youtube-return", "Volver a Multimedia", function () { if (!AlmaYouTube.snapshot().ready) closeYoutube(); go("media"); }) + '</div>';
-    row(["youtube-native", "youtube-return"]);
+    var isDM=youtubeSelection && youtubeSelection.provider==="dailymotion";
+    h += '</div><div class="youtube-options">' + (isDM?"":pill("youtube-native", "Abrir app de YouTube", function () { launch(apps[1]); })) + pill("youtube-return", "Volver a Multimedia", function () { if (!AlmaYouTube.snapshot().ready) closeYoutube(); go("media"); }) + '</div>';
+    row(isDM?["youtube-return"]:["youtube-native", "youtube-return"]);
     return h;
   }
   function youtubeHidden() { if (document.hidden) closeYoutube(); }
@@ -1451,7 +1452,7 @@ var Alma = (function () {
     var h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor · Alma TV 9.1.0",
+        "Tu reproductor · Alma TV 9.1.1",
         "Archivos propios, enlaces directos y YouTube integrado experimental mediante el puente de la Mac."
       ) +
       '<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +
@@ -1545,7 +1546,7 @@ var Alma = (function () {
     for (var y = 0; y < prefs.youtubeLinks.length; y++) {
       (function (y) {
         var item = prefs.youtubeLinks[y];
-        h += button("youtube-item-" + y, item.name, "YouTube integrado · experimental", function () { openYoutube(item); }, "card media-item") + pill("youtube-remove-" + y, "Quitar", function () { prefs.youtubeLinks.splice(y, 1); save(); render(); });
+        h += button("youtube-item-" + y, item.name, (item.provider==="dailymotion"?"Dailymotion integrado · experimental":"YouTube integrado · experimental"), function () { openYoutube(item); }, "card media-item") + pill("youtube-remove-" + y, "Quitar", function () { prefs.youtubeLinks.splice(y, 1); save(); render(); });
         row(["youtube-item-" + y, "youtube-remove-" + y]); h += "<br>";
       })(y);
     }
@@ -1553,7 +1554,7 @@ var Alma = (function () {
     for (var m = 0; m < macYoutubeLinks.length; m++) {
       (function (m) {
         var item = macYoutubeLinks[m];
-        h += button("mac-youtube-" + m, item.name, "Guardado desde la Mac · YouTube integrado", function () { openYoutube(item); }, "card media-item") + "<br>";
+        h += button("mac-youtube-" + m, item.name, (item.provider==="dailymotion"?"Guardado desde la Mac · Dailymotion":"Guardado desde la Mac · YouTube"), function () { openYoutube(item); }, "card media-item") + "<br>";
         row(["mac-youtube-" + m]);
       })(m);
     }

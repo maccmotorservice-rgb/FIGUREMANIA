@@ -1,11 +1,12 @@
 /* Integración oficial de YouTube. ES5; no extrae ni descarga vídeos. */
 var AlmaYouTube = (function () {
   "use strict";
-  var frame = null, host = null, base = "", token = "", timer = null, lastWidth = 0, lastHeight = 0, presented = null;
+  var frame = null, host = null, base = "", token = "", timer = null, lastWidth = 0, lastHeight = 0, presented = null, audioApplied = false;
   var chosenLevel=70, chosenMuted=false;
   function level(amount, muted) {
     chosenLevel=Math.max(0,Math.min(100,Number(amount)||0));chosenMuted=muted===true;
-    if(frame && frame.contentWindow && value.ready) frame.contentWindow.postMessage(JSON.stringify({channel:"alma-youtube",token:token,command:"volume",level:chosenLevel,muted:chosenMuted}),base);
+    if(frame && frame.contentWindow && value.ready && value.state===1) frame.contentWindow.postMessage(JSON.stringify({channel:"alma-youtube",token:token,command:"volume",level:chosenLevel,muted:chosenMuted}),base);
+    else audioApplied=false;
   }
   var changed = function () {}, value = { status: "Sin vídeo", ready: false, state: -1, title: "", failed: false };
   function parseUrl(input) {
@@ -57,7 +58,7 @@ var AlmaYouTube = (function () {
     var data;
     try { data = typeof event.data === "string" ? JSON.parse(event.data) : event.data; } catch (e) { return; }
     if (!data || data.channel !== "alma-youtube" || data.token !== token) return;
-    if (data.type === "ready") { lastWidth = 0; lastHeight = 0; presented = null; value.ready = true; clearTimeout(timer); level(chosenLevel,chosenMuted); }
+    if (data.type === "ready") { lastWidth = 0; lastHeight = 0; presented = null; value.ready = true; clearTimeout(timer); }
     if (data.type === "error") { value.failed = true; value.ready = false; clearTimeout(timer); }
     if(typeof data.volume==="number" && isFinite(data.volume)) value.volume=Math.max(0,Math.min(100,data.volume));
     if(typeof data.muted==="boolean") value.muted=data.muted;
@@ -66,13 +67,14 @@ var AlmaYouTube = (function () {
     if (typeof data.state === "number") value.state = data.state;
     if (typeof data.title === "string") value.title = data.title.slice(0, 160);
     if (typeof data.status === "string") value.status = data.status.slice(0, 300);
-    if (typeof data.status === "string" && /YT-ACTIVACION|YT-INICIO|YT-ORDEN/.test(data.status)) value.failed = true;
+    if (typeof data.status === "string" && /(?:YT|DM)-(?:ACTIVACION|INICIO|ORDEN)/.test(data.status)) value.failed = true;
+    if(value.state===1 && !audioApplied){audioApplied=true;level(chosenLevel,chosenMuted);}
     changed();
   }
   function close() {
     clearTimeout(timer);
     if (frame) { send("pause"); frame.src = "about:blank"; host.innerHTML = ""; }
-    frame = null; lastWidth = 0; lastHeight = 0; presented = null;
+    frame = null; audioApplied=false; lastWidth = 0; lastHeight = 0; presented = null;
     if (host) host.style.display = "none";
     value = { status: "Sin vídeo", ready: false, state: -1, title: "", failed: false };
   }
@@ -85,17 +87,17 @@ var AlmaYouTube = (function () {
     for (var i = 0; i < 32; i++) token += Math.floor(Math.random() * 16).toString(16);
     var origin = window.location.protocol === "file:" ? "null" : window.location.protocol + "//" + window.location.host;
     frame = document.createElement("iframe");
-    frame.id = "youtube-frame"; frame.title = "Reproductor oficial de YouTube";
+    frame.id = "youtube-frame"; frame.title = "Reproductor oficial de "+(provider==="dailymotion"?"Dailymotion":"YouTube");
     frame.setAttribute("allow", "autoplay; encrypted-media; fullscreen");
     frame.setAttribute("allowfullscreen", "allowfullscreen");
     frame.setAttribute("referrerpolicy", "origin");
     frame.setAttribute("frameborder", "0");
-    value.status = "Conectando con el puente y el reproductor oficial de YouTube…";
-    frame.src = base + "/youtube/player?video=" + id + "&provider=" + provider + "&autoplay="+(autoplay===true?"1":"0")+"&token=" + token + "&parent=" + encodeURIComponent(origin);
+    value.status = "Conectando con el puente y el reproductor oficial de "+(provider==="dailymotion"?"Dailymotion":"YouTube")+"…";
+    frame.src = base + (provider==="dailymotion"?"/dailymotion/player?video=":"/youtube/player?video=") + id + "&provider=" + provider + "&autoplay="+(provider==="dailymotion" && autoplay===true?"1":"0")+"&token=" + token + "&parent=" + encodeURIComponent(origin);
     host.style.display = "block"; host.appendChild(frame);
     timer = setTimeout(function () {
       value.failed = true;
-      value.status = "YouTube no respondió. Comprueba el puente actualizado y la conexión. El navegador de la TV puede ser incompatible.";
+      value.status = (provider==="dailymotion"?"Dailymotion":"YouTube")+" no respondió. Comprueba el puente actualizado y la conexión. El navegador de la TV puede ser incompatible.";
       changed();
     }, 25000);
     changed();

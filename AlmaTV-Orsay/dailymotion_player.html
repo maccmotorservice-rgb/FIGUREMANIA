@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="origin">
+<title>Prueba de Dailymotion - Alma TV</title>
+<style>html,body{margin:0;width:100%;height:100%;background:#000;overflow:hidden;font:16px Arial,sans-serif}#surface,#player,iframe{display:block;width:100%;height:100%;border:0}#direct{display:none;background:#f0f7f4;color:#153f3d;padding:10px;box-sizing:border-box}button{font:inherit;border:0;border-radius:20px;padding:9px 20px;margin:0 8px 5px 0;background:#246250;color:#fff;cursor:pointer}#status{margin:4px 0;line-height:1.4;font-size:14px}</style>
+</head>
+<body>
+<div id="surface"><div id="player"></div></div>
+<div id="direct"><button id="direct-play">Reproducir</button><button id="direct-pause">Pausar</button><span>Dailymotion oficial - prueba directa</span><p id="status" role="status">Conectando con Dailymotion...</p></div>
+<script>
+(function () {
+  "use strict";
+  var config = __ALMA_YT_CONFIG__, player = null, ready = false, watchdog = null, initialTime = null, layoutWidth = 0, layoutHeight = 0, fittedWidth = 0, fittedHeight = 0, seekTimer = null, seekTarget = null;
+  function details() {
+    var state = null, seconds = null, muted = null, volume = null;
+    try { if (ready && player && typeof player.getPlayerState === "function") state = player.getPlayerState(); } catch (e) {}
+    try { if (ready && player && typeof player.getCurrentTime === "function") seconds = player.getCurrentTime(); } catch (e) {}
+    try { if (ready && player && typeof player.isMuted === "function") muted = player.isMuted(); } catch (e) {}
+    try { if(ready && player && typeof player.getVolume === "function") volume=player.getVolume(); } catch(e) {}
+    var node = document.querySelector("#surface iframe"), box = node && node.getBoundingClientRect();
+    var video = document.createElement("video"), h264 = "";
+    try { h264 = video.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"'); } catch (e) {}
+    return { state: state, seconds: seconds, volume:volume, muted: muted, width: box ? Math.round(box.width) : 0, height: box ? Math.round(box.height) : 0, h264: h264, mse: !!(window.MediaSource || window.WebKitMediaSource) };
+  }
+  function report(phase, status) {
+    try {
+      var data = details(); data.phase = phase; data.status = status; data.token = config.token; data.source = config.standalone ? "directo" : "alma-tv";
+      var xhr = new XMLHttpRequest(); xhr.open("POST", "/youtube/diagnostic", true);
+      xhr.setRequestHeader("Content-Type", "application/json"); xhr.timeout = 5000;
+      xhr.send(JSON.stringify(data));
+    } catch (e) {}
+  }
+  function tell(type, status, state) {
+    var title = "";
+    if (ready && player && typeof player.getVideoData === "function") {
+      try { title = String(player.getVideoData().title || ""); } catch (e) {}
+    }
+    document.getElementById("status").textContent = status;
+    if (config.standalone) fit();
+    if (window.parent !== window) window.parent.postMessage(JSON.stringify({ channel: "alma-youtube", token: config.token, type: type, status: status, state: state, title: title }), config.parent === "null" ? "*" : config.parent);
+  }
+  function fit() {
+    var width = layoutWidth || document.documentElement.clientWidth || window.innerWidth;
+    var height = layoutHeight || document.documentElement.clientHeight || window.innerHeight;
+    if (config.standalone) height -= document.getElementById("direct").offsetHeight;
+    width = Math.max(200, width); height = Math.max(200, height);
+    var areaHeight = height;
+    width = Math.min(width, height * 16 / 9); height = width * 9 / 16;
+    var surface = document.getElementById("surface");
+    surface.style.width = width + "px"; surface.style.height = height + "px";
+    surface.style.margin = Math.max(0, (areaHeight - height) / 2) + "px auto";
+    var iframe = document.querySelector("#surface iframe");
+    if (!iframe || (fittedWidth === Math.round(width) && fittedHeight === Math.round(height))) return;
+    fittedWidth = Math.round(width); fittedHeight = Math.round(height);
+    if (iframe) {
+      iframe.width = Math.round(width); iframe.height = Math.round(height);
+      iframe.style.width = width + "px"; iframe.style.height = height + "px";
+    }
+    try { if (ready && player && typeof player.setSize === "function") player.setSize(width, height); } catch (e) {}
+  }
+  function start() {
+    if (!ready || !player) { tell("status", "Dailymotion todav\u00eda no est\u00e1 listo para recibir la orden.", -1); return; }
+    clearTimeout(watchdog);
+    fit();
+    initialTime = details().seconds;
+    tell("command", "Orden Reproducir recibida. Esperando a Dailymotion\u2026");
+    report("command", "Orden Reproducir recibida.");
+    watchdog = setTimeout(function () {
+      var data = details();
+      if (data.state === 1 && typeof data.seconds === "number" && typeof initialTime === "number" && data.seconds > initialTime + 0.25) {
+        report("progress", "Dailymotion informa reproducci\u00f3n y su tiempo avanza.");
+        return;
+      }
+      var message = "DM-INICIO: la orden lleg\u00f3, pero Dailymotion no inici\u00f3 o no avanz\u00f3. Estado: " + (data.state === null ? "sin datos" : data.state) + ". Tiempo: " + (data.seconds === null ? "sin datos" : Math.round(data.seconds)) + " s. Revisa Estado del reproductor en la Mac.";
+      tell("status", message, data.state); report("timeout", message);
+    }, 12000);
+    try {
+      var state = details().state;
+      if (state === -1 && typeof player.loadVideoById === "function") player.loadVideoById(config.video);
+      else player.playVideo();
+    } catch (e) { clearTimeout(watchdog); tell("error", "DM-ORDEN: el navegador no pudo iniciar el v\u00eddeo.", -1); report("error", "DM-ORDEN: el navegador no pudo iniciar el v\u00eddeo."); }
+  }
+  function pause() {
+    config.autoplay=false;
+    clearTimeout(watchdog);
+    try { if (ready && player) player.pauseVideo(); } catch (e) {}
+  }
+  function seekBy(delta) {
+    if (!ready || !player || typeof player.seekTo !== "function") return;
+    var base = seekTarget === null ? player.getCurrentTime() : seekTarget;
+    seekTarget = Math.max(0, base + delta);
+    if (typeof player.getDuration === "function") {
+      var duration = player.getDuration();
+      if (typeof duration === "number" && isFinite(duration) && duration > 0) seekTarget = Math.min(duration, seekTarget);
+    }
+    clearTimeout(seekTimer);
+    tell("command", "Salto solicitado: " + (delta > 0 ? "+" : "") + delta + " s.");
+    seekTimer = setTimeout(function () {
+      var target = seekTarget; seekTarget = null;
+      try { if (ready && player) player.seekTo(target, true); }
+      catch (e) { tell("status", "Dailymotion no pudo buscar ese punto del video."); }
+    }, 180);
+  }
+  function command(name, seconds) {
+    try {
+      if (name === "play") start();
+      else if (name === "pause") pause();
+      else if (name === "toggle") { if (details().state === 1) pause(); else start(); }
+      else if (name === "back" && ready) seekBy(-([5, 10, 30].indexOf(seconds) !== -1 ? seconds : 10));
+      else if (name === "forward" && ready) seekBy([5, 10, 30].indexOf(seconds) !== -1 ? seconds : 10);
+    } catch (e) { tell("error", "DM-ORDEN: el navegador no pudo enviar el control a Dailymotion.", -1); report("error", "DM-ORDEN: el navegador no pudo enviar el control a Dailymotion."); }
+  }
+  window.addEventListener("message", function (event) {
+    var data;
+    try { data = typeof event.data === "string" ? JSON.parse(event.data) : event.data; } catch (e) { return; }
+    if (!data || data.channel !== "alma-youtube" || data.token !== config.token) return;
+    if (event.source !== window.parent) { report("rejected", "DM-FUENTE: la orden no procede de la ventana que contiene el reproductor."); return; }
+    var fileOrigin = config.parent === "null" && (event.origin === "file://" || event.origin === "file:///" || event.origin === "");
+    if (event.origin !== config.parent && !fileOrigin) {
+      var text = "DM-ORIGEN: el control lleg\u00f3 con un origen distinto del esperado. La orden no se ejecut\u00f3.";
+      tell("status", text); report("rejected", text); return;
+    }
+    if (data.command === "presentation") {
+      if (typeof data.visible !== "boolean") return;
+      var surface = document.getElementById("surface");
+      // Move the native video surface outside the viewport; keep its session and audio.
+      surface.style.display = !data.visible && data.remove !== false ? "none" : "block";
+      var embedded = surface.querySelector("iframe");
+      if (embedded) embedded.style.display = !data.visible && data.remove !== false ? "none" : "block";
+      surface.style.position = data.visible ? "relative" : "absolute";
+      surface.style.left = data.visible ? "0px" : "-10000px";
+      surface.style.top = data.visible ? "0px" : "-10000px";
+      surface.style.visibility = data.visible ? "visible" : "hidden";
+      surface.style.clip = data.visible ? "auto" : "rect(0px,0px,0px,0px)";
+      return;
+    }
+    if (data.command === "volume") {
+      if (!ready || !player || typeof data.level !== "number" || !isFinite(data.level) || data.level<0 || data.level>100 || typeof data.muted!=="boolean") return;
+      try {
+        if(typeof player.setVolume!=="function") throw new Error("No volume API");
+        player.setVolume(data.level);
+        if(data.muted) { if(typeof player.mute!=="function") throw new Error("No mute API"); player.mute(); }
+        else if(typeof player.unMute==="function") player.unMute();
+      } catch(e) { tell("status","El reproductor no permite ajustar su audio desde la app."); }
+      return;
+    }
+    if (data.command === "resize") {
+      if (typeof data.width !== "number" || typeof data.height !== "number" || !isFinite(data.width) || !isFinite(data.height) || data.width < 200 || data.height < 200 || data.width > 4096 || data.height > 2160) return;
+      layoutWidth = data.width; layoutHeight = data.height; fit();
+      return;
+    }
+    command(data.command, data.seconds);
+  }, false);
+  if (config.standalone) {
+    document.getElementById("direct").style.display = "block";
+    document.getElementById("direct-play").onclick = start;
+    document.getElementById("direct-pause").onclick = pause;
+    document.addEventListener("keydown", function (event) {
+      var code = event.keyCode || event.which;
+      if (code === 13 || code === 29443 || code === 32) { command("toggle"); if (event.preventDefault) event.preventDefault(); }
+    }, false);
+  }
+  window.addEventListener("resize", fit, false);
+  fit();
+  setInterval(function(){
+    if(!ready||window.parent===window)return;
+    var data=details(),duration=0;
+    try{duration=Number(player.getDuration())||0;}catch(ignore){}
+    window.parent.postMessage(JSON.stringify({channel:"alma-youtube",token:config.token,type:"progress",state:data.state,seconds:data.seconds,duration:duration,volume:data.volume,muted:data.muted}),config.parent==="null"?"*":config.parent);
+  },2000);
+    var dmStarted = false, dmState = -1, dmTime = 0;
+    function initDM() {
+      if (dmStarted || typeof DM === "undefined" || typeof DM.player !== "function") return;
+      dmStarted = true;
+      try {
+        var dm = DM.player(document.getElementById("player"), {video:config.video,width:"100%",height:"100%",params:{autoplay:config.autoplay===true,controls:true,mute:false}});
+        player = {
+          getPlayerState:function(){return dmState;}, getCurrentTime:function(){return dmTime;},
+          getVolume:function(){return typeof dm.volume==="number"?dm.volume*100:null;},isMuted:function(){return typeof dm.muted==="boolean"?dm.muted:null;},setVolume:function(v){dm.setVolume(v/100);},mute:function(){dm.setMuted(true);},unMute:function(){dm.setMuted(false);},
+          getDuration:function(){return Number(dm.duration)||0;},getVideoData:function(){return {title:dm.title||"Dailymotion"};},
+          playVideo:function(){dm.play();},loadVideoById:function(){
+            if(typeof dm.load==="function")dm.load(config.video,{autoplay:true});else dm.play();
+          },pauseVideo:function(){dm.pause();},
+          seekTo:function(seconds){dm.seek(seconds);},setSize:function(w,h){dm.width=w;dm.height=h;dm.style.width=w+"px";dm.style.height=h+"px";}
+        };
+        dm.addEventListener("apiready",function(){ready=true;fittedWidth=0;fittedHeight=0;fit();tell("ready","Dailymotion está listo. Pulsa Reproducir.",-1);report("ready","API de Dailymotion lista; esperando reproducción confirmada.");});
+        dm.addEventListener("timeupdate",function(event){dmTime=Number(event.time)||Number(dm.currentTime)||0;});
+        dm.addEventListener("loadedmetadata",function(){if(config.autoplay===true&&dmState!==1){config.autoplay=false;try{dm.play();}catch(e){tell("error","Dailymotion bloqueó el inicio automático. Prueba otro vídeo o Reproducir.",-1);}}});
+        dm.addEventListener("playing",function(){config.autoplay=false;dmState=1;tell("state","Reproduciendo en Dailymotion",1);});
+        dm.addEventListener("pause",function(){dmState=2;clearTimeout(watchdog);tell("state","Dailymotion en pausa",2);});
+        dm.addEventListener("waiting",function(){dmState=3;tell("state","Cargando Dailymotion…",3);});
+        function ended(){dmState=0;tell("state","Finalizado",0);}
+        dm.addEventListener("video_end",ended);dm.addEventListener("ended",ended);
+        dm.addEventListener("error",function(){clearTimeout(watchdog);tell("error","Dailymotion no pudo reproducir este vídeo en el navegador de la TV.",-1);report("error","Dailymotion rechazó la reproducción.");});
+      } catch(error) {tell("error","El navegador no pudo iniciar el reproductor oficial de Dailymotion.",-1);}
+    }
+    window.dmAsyncInit=initDM;
+    var dmScript=document.createElement("script");dmScript.src="https://api.dmcdn.net/all.js";dmScript.onload=initDM;
+    dmScript.onerror=function(){tell("error","No se pudo cargar Dailymotion. Comprueba internet o compatibilidad HTTPS de la TV.",-1);report("error","No se pudo cargar el SDK de Dailymotion.");};
+    document.head.appendChild(dmScript);
+})();
+</script>
+</body>
+</html>

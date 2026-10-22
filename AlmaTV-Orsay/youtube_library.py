@@ -99,7 +99,7 @@ class Library:
                     parsed = parse_video(line)
                     ident = parsed['id'] if parsed else ''
                     if not ident:
-                        raise ValueError('Revisa el enlace de la línea %s: debe ser un vídeo individual de YouTube.' % number)
+                        raise ValueError('Revisa el enlace de la línea %s: debe ser un vídeo individual de YouTube o Dailymotion.' % number)
                     ids.append((ident,parsed['provider']))
                 existing = {(item['id'],item.get('provider','youtube')): item for item in items}
                 for ident,provider in ids:
@@ -154,9 +154,9 @@ class Realtime:
         mode = data.get('mode')
         name = data.get('name', '').strip() if isinstance(data.get('name', ''), str) else None
         if not ident or mode not in ('video', 'audio') or name is None or len(name) > 80:
-            raise ValueError('Usa un enlace individual de YouTube y elige vídeo o solo audio.')
+            raise ValueError('Usa un enlace individual de YouTube o Dailymotion y elige vídeo o solo audio.')
         with self.lock:
-            self.command = {'id': secrets.token_hex(16), 'video': ident, 'name': name or 'YouTube en tiempo real', 'mode': mode, 'provider':parsed['provider'], 'expires': self.clock() + 45}
+            self.command = {'id': secrets.token_hex(16), 'video': ident, 'name': name or ('Dailymotion' if parsed['provider']=='dailymotion' else 'YouTube')+' en tiempo real', 'mode': mode, 'provider':parsed['provider'], 'expires': self.clock() + 45}
             self.status = 'waiting'
             return self.snapshot()
 

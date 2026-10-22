@@ -21,6 +21,11 @@ class HubTests(unittest.TestCase):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.now=[1770000000]
         self.hub=Hub(self.temp.name,'127.0.0.3',lambda:self.now[0]);self.target='127.0.0.3'
     def action(self,**data):return self.hub.mutate(data,'owner',self.target)
+    def test_player_templates_do_not_mix_providers(self):
+        youtube=(ROOT/'youtube_player.html').read_text();dm=(ROOT/'dailymotion_player.html').read_text()
+        self.assertNotIn('dmcdn',youtube);self.assertNotIn('DM.player',youtube)
+        self.assertNotIn('YouTube',dm);self.assertNotIn('YT-INICIO',dm);self.assertNotIn('youtube.com',dm)
+        self.assertIn('DM-INICIO',dm);self.assertIn('DM.player',dm)
     def test_navigation_whitelist_fast_poll_and_confirmed_selection(self):
         with self.assertRaises(ValueError):self.action(action='control',command='navigate',view='bad-route')
         with self.assertRaises(ValueError):self.action(action='control',command='raw-key')

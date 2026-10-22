@@ -214,16 +214,16 @@ class Handler(HubHTTP,BaseHTTPRequestHandler):
             self.reply(200,{'ok':True})
         except (ValueError,UnicodeError):
             self.reply(400,{'error':'Diagnóstico no válido'})
-    def serve_youtube(self,query,standalone=False):
+    def serve_youtube(self,query,standalone=False,platform=None):
         video=query.get('video',['M7lc1UVf-VE' if standalone else ''])[0]
-        provider=query.get('provider',['youtube'])[0]
+        provider=platform or query.get('provider',['youtube'])[0]
         token=secrets.token_hex(16) if standalone else query.get('token',[''])[0]
         parent=self.panel_origin() if standalone else query.get('parent',['null'])[0]
         if provider not in ('youtube','dailymotion') or not (re.fullmatch(r'[A-Za-z0-9]{5,12}',video) if provider=='dailymotion' else re.fullmatch(r'[A-Za-z0-9_-]{11}',video)) or not re.fullmatch(r'[a-f0-9]{32}',token) or (not standalone and parent not in self.server.origins):
             self.reply(400,{'error':'Vídeo, sesión u origen del reproductor no válido'})
             return
         config=json.dumps({'video':video,'provider':provider,'token':token,'parent':parent,'standalone':standalone,'autoplay':not standalone and query.get('autoplay',['0'])[0]=='1'},ensure_ascii=True).replace('<','\\u003c')
-        template=(Path(__file__).resolve().parent/'youtube_player.html').read_text(encoding='utf-8')
+        template=(Path(__file__).resolve().parent/('dailymotion_player.html' if provider=='dailymotion' else 'youtube_player.html')).read_text(encoding='utf-8')
         body=template.replace('__ALMA_YT_CONFIG__',config).encode('utf-8')
         self.reply(200,body,'text/html; charset=utf-8')
     def serve_media(self,ident):
@@ -259,6 +259,8 @@ class Handler(HubHTTP,BaseHTTPRequestHandler):
                 self.youtube_diagnostic(method)
             elif method=='GET' and parsed.path=='/youtube/prueba':
                 self.serve_youtube(query,standalone=True)
+            elif method=='GET' and parsed.path=='/dailymotion/player':
+                self.serve_youtube(query,platform='dailymotion')
             elif method=='GET' and parsed.path=='/youtube/player':
                 self.serve_youtube(query)
             elif method=='GET' and parsed.path=='/media/library':
