@@ -18,10 +18,12 @@ var AlmaYouTube = (function () {
     return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : "";
   }
   function snapshot() { return { status: value.status, ready: value.ready, state: value.state, title: value.title }; }
-  function present(visible) {
-    if (!frame || !frame.contentWindow || presented === visible) return;
-    presented = visible;
-    frame.contentWindow.postMessage(JSON.stringify({ channel: "alma-youtube", token: token, command: "presentation", visible: visible }), base);
+  function present(visible, remove) {
+    remove = remove === true;
+    var presentationKey = visible + ":" + remove;
+    if (!frame || !frame.contentWindow || presented === presentationKey) return;
+    presented = presentationKey;
+    frame.contentWindow.postMessage(JSON.stringify({ channel: "alma-youtube", token: token, command: "presentation", visible: visible, remove: remove }), base);
   }
   function send(command, seconds) {
     if (!frame || !frame.contentWindow) return;

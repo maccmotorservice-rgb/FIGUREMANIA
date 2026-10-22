@@ -354,7 +354,7 @@ var Alma = (function () {
   }
   function button(id, title, small, fn, cls) {
     actions[id] = fn;
-    var icons = { "seek-step": "media", calibrate: "hub", "tv-ip": "hub", "mac-ip": "network", bridge: "network", relay: "apps", motion: "media", "saver-frame": "saver", location: "weather", links: "browser", diagnostic: "network", reset: "settings" };
+    var icons = { "tv-volume": "media", "seek-step": "media", calibrate: "hub", "tv-ip": "hub", "mac-ip": "network", bridge: "network", relay: "apps", motion: "media", "saver-frame": "saver", location: "weather", links: "browser", diagnostic: "network", reset: "settings" };
     var match = /^tool-(\d+)$/.exec(id);
     var icon = match && tools[Number(match[1])] ? tools[Number(match[1])].id : icons[id];
     return (
@@ -716,6 +716,7 @@ var Alma = (function () {
           render();
         }
       ],
+      ["tv-volume", "Volumen del control remoto", AlmaTVAudio.active() ? "Control nativo activo · pulsa para desactivar" : "Activar control nativo de la TV", toggleTVVolume],
       ["seek-step", "Avanzar y retroceder", prefs.seekStep + " segundos · elegir 5, 10 o 30", cycleSeekStep],
       [
         "saver-frame",
@@ -1141,12 +1142,13 @@ var Alma = (function () {
     save(); render();
   }
   function hideYoutubeImage(host) {
-    AlmaYouTube.present(false);
+    AlmaYouTube.present(false, state.view === "saver");
     if (host.style.left !== "-10000px") {
       host.style.left = "-10000px"; host.style.top = "-10000px";
       host.style.clip = "rect(0px,0px,0px,0px)";
       host.style.visibility = "hidden";
     }
+    host.style.display = state.view === "saver" ? "none" : "block";
     youtubeLayoutKey = "";
     el("safe").setAttribute("data-youtube", "hidden");
   }
@@ -1161,6 +1163,7 @@ var Alma = (function () {
       hideYoutubeImage(host);
       return;
     }
+    host.style.display = "block";
     var screenWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
     var screenHeight = window.innerHeight || document.documentElement.clientHeight || 720;
     var width = screenWidth, height = screenHeight, left = 0, top = 0;
@@ -1402,7 +1405,7 @@ var Alma = (function () {
     var h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor · Alma TV 8.6.5",
+        "Tu reproductor · Alma TV 8.6.6",
         "Archivos propios, enlaces directos y YouTube integrado experimental mediante el puente de la Mac."
       ) +
       '<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +
@@ -2367,8 +2370,15 @@ var Alma = (function () {
     }
     notice("Se solicitó salir · el cierre real requiere Samsung Orsay");
   }
+  function toggleTVVolume() {
+    if (AlmaTVAudio.active()) { AlmaTVAudio.close(); releaseVolumeKeys(); render(); return; }
+    var enabled = AlmaTVAudio.init(volumeKeyCodes, notice);
+    render();
+    notice(enabled ? "Control de volumen de la TV activo. Prueba Vol+, Vol− y Silencio." : "La TV rechazó el control nativo de volumen.");
+  }
   var volumeKeyCodes = [7, 11, 27], nativeKeyPlugin = null;
   function releaseVolumeKeys() {
+    if (AlmaTVAudio.active()) return;
     try {
       if (typeof Common === "undefined" || !Common.API) return;
       if (typeof Common.API.TVKeyValue === "function") {
@@ -2384,7 +2394,7 @@ var Alma = (function () {
   }
   function key(code) {
     // Samsung handles its own amplifier and OSD. Do not consume Vol+/Vol-/Mute.
-    if (volumeKeyCodes.indexOf(code) !== -1) return false;
+    if (volumeKeyCodes.indexOf(code) !== -1) return AlmaTVAudio.handle(code);
 
     var map = {
         4: "left",
@@ -2595,6 +2605,7 @@ var Alma = (function () {
     interval = setInterval(tick, 1000);
   };
   A.destroy = function () {
+    AlmaTVAudio.close();
     window.onresize = null;
     window.removeEventListener("focus", releaseVolumeKeys, false);
     AlmaYouTube.destroy();

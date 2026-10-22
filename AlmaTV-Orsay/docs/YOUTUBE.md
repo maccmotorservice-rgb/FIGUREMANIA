@@ -1,3 +1,5 @@
+> 8.6.6 prueba ocultar el dibujo con display:none en el salvapantallas, conservando URL y nodos. El resto de navegación conserva el modo anterior. En Ajustes puede activarse Audio nativo para el control remoto; no se instancia al arrancar. Ambas correcciones requieren verificación física.
+
 > 8.6.5 requiere actualizar también el puente: añade presentación oculta desplazando las dos superficies fuera de pantalla sin pausar. Incluye saltos 5/10/30 y caché de geometría. El propietario confirmó mejoras en 8.6.4; el ocultamiento del plano nativo y el rendimiento de esta revisión siguen pendientes de prueba física.
 
 > 8.6.3 conserva el arranque de recuperación y cambia solo la presentación de YouTube: una zona sin ventana flotante y salvapantallas con imagen oculta sin pausa. El resultado de imagen y audio necesita prueba física. Los módulos nativos HDMI/Audio continúan retirados.

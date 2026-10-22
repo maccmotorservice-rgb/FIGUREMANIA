@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="8.6.5"'))
+      if (!html.includes('name="alma-build" content="8.6.6"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -120,7 +120,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /8\.6\.5/);
+  assert.match(await page.locator(".brand").innerText(), /8\.6\.6/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -1455,7 +1455,7 @@ test("Salvapantallas retira ambas superficies fuera de pantalla, conserva audio 
   const src=await page.locator("#youtube-frame").getAttribute("src");
   const pauses=await child.evaluate(()=>testYoutube.pause);
   await go("saver");
-  await child.waitForFunction(()=>document.getElementById("surface").style.left==="-10000px");
+  await child.waitForFunction(()=>document.getElementById("surface").style.left==="-10000px",null,{polling:50});
   assert.equal(await page.locator("#youtube-host").evaluate(n=>n.style.left),"-10000px");
   await page.clock.runFor(16000);
   assert.equal(await child.evaluate(()=>testYoutube.pause),pauses);
@@ -1477,4 +1477,93 @@ test("YouTube reutiliza la geometría ante estados repetidos sin lecturas de lay
     return count;
   });
   assert.equal(reads,0);assert.deepEqual(errors,[]);
+});
+
+async function nativeAudioFixture(mode="normal") {
+  await page.evaluate(mode=>{
+    window.audioCalls=[]; window.tvLevel=20; window.tvMuted=0;
+    for(const id of ["alma-audio-plugin","alma-keys-plugin"]) {const n=document.createElement("object");n.id=id;document.body.appendChild(n);}
+    const audio=document.getElementById("alma-audio-plugin"), common=document.getElementById("alma-keys-plugin");
+    audio.Open=(...args)=>{audioCalls.push(["OpenAudio",...args]);return mode==="open" ? 0 : 1;};
+    audio.Close=()=>{audioCalls.push(["CloseAudio"]);return 1;};
+    common.Open=()=>1; common.Close=()=>1;
+    common.Execute=(command,code)=>{audioCalls.push([command,code]);return mode==="register" && command==="RegisterKey" ? -1 : 1;};
+    audio.Execute=(command,value)=>{
+      audioCalls.push([command,value]);
+      if(command==="GetVolume") return mode==="read" ? -1 : tvLevel;
+      if(command==="GetUserMute") return tvMuted;
+      if(command==="SetUserMute") {tvMuted=value;return 1;}
+      if(command==="SetVolumeWithKey") {if(mode==="write") return -1; tvLevel=Math.max(0,Math.min(100,tvLevel+(value===0 ? 1 : -1)));return 1;}
+      return -1;
+    };
+    Alma.go("settings");document.getElementById("tv-volume").click();
+  },mode);
+}
+
+test("Volumen físico utiliza Audio nativo, cambia un paso real por tecla y Silencio sin salir (API Samsung simulada)", async () => {
+  await nativeAudioFixture();
+  assert.equal(await page.evaluate(()=>AlmaTVAudio.active()),true);
+  assert.deepEqual((await page.evaluate(()=>audioCalls)).filter(c=>c[0]==="RegisterKey").map(c=>c[1]),[7,11,27]);
+  assert.equal(await key(7),true);
+  assert.equal(await page.evaluate(()=>tvLevel),21);
+  assert.match(await page.locator("#toast").innerText(),/Volumen de la TV: 21/);
+  await key(11); assert.equal(await page.evaluate(()=>tvLevel),20);
+  await key(27); assert.equal(await page.evaluate(()=>tvMuted),1);
+  await key(27); assert.equal(await page.evaluate(()=>tvMuted),0);
+  assert.ok(!(await page.evaluate(()=>platformCalls)).includes("exit"));
+  assert.deepEqual((await page.evaluate(()=>audioCalls)).filter(c=>c[0]==="SetVolumeWithKey").map(c=>c[1]),[0,1]);
+  await page.evaluate(()=>AlmaTVAudio.close());
+  assert.deepEqual((await page.evaluate(()=>audioCalls)).filter(c=>c[0]==="UnregisterKey").map(c=>c[1]),[7,11,27]);
+  assert.deepEqual(errors,[]);
+});
+for(const mode of ["open","read","register","write"]) {
+  test("Audio nativo rechaza fallo "+mode+" y devuelve las teclas al sistema (API simulada)",async()=>{
+    await nativeAudioFixture(mode);
+    if(mode==="write") await key(7);
+    assert.equal(await page.evaluate(()=>AlmaTVAudio.active()),false);
+    assert.equal(await page.evaluate(()=>tvLevel),20);
+    assert.equal(await key(7),false);
+    assert.ok(!(await page.evaluate(()=>platformCalls)).includes("exit"));
+    assert.deepEqual(errors,[]);
+  });
+}
+
+
+
+test("Arranque, foco y teclas previas a activación no instancian ni abren Audio nativo",async()=>{
+  await page.addInitScript(()=>{
+    window.nativeOpens=0;
+    HTMLObjectElement.prototype.Open=function(){nativeOpens++;throw new Error("No disponible");};
+    HTMLObjectElement.prototype.Execute=function(){return -1;};
+    HTMLObjectElement.prototype.Close=function(){return 1;};
+  });
+  await page.reload();await page.evaluate(()=>window.dispatchEvent(new Event("focus")));
+  await key(7);await key(11);await key(27);
+  assert.equal(await page.evaluate(()=>nativeOpens),0);
+  assert.equal(await page.locator("#alma-audio-plugin").count(),0);
+  assert.equal(await page.locator("#alma-keys-plugin").count(),0);
+  await go("settings");await click("tv-volume");
+  assert.equal(await page.evaluate(()=>nativeOpens),1);
+  assert.equal(await page.evaluate(()=>AlmaTVAudio.active()),false);
+  assert.ok(await page.locator("#tv-volume").isVisible());
+  assert.deepEqual(errors,[]);
+});
+
+test("Salvapantallas desmonta el dibujo de ambos iframes sin destruir sesión ni pausar audio (API simulada)",async()=>{
+  await officialYouTubeFixture();await savedYouTube();await click("youtube-play");
+  await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
+  const child=page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
+  const identity=await page.locator("#youtube-frame").getAttribute("src");
+  const pauses=await child.evaluate(()=>testYoutube.pause);
+  await go("saver");
+  await child.waitForFunction(()=>document.getElementById("surface").style.display==="none",null,{polling:50});
+  assert.equal(await page.locator("#youtube-host").evaluate(n=>getComputedStyle(n).display),"none");
+  assert.equal(await child.locator("#surface iframe").evaluate(n=>getComputedStyle(n).display),"none");
+  await page.clock.runFor(16000);
+  assert.equal(await child.evaluate(()=>testYoutube.pause),pauses);
+  assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);
+  await key(88);
+  await child.waitForFunction(()=>document.getElementById("surface").style.display==="block",null,{polling:50});
+  assert.equal(await page.locator("#youtube-frame").getAttribute("src"),identity);
+  assert.deepEqual(errors,[]);
 });

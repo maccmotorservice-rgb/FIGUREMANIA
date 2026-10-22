@@ -157,6 +157,9 @@
       if (typeof data.visible !== "boolean") return;
       var surface = document.getElementById("surface");
       // Move the native video surface outside the viewport; keep its session and audio.
+      surface.style.display = !data.visible && data.remove !== false ? "none" : "block";
+      var embedded = surface.querySelector("iframe");
+      if (embedded) embedded.style.display = !data.visible && data.remove !== false ? "none" : "block";
       surface.style.position = data.visible ? "relative" : "absolute";
       surface.style.left = data.visible ? "0px" : "-10000px";
       surface.style.top = data.visible ? "0px" : "-10000px";

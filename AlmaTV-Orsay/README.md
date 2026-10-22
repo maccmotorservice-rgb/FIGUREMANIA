@@ -314,3 +314,17 @@ La posición de YouTube se reutiliza mientras vista, desplazamiento, pantalla
 y calibración no cambien, evitando lecturas de layout ante estados repetidos.
 La prueba de 50 estados mide cero lecturas nuevas del área del vídeo. Esto
 no mide el rendimiento total del hardware ni garantiza eliminar su lentitud.
+
+### 8.6.6: ocultar el dibujo y activar volumen nativo desde Ajustes
+
+La prueba física de 8.6.5 siguió mostrando YouTube en salvapantallas. Se usa
+`display:none` tanto en el contenedor exterior como en la superficie y el iframe
+interiores, manteniendo los nodos y URL sin ordenar pausa. La continuidad de audio
+y la desaparición del plano nativo aún requieren prueba en el UN50J5200.
+Ajustes incluye «Volumen del control remoto» para activar Audio/AppCommon de
+Samsung TOAST. No se instancia ni abre ningún SEF durante el arranque, al recuperar
+foco ni al pulsar volumen antes de activar. Tras activación se registran Vol+/Vol−/Mute
+y cada pulsación usa SetVolumeWithKey o SetUserMute con lectura del nivel real.
+La activación no se guarda: se realiza una vez por apertura de la app para evitar
+repetir automáticamente una llamada nativa incompatible. Si falla se liberan las
+teclas y se muestra rechazo, sin afirmar que se cambió el volumen. No añade HDMI.
