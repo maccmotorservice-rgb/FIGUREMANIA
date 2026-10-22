@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="9.1.1"'))
+      if (!html.includes('name="alma-build" content="9.1.2"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -122,7 +122,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /9\.1\.1/);
+  assert.match(await page.locator(".brand").innerText(), /9\.1\.2/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -955,7 +955,7 @@ async function officialYouTubeFixture(code = 0, behavior = "normal") {
     window.YT={Player:function(id,options){
       var iframe=document.createElement('iframe');iframe.src='https://www.youtube.com/embed/'+options.videoId;
       var node=document.getElementById(id);node.parentNode.replaceChild(iframe,node);
-      var state=-1,time=20;window.testYoutube={play:0,pause:0,seek:0,load:0,size:null,sizeCount:0,options:options};
+      var state=-1,time=20;window.testYoutube={play:0,pause:0,seek:0,load:0,size:null,sizeCount:0,options:options,volume:100,muted:false};
       this.getPlayerState=function(){return state;}; this.getCurrentTime=function(){return time;};
       this.setVolume=function(v){if(state!==1)testYoutube.earlyAudio=true;testYoutube.volume=v;};this.getVolume=function(){return testYoutube.volume;};this.mute=function(){testYoutube.muted=true;};this.unMute=function(){if(state!==1)testYoutube.earlyAudio=true;testYoutube.muted=false;};this.isMuted=function(){return testYoutube.muted;};
       this.getVideoData=function(){return {title:'Vídeo de prueba · API simulada'};};
@@ -1627,14 +1627,44 @@ test("En tiempo real informa bloqueo de autoplay sin anunciar reproducción ni r
 });
 
  test("El volumen de Alma TV regula YouTube sin módulo Samsung y se guarda entre aperturas (API simulada)",async()=>{
- await officialYouTubeFixture();await savedYouTube();await click("youtube-play");const frame=page.frame({url:/youtube\/player/});await frame.waitForFunction(()=>testYoutube.volume===70);
+ await officialYouTubeFixture();await savedYouTube();await click("youtube-play");const frame=page.frame({url:/youtube\/player/});await frame.waitForFunction(()=>testYoutube.volume===100);
  await page.evaluate(()=>Alma.hubControl("pause"));await page.waitForFunction(()=>AlmaYouTube.snapshot().state===2);await page.evaluate(()=>Alma.hubControl("volume-down"));await page.evaluate(()=>Alma.hubControl("play"));await frame.waitForFunction(()=>testYoutube.volume===60);
  await page.evaluate(()=>Alma.hubControl("mute"));await frame.waitForFunction(()=>testYoutube.muted===true);
  assert.equal(await page.evaluate(()=>AlmaTVAudio.active()),false);
- await page.reload();await go("media");await click("youtube-item-0");await page.waitForFunction(()=>AlmaYouTube.snapshot().ready);await click("youtube-play");const reopened=page.frame({url:/youtube\/player/});await reopened.waitForFunction(()=>testYoutube.volume===60&&testYoutube.muted===true);
+ await page.reload();await go("media");await click("youtube-item-0");await page.waitForFunction(()=>AlmaYouTube.snapshot().ready);await click("youtube-play");const reopened=page.frame({url:/youtube\/player/});assert.deepEqual(await page.evaluate(()=>{var p=JSON.parse(localStorage.getItem("alma.orsay.v7"));return [p.appVolume,p.appMuted];}),[60,true]);
  await page.evaluate(()=>Alma.hubControl("volume-up"));await reopened.waitForFunction(()=>testYoutube.volume===70&&testYoutube.muted===false);
  });
 
  test("Reproducir ahora mantiene arranque 8.7: play antes de volumen o unMute y autoplay nativo desactivado (API simulada)",async()=>{
- await officialYouTubeFixture();await page.evaluate(()=>Alma.hubPlay({kind:"youtube",video:"M7lc1UVf-VE",provider:"youtube",name:"Recuperación",mode:"video"}));await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);const child=page.frame({url:/youtube\/player/});assert.equal(await child.evaluate(()=>testYoutube.options.playerVars.autoplay),0);assert.equal(await child.evaluate(()=>!!testYoutube.earlyAudio),false);assert.equal(await child.evaluate(()=>testYoutube.play),1);await child.waitForFunction(()=>testYoutube.volume===70);
+ await officialYouTubeFixture();await page.evaluate(()=>Alma.hubPlay({kind:"youtube",video:"M7lc1UVf-VE",provider:"youtube",name:"Recuperación",mode:"video"}));await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);const child=page.frame({url:/youtube\/player/});assert.equal(await child.evaluate(()=>testYoutube.options.playerVars.autoplay),0);assert.equal(await child.evaluate(()=>!!testYoutube.earlyAudio),false);assert.equal(await child.evaluate(()=>testYoutube.play),1);assert.equal(await child.evaluate(()=>testYoutube.volume),100);
+ });
+
+ test("Tres enlaces seguidos y repetir el mismo reutilizan una sola sesión de YouTube (API simulada)",async()=>{
+ await officialYouTubeFixture(0,"explicit");let identity;
+ for(const [index,id] of ["M7lc1UVf-VE","dQw4w9WgXcQ","dQw4w9WgXcQ"].entries()){
+ await page.evaluate(id=>Alma.hubPlay({kind:"youtube",video:id,provider:"youtube",name:id,mode:"video"}),id);await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);const frame=page.frame({url:/youtube\/player/});await frame.waitForFunction(count=>testYoutube.load===count,index+1);assert.equal(await frame.evaluate(()=>testYoutube.loadedId),id);
+ if(index===0){identity=await page.locator("#youtube-frame").getAttribute("src");await page.locator("#youtube-frame").evaluate(n=>n.dataset.almaSession="same");}
+ else {assert.equal(await page.locator("#youtube-frame").getAttribute("src"),identity);assert.equal(await page.locator("#youtube-frame").getAttribute("data-alma-session"),"same");}
+ assert.equal(await page.locator("#youtube-frame").count(),1);
+ }
+ assert.deepEqual(errors,[]);
+ });
+
+test("En tiempo real anterior acepta tres órdenes consecutivas sin reconstruir YouTube (API simulada)",async()=>{
+ await officialYouTubeFixture(0,"explicit");let command=null,status="idle",source;
+ await page.route("http://192.168.1.30:8088/youtube/live",r=>r.fulfill({contentType:"application/json",headers:{"Access-Control-Allow-Origin":"*"},body:JSON.stringify({command,status})}));
+ await page.route("http://192.168.1.30:8088/youtube/live/ack",r=>{if(r.request().method()==="POST")status=r.request().postDataJSON().status;return r.fulfill({headers:{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type","Access-Control-Allow-Methods":"POST"},body:"{}"});});
+ for(const [i,id] of ["M7lc1UVf-VE","dQw4w9WgXcQ","M7lc1UVf-VE"].entries()){
+ command={id:String(i+1).repeat(32),video:id,provider:"youtube",mode:"video",name:id};status="waiting";
+ for(let wait=0;wait<8;wait++){await page.clock.runFor(1000);await page.waitForTimeout(75);if(status==="playing")break;}
+ assert.equal(status,"playing");const child=page.frame({url:/youtube\/player/});assert.equal(await child.evaluate(()=>testYoutube.load),i+1);assert.equal(await child.evaluate(()=>testYoutube.loadedId),id);
+ if(i===0)source=await page.locator("#youtube-frame").getAttribute("src");else assert.equal(await page.locator("#youtube-frame").getAttribute("src"),source);
+ }
+ assert.deepEqual(errors,[]);
+});
+
+ test("Enlace manual reutilizado pausa el anterior y espera Reproducir (API simulada)",async()=>{
+ await officialYouTubeFixture(0,"explicit");await page.evaluate(()=>Alma.hubPlay({kind:"youtube",video:"M7lc1UVf-VE",provider:"youtube",name:"Primero",mode:"video"}));await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);const frame=page.frame({url:/youtube\/player/});
+ await page.evaluate(()=>AlmaYouTube.open(document.getElementById("youtube-host"),"192.168.1.30","dQw4w9WgXcQ",function(){},"youtube",false));await frame.waitForFunction(()=>testYoutube.pause===1);assert.equal(await frame.evaluate(()=>testYoutube.load),1);
+ await page.evaluate(()=>AlmaYouTube.send("play"));await frame.waitForFunction(()=>testYoutube.load===2);assert.equal(await frame.evaluate(()=>testYoutube.loadedId),"dQw4w9WgXcQ");
  });

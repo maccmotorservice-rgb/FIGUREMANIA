@@ -136,7 +136,6 @@ class Hub:
     def snapshot(self,target,role):
         with self.lock:
             self.schedules();channel=self.channel(target)
-            if role=='owner':self.remote_until[target]=self.clock()+5
             result={'target':target,'channels':[{'id':key,'name':value['name'],'online':self.clock()-value['seen']<10} for key,value in self.data['channels'].items()], 'queue':channel['queue'],'repeat':channel.get('repeat',False),'playlists':self.data['playlists'],'current':channel['current'],'telemetry':channel['telemetry'],'sources':[{k:v for k,v in source.items() if k not in ('url','filename')} for source in self.data['sources']]+[{'id':ident,'name':file.stem,'kind':kind,'local':True,'favorite':ident in self.data['favorites']} for ident,(file,kind) in self.mac_files.items()], 'scenes':self.data['scenes'],'role':role,'jobs':self.jobs}
             if role=='owner':result.update(pin=self.pin,guest_pin=self.guest_pin,schedules=self.data['schedules'],ffmpeg=bool(shutil.which('ffmpeg')))
             return result

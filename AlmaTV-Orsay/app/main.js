@@ -1255,7 +1255,8 @@ var Alma = (function () {
     if (typeof audioOnly === "undefined") livePending = null;
     youtubeSelection = item;
     youtubeSelection.remoteAutoplay=autoplay===true;
-    closeYoutube();
+    if(AlmaYouTube.reusable(prefs.macIp,item.provider)){youtubeLoaded="";hubAutoplay=false;}
+    else closeYoutube();
     AlmaPlayer.pause();
     go("youtube");
   }
@@ -1452,7 +1453,7 @@ var Alma = (function () {
     var h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor · Alma TV 9.1.1",
+        "Tu reproductor · Alma TV 9.1.2",
         "Archivos propios, enlaces directos y YouTube integrado experimental mediante el puente de la Mac."
       ) +
       '<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +
@@ -2595,7 +2596,7 @@ var Alma = (function () {
     AlmaYouTube.init();
     document.addEventListener("visibilitychange", youtubeHidden, false);
     AlmaPlayer.init(el("media-audio"), el("media-video"), updatePlayer);
-    AlmaPlayer.setLevel(prefs.appVolume/100,prefs.appMuted); AlmaYouTube.level(prefs.appVolume,prefs.appMuted);
+    AlmaPlayer.setLevel(prefs.appVolume/100,prefs.appMuted); AlmaYouTube.level(prefs.appVolume,prefs.appMuted,true);
     AlmaPlayer.setTracks(mediaTracks());
     document.onkeydown = function (e) {
       e = e || window.event;

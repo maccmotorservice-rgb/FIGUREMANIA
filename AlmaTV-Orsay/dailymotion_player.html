@@ -13,7 +13,7 @@
 <script>
 (function () {
   "use strict";
-  var config = __ALMA_YT_CONFIG__, player = null, ready = false, watchdog = null, initialTime = null, layoutWidth = 0, layoutHeight = 0, fittedWidth = 0, fittedHeight = 0, seekTimer = null, seekTarget = null;
+  var config = __ALMA_YT_CONFIG__, player = null, ready = false, watchdog = null, initialTime = null, layoutWidth = 0, layoutHeight = 0, fittedWidth = 0, fittedHeight = 0, seekTimer = null, seekTarget = null, loadRequested=false;
   function details() {
     var state = null, seconds = null, muted = null, volume = null;
     try { if (ready && player && typeof player.getPlayerState === "function") state = player.getPlayerState(); } catch (e) {}
@@ -40,7 +40,7 @@
     }
     document.getElementById("status").textContent = status;
     if (config.standalone) fit();
-    if (window.parent !== window) window.parent.postMessage(JSON.stringify({ channel: "alma-youtube", token: config.token, type: type, status: status, state: state, title: title }), config.parent === "null" ? "*" : config.parent);
+    if (window.parent !== window) window.parent.postMessage(JSON.stringify({ channel: "alma-youtube", token: config.token, type: type, status: status, state: state, title: title,video:config.video }), config.parent === "null" ? "*" : config.parent);
   }
   function fit() {
     var width = layoutWidth || document.documentElement.clientWidth || window.innerWidth;
@@ -79,7 +79,7 @@
     }, 12000);
     try {
       var state = details().state;
-      if (state === -1 && typeof player.loadVideoById === "function") player.loadVideoById(config.video);
+      if ((loadRequested || state === -1) && typeof player.loadVideoById === "function") { if(loadRequested)initialTime=0;loadRequested=false;player.loadVideoById(config.video); }
       else player.playVideo();
     } catch (e) { clearTimeout(watchdog); tell("error", "DM-ORDEN: el navegador no pudo iniciar el v\u00eddeo.", -1); report("error", "DM-ORDEN: el navegador no pudo iniciar el v\u00eddeo."); }
   }
@@ -152,6 +152,10 @@
       layoutWidth = data.width; layoutHeight = data.height; fit();
       return;
     }
+    if(data.command==="load"){
+      if(!ready || typeof data.video!=="string" || !/^[A-Za-z0-9]{5,12}$/.test(data.video))return;
+      config.video=data.video;loadRequested=true;command("play");return;
+    }
     command(data.command, data.seconds);
   }, false);
   if (config.standalone) {
@@ -169,7 +173,7 @@
     if(!ready||window.parent===window)return;
     var data=details(),duration=0;
     try{duration=Number(player.getDuration())||0;}catch(ignore){}
-    window.parent.postMessage(JSON.stringify({channel:"alma-youtube",token:config.token,type:"progress",state:data.state,seconds:data.seconds,duration:duration,volume:data.volume,muted:data.muted}),config.parent==="null"?"*":config.parent);
+    window.parent.postMessage(JSON.stringify({channel:"alma-youtube",token:config.token,type:"progress",video:config.video,state:data.state,seconds:data.seconds,duration:duration,volume:data.volume,muted:data.muted}),config.parent==="null"?"*":config.parent);
   },2000);
     var dmStarted = false, dmState = -1, dmTime = 0;
     function initDM() {

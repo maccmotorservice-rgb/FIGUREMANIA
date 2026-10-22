@@ -1,10 +1,11 @@
 /* Integración oficial de YouTube. ES5; no extrae ni descarga vídeos. */
 var AlmaYouTube = (function () {
   "use strict";
-  var frame = null, host = null, base = "", token = "", timer = null, lastWidth = 0, lastHeight = 0, presented = null, audioApplied = false;
+  var frame = null, host = null, base = "", token = "", timer = null, lastWidth = 0, lastHeight = 0, presented = null, audioApplied = true, activeProvider="", selectedVideo="", pendingVideo="";
   var chosenLevel=70, chosenMuted=false;
-  function level(amount, muted) {
+  function level(amount, muted, passive) {
     chosenLevel=Math.max(0,Math.min(100,Number(amount)||0));chosenMuted=muted===true;
+    if(passive===true)return;
     if(frame && frame.contentWindow && value.ready && value.state===1) frame.contentWindow.postMessage(JSON.stringify({channel:"alma-youtube",token:token,command:"volume",level:chosenLevel,muted:chosenMuted}),base);
     else audioApplied=false;
   }
@@ -39,9 +40,11 @@ var AlmaYouTube = (function () {
     presented = presentationKey;
     frame.contentWindow.postMessage(JSON.stringify({ channel: "alma-youtube", token: token, command: "presentation", visible: visible, remove: remove }), base);
   }
+  function reusable(mac,provider){return !!frame && value.ready && !value.failed && base==="http://"+mac+":8088" && activeProvider===(provider==="dailymotion"?"dailymotion":"youtube");}
   function send(command, seconds) {
     if (!frame || !frame.contentWindow) return;
-    frame.contentWindow.postMessage(JSON.stringify({ channel: "alma-youtube", token: token, command: command, seconds: [5, 10, 30].indexOf(seconds) !== -1 ? seconds : 10 }), base);
+    var video="";if(command==="play" && pendingVideo){command="load";video=pendingVideo;pendingVideo="";}
+    frame.contentWindow.postMessage(JSON.stringify({ channel: "alma-youtube", token: token, command: command, video:video, seconds: [5, 10, 30].indexOf(seconds) !== -1 ? seconds : 10 }), base);
   }
   function resize(width, height) {
     if (!frame || !frame.contentWindow) return;
@@ -57,6 +60,7 @@ var AlmaYouTube = (function () {
     if (!frame || event.source !== frame.contentWindow || event.origin !== base) return;
     var data;
     try { data = typeof event.data === "string" ? JSON.parse(event.data) : event.data; } catch (e) { return; }
+    if(data && typeof data.video==="string" && data.video!==selectedVideo)return;
     if (!data || data.channel !== "alma-youtube" || data.token !== token) return;
     if (data.type === "ready") { lastWidth = 0; lastHeight = 0; presented = null; value.ready = true; clearTimeout(timer); }
     if (data.type === "error") { value.failed = true; value.ready = false; clearTimeout(timer); }
@@ -74,14 +78,20 @@ var AlmaYouTube = (function () {
   function close() {
     clearTimeout(timer);
     if (frame) { send("pause"); frame.src = "about:blank"; host.innerHTML = ""; }
-    frame = null; audioApplied=false; lastWidth = 0; lastHeight = 0; presented = null;
+    frame = null; activeProvider="";selectedVideo="";pendingVideo="";audioApplied=true; lastWidth = 0; lastHeight = 0; presented = null;
     if (host) host.style.display = "none";
     value = { status: "Sin vídeo", ready: false, state: -1, title: "", failed: false };
   }
   function open(node, mac, id, callback, provider, autoplay) {
     provider = provider === "dailymotion" ? "dailymotion" : "youtube";
-    close();
     if (!(provider === "dailymotion" ? /^[A-Za-z0-9]{5,12}$/ : /^[A-Za-z0-9_-]{11}$/).test(id)) return;
+    if(reusable(mac,provider)){
+      if(autoplay!==true)send("pause");
+      changed=callback;selectedVideo=id;pendingVideo=id;
+      value={status:"Vídeo preparado. Pulsa Reproducir.",ready:true,state:-1,title:"",failed:false,seconds:0,duration:0};
+      changed();return;
+    }
+    close();activeProvider=provider;selectedVideo=id;
     host = node; base = "http://" + mac + ":8088"; changed = callback;
     token = "";
     for (var i = 0; i < 32; i++) token += Math.floor(Math.random() * 16).toString(16);
@@ -104,5 +114,5 @@ var AlmaYouTube = (function () {
   }
   function init() { window.addEventListener("message", receive, false); }
   function destroy() { close(); window.removeEventListener("message", receive, false); }
-  return { level: level, init: init, destroy: destroy, parseUrl: parseUrl, parseLink: parseLink, open: open, close: close, send: send, present: present, resize: resize, snapshot: snapshot };
+  return { reusable:reusable, level: level, init: init, destroy: destroy, parseUrl: parseUrl, parseLink: parseLink, open: open, close: close, send: send, present: present, resize: resize, snapshot: snapshot };
 })();

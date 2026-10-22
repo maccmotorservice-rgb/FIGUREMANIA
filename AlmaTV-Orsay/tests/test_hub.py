@@ -34,7 +34,7 @@ class HubTests(unittest.TestCase):
         self.assertEqual(command['view'],'apps');self.assertEqual(self.hub.tv(self.target)['poll_ms'],250)
         self.hub.tv(self.target,{'ack':command['id'],'telemetry':{'view':'apps','focus':'Netflix','focus_id':'app-netflix'}})
         self.assertEqual(self.hub.snapshot(self.target,'owner')['telemetry']['focus'],'Netflix')
-        self.now[0]+=6;self.assertEqual(self.hub.tv(self.target)['poll_ms'],2000)
+        self.now[0]+=6;self.hub.snapshot(self.target,'owner');self.assertEqual(self.hub.tv(self.target)['poll_ms'],2000)
         with self.assertRaises(PermissionError):self.hub.mutate({'action':'control','command':'ok'},'guest',self.target)
     def test_pin_roles_rate_limit_revoke_and_persistence(self):
         token,session=self.hub.pair(self.hub.pin,'phone');self.assertEqual(session['role'],'owner')
