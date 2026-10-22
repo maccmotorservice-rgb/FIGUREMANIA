@@ -131,7 +131,7 @@ class Hub:
                         repeated=dict(channel['current'],play_id=secrets.token_hex(16));channel['queue'].append(repeated)
                     self.advance(target)
                 telemetry=event.get('telemetry')
-                if isinstance(telemetry,dict):channel['telemetry']={k:v for k,v in telemetry.items() if k in ('title','state','seconds','duration','kind','error','volume','muted','observed_volume','observed_muted','view','focus','focus_id') and isinstance(v,(str,int,float,bool)) and len(str(v))<=300}
+                if isinstance(telemetry,dict):channel['telemetry']={k:v for k,v in telemetry.items() if k in ('title','state','seconds','duration','kind','error','volume','muted','observed_volume','observed_muted','engine','view','focus','focus_id') and isinstance(v,(str,int,float,bool)) and len(str(v))<=300}
             return {'commands':[dict(command) for command in self.commands if command['target']==target and command['expires']>self.clock()], 'pin':self.pin,'guest_pin':self.guest_pin,'poll_ms':250 if self.remote_until.get(target,0)>self.clock() else 2000}
     def snapshot(self,target,role):
         with self.lock:

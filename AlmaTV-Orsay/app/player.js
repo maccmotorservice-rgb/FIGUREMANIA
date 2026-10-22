@@ -11,7 +11,7 @@ var AlmaPlayer = (function () {
     notify = function () {},
     listeners = [], seekTimer = null, seekTarget = null;
   var activeUrl = "", positions = [], lastHistoryWrite = 0, pendingResume = null, stopped = false;
-  var chosenLevel = 0.7, chosenMuted = false;
+  var chosenLevel = 0.7, chosenMuted = false, nativeMode=false, liveDeadline=null;
   var historyKey = "alma.media.positions.v1";
   function identity(url) {
     var match = String(url || "").match(/\/(?:media|hub)\/file\/([a-f0-9]{16,24})(?:[?#]|$)/i);
@@ -68,13 +68,14 @@ var AlmaPlayer = (function () {
       }
       on("playing", function () {
         if (node === active) {
+          clearTimeout(liveDeadline);
           status = "Reproduciendo";
           error = "";
           change();
         }
       });
       on("pause", function () {
-        if (node === active && status !== "Detenido") {
+        if (node === active && status !== "Detenido" && status !== "No disponible") {
           status = "En pausa";
           savePosition(true);
           change();
@@ -111,11 +112,14 @@ var AlmaPlayer = (function () {
     });
   }
   function setTracks(list) {
+    if(nativeMode){nativeMode=false;AlmaNativeLive.stop();}
+    clearTimeout(liveDeadline);
     tracks = list.slice(0, 31);
     if (index >= tracks.length) stop();
     change();
   }
   function snapshot() {
+    if(nativeMode){var n=AlmaNativeLive.snapshot();return {tracks:tracks.slice(),index:index,title:tracks[index]?tracks[index].name:"TV en vivo",kind:"video",live:true,native:true,status:n.status,error:n.error,playing:n.playing,time:n.time,duration:0,volume:chosenLevel,muted:chosenMuted};}
     return {
       tracks: tracks.slice(),
       live: index>=0&&tracks[index]&&tracks[index].live===true,
@@ -135,7 +139,7 @@ var AlmaPlayer = (function () {
   }
   function cancelSeek() { clearTimeout(seekTimer); seekTarget = null; }
   function play(number) {
-    cancelSeek();
+    clearTimeout(liveDeadline);cancelSeek();
     if (!tracks.length) {
       status = "Lista vacía";
       change();
@@ -143,6 +147,14 @@ var AlmaPlayer = (function () {
     }
     if (typeof number !== "number") number = index >= 0 ? index : 0;
     number = Math.max(0, Math.min(tracks.length - 1, number));
+    if(tracks[number].live&&/\.m3u8(?:[?#]|$)/i.test(tracks[number].url)){
+      savePosition(true);if(active){active.pause();active.removeAttribute("src");active.load();}active=null;index=number;activeUrl=tracks[number].url;pendingResume=null;nativeMode=true;
+      var opened=AlmaNativeLive.start(activeUrl,change);
+      if(opened||!video||!video.canPlayType||( !video.canPlayType("application/vnd.apple.mpegurl")&&!video.canPlayType("application/x-mpegURL")))return;
+      // Use HTML5 only when this firmware explicitly declares HLS support.
+      nativeMode=false;AlmaNativeLive.stop();index=-1;activeUrl="";
+    }
+    if(nativeMode){nativeMode=false;AlmaNativeLive.stop();}
     var next = tracks[number].kind === "video" ? video : audio;
     if (
       !next ||
@@ -173,6 +185,7 @@ var AlmaPlayer = (function () {
     }
     status = "Cargando…";
     error = "";
+    if(tracks[index].live){var loadingUrl=activeUrl;liveDeadline=setTimeout(function(){if(activeUrl!==loadingUrl||status!=="Cargando…")return;status="No disponible";error="La señal HLS no respondió en 20 segundos. Este firmware puede no admitir su formato o TLS; prueba otro canal.";if(active)active.pause();change();},20000);}
     change();
     try {
       var promise = active.play();
@@ -196,15 +209,20 @@ var AlmaPlayer = (function () {
     }
   }
   function toggle() {
+    if(nativeMode){if(AlmaNativeLive.snapshot().playing)pause();else play(index);return;}
     if (active && !active.paused) {
       active.pause();
     } else play();
   }
   function pause() {
+    clearTimeout(liveDeadline);
+    if(nativeMode){AlmaNativeLive.stop(true);return;}
     savePosition(true);
     if (active) active.pause();
   }
   function stop() {
+    clearTimeout(liveDeadline);
+    if(nativeMode){AlmaNativeLive.stop(false);return;}
     savePosition(true);
     stopped = true;
     cancelSeek();
@@ -219,6 +237,7 @@ var AlmaPlayer = (function () {
     change();
   }
   function restart() {
+    if(nativeMode){play(index);return;}
     if (!active || index < 0 || !tracks[index]) return;
     var key = identity(activeUrl);
     positions = positions.filter(function (entry) { return entry.url !== key; }); writePositions();
@@ -248,12 +267,14 @@ var AlmaPlayer = (function () {
   function setLevel(level, muted, passive) {
     chosenLevel = Math.max(0, Math.min(1, Number(level) || 0)); chosenMuted = muted === true;
     if(passive===true)return;
+    if(nativeMode){notify();return;}
     try { if (active) { active.volume = chosenLevel; active.muted = chosenMuted; } }
     catch (e) { error = "Este reproductor no permite regular su audio desde la app."; }
     change();
   }
   function volume(delta) { setLevel(chosenLevel + delta, false); }
   function destroy() {
+    clearTimeout(liveDeadline);AlmaNativeLive.destroy();
     savePosition(true);
     cancelSeek();
     if (active) active.pause();

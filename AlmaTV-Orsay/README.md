@@ -1,14 +1,24 @@
-# Alma TV 10.1.0 · Samsung Orsay
+# Alma TV 10.1.1 · Samsung Orsay
 
-Aplicación ES5 para Samsung UN50J5200, con puente local en una Mac. El proyecto anterior FIGUREMANIA se conserva. Identificador estable `AlmaTV86`; versión interna **10.1.0**.
+Aplicación ES5 para Samsung UN50J5200, con puente local en una Mac. El proyecto anterior FIGUREMANIA se conserva. Identificador estable `AlmaTV86`; versión interna **10.1.1**.
 
-## TV en vivo 10.1.0 · catálogo piloto
+## Corrección de carga 10.1.1
+
+Al seleccionar HLS, se usa el Player nativo de Samsung Orsay: SEF `Window` → fuente multimedia 43, SEF `Player`, `InitPlayer(url|COMPONENT=HLS|)`, `StartPlayback(0)`. La secuencia y los eventos corresponden al código oficial [mediaProxy.js](https://github.com/Samsung/cordova-plugin-toast/blob/89236a6c26cf497046941a309fb5e549faa84821/src/sectv-orsay/mediaProxy.js), [MediaPluginHLS.js](https://github.com/Samsung/cordova-plugin-toast/blob/89236a6c26cf497046941a309fb5e549faa84821/src/sectv-orsay/MediaPluginHLS.js) y [SEF.js](https://github.com/Samsung/cordova-sectv-orsay/blob/a893ea389f99adecd6df2062e6156cd7286c0ad3/cordova-js-src/plugin/SEF.js). La integración es propia y no incluye Cordova.
+
+Los objetos se crean únicamente al elegir una señal HLS. No se instancian al arrancar Alma TV, con YouTube ni con los archivos propios. Se detienen y cierran al cambiar de reproducción o salir, y se restaura la entrada anterior. La imagen nativa utiliza una zona transparente de la interfaz y conserva su proporción. El salvapantallas cubre la imagen sin detener su audio.
+
+La espera de inicio/buffering tiene límite de 20 segundos. Los eventos nativos de conexión, señal inexistente y error de decodificación se muestran en pantalla en vez de dejar «Cargando» indefinidamente. Si no existe Player nativo, solo se intenta HTML5 cuando el firmware declara soporte HLS; ese intento también tiene límite de espera. El volumen de estas señales se ajusta con el control Samsung: el panel desactiva sus controles de volumen para este motor, sin fingir un volumen independiente.
+
+Pruebas de protocolo con API Samsung simulada: apertura diferida, fuente 43, preparación HLS, evento RenderingStart del protocolo, ubicación/pantalla completa, cobertura en salvapantallas, errores, límite de espera, cierre y regreso a archivos MP4. **No prueban la decodificación en el televisor físico ni la disponibilidad de los cuatro canales.**
+
+## TV en vivo · catálogo piloto
 
 TV en vivo aparece en Inicio, en la barra lateral y en el control web. El widget incluye cuatro candidatos de emisoras públicas mexicanas: Capital 21, Canal Once, Canal 10 Chiapas y Canal 22. Cada uno conserva su web institucional y URL de señal en [tv_channels.json](tv_channels.json). Las referencias se contrastaron con los registros públicos de [iptv-org/iptv](https://github.com/iptv-org/iptv/blob/master/streams/mx.m3u) e [iptv-org/database](https://github.com/iptv-org/database/blob/master/data/channels.csv) el 22 de octubre de 2026. No se incluyen listas de canales de pago.
 
 **Disponibilidad y decodificación HLS pendientes de verificar en la TV.** El entorno de desarrollo rechaza con 403 las conexiones a los servidores de las emisoras, por lo que el catálogo no constituye una lista de señales comprobadas. Se muestran como pruebas pendientes en TV, sin inventar programación ni disponibilidad. Horarios, región, certificados TLS y códecs del firmware pueden impedir una señal.
 
-El televisor abre el enlace directamente con su elemento de vídeo, con favoritos persistentes, vista de Multimedia, fondo de Inicio, reintento y pantalla completa. No se guardan posiciones ni se permite buscar dentro de una señal en vivo. Las pruebas de transporte usan MP4 de prueba en lugar de HLS: Chromium del entorno no reproduce HLS nativo. Estas pruebas comprueban navegación y conexión directa, no la decodificación de las señales públicas reales.
+El televisor abre el enlace directamente con su Player HLS nativo (o HTML5 si lo declara compatible), con favoritos persistentes, vista de Multimedia, fondo de Inicio, reintento y pantalla completa. No se guardan posiciones ni se permite buscar dentro de una señal en vivo. Las pruebas de transporte usan MP4 de prueba en lugar de HLS: El transporte MP4 de estas pruebas no demuestra compatibilidad HLS en el Samsung. Estas pruebas comprueban navegación y conexión directa, no la decodificación de las señales públicas reales.
 
 **Después de instalar, seleccionar canales con el control Samsung no requiere la Mac.** La TV necesita internet y soporte del formato. El panel del celular/laptop, YouTube integrado, archivos alojados en la Mac y clima por el puente conservan su dependencia de la Mac encendida. No se ha añadido una adaptación de canales que se active automáticamente.
 
@@ -46,11 +56,11 @@ Las animaciones y transiciones están desactivadas, también al cargar preferenc
 
 Vistas de prueba en navegador: [Inicio](docs/capturas/30-alma10-inicio.png), [fondo con MP4 real de prueba](docs/capturas/31-alma10-video-fondo-MP4-prueba.png), [control en celular](docs/capturas/32-alma10-control-celular.png) y [control en Mac](docs/capturas/33-alma10-control-mac.png). No son fotografías de la TV.
 
-Corrección 10.1.0: [Multimedia con MP4 real de prueba](docs/capturas/34-alma10-1-multimedia-MP4-prueba.png) y [botones visibles de Inicio](docs/capturas/35-alma10-1-controles-inicio.png). Se comprueba el desplazamiento con códigos del control Samsung, pantalla completa desde Inicio y continuidad de la misma sesión al pasar por Inicio, Aplicaciones, Ajustes y Multimedia. Las pruebas de YouTube emplean su API simulada.
+Corrección 10.1.1: [Multimedia con MP4 real de prueba](docs/capturas/34-alma10-1-multimedia-MP4-prueba.png) y [botones visibles de Inicio](docs/capturas/35-alma10-1-controles-inicio.png). Se comprueba el desplazamiento con códigos del control Samsung, pantalla completa desde Inicio y continuidad de la misma sesión al pasar por Inicio, Aplicaciones, Ajustes y Multimedia. Las pruebas de YouTube emplean su API simulada.
 
 ## Instalar y actualizar
 
-El paquete `instaladores/AlmaTV-10.1.0-instalador.zip` contiene el widget, los archivos del puente y `Instalar Alma TV.app`. Descomprime y abre el asistente en macOS: instala el puente al iniciar sesión y publica el instalador Wi-Fi durante diez minutos. Sincroniza aplicaciones en la TV usando la IP de la Mac. El asistente requiere Python 3.8 o posterior y todavía no tiene firma ni notarización de Apple; su ejecución física en macOS está pendiente de validación. Incluye recuperación del widget 8.7.0.
+El paquete `instaladores/AlmaTV-10.1.1-instalador.zip` contiene el widget, los archivos del puente y `Instalar Alma TV.app`. Descomprime y abre el asistente en macOS: instala el puente al iniciar sesión y publica el instalador Wi-Fi durante diez minutos. Sincroniza aplicaciones en la TV usando la IP de la Mac. El asistente requiere Python 3.8 o posterior y todavía no tiene firma ni notarización de Apple; su ejecución física en macOS está pendiente de validación. Incluye recuperación del widget 8.7.0.
 
 Alternativa en Terminal, dentro de la carpeta descomprimida:
 
@@ -85,7 +95,7 @@ Conversión opcional de videos subidos a MP4 H.264/AAC: requiere FFmpeg instalad
 
 ## Compatibilidad y pruebas
 
-El propietario confirmó anteriormente reproducción de YouTube por enlaces y de archivos propios en esta TV. **El propietario confirmó la reproducción de YouTube en 9.1.2; el tema y las capas de vídeo de 10.1.0 necesitan validación física**. Las pruebas automatizadas usan Chromium, puente HTTP real y archivos multimedia reales; las API de YouTube y Dailymotion se simulan. Una simulación no demuestra que Dailymotion decodifique en el firmware Samsung.
+El propietario confirmó anteriormente reproducción de YouTube por enlaces y de archivos propios en esta TV. **El propietario confirmó la reproducción de YouTube en 9.1.2; el tema y las capas de vídeo de 10.1.1 necesitan validación física**. Las pruebas automatizadas usan Chromium, puente HTTP real y archivos multimedia reales; las API de YouTube y Dailymotion se simulan. Una simulación no demuestra que Dailymotion decodifique en el firmware Samsung.
 
 No se añade Spotify: no hay un receptor Spotify Connect verificado para este Orsay. Tampoco se añade soporte DRM para Disney+, Prime Video o Max. Xbox conserva el acceso existente a HDMI 2; no se promete previsualización HDMI dentro del reproductor. El control de volumen del celular no depende del módulo opcional de volumen del control remoto.
 

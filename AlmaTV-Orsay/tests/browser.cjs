@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="10.1.0"'))
+      if (!html.includes('name="alma-build" content="10.1.1"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -122,7 +122,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /10\.1\.0/);
+  assert.match(await page.locator(".brand").innerText(), /10\.1\.1/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -1805,4 +1805,66 @@ test("El nivel solicitado no se convierte en 100 al recargar aunque YouTube repo
  assert.deepEqual(await page.evaluate(()=>{const s=Alma.hubStatus();return [s.volume,s.observed_volume];}),[20,100]);
  await page.reload();assert.equal(await page.evaluate(()=>Alma.hubStatus().volume),20);
  assert.deepEqual(errors,[]);
+});
+
+async function samsungLiveFixture(behavior='render'){
+ await page.evaluate(behavior=>{
+  window.liveCalls=[];window.liveSource=18;
+  HTMLObjectElement.prototype.Open=function(name,version,id){this.sdkName=name;liveCalls.push(['Open',name,version,id]);return 1;};
+  HTMLObjectElement.prototype.Close=function(){liveCalls.push(['Close',this.sdkName]);return 1;};
+  HTMLObjectElement.prototype.Execute=function(command,...args){
+   liveCalls.push([this.sdkName,command,...args]);
+   if(command==='GetSource')return liveSource;
+   if(command==='SetSource'){liveSource=args[0];return 1;}
+   if(command==='StartPlayback'&&behavior==='render')this.OnEvent(7,0);
+   return 1;
+  };
+ },behavior);
+}
+
+test('TV en vivo usa Player HLS de Orsay solo al seleccionar; fondo, Multimedia, pantalla completa y liberación (API Samsung simulada)',async()=>{
+ assert.equal(await page.locator('#alma-live-player').count(),0);await samsungLiveFixture();
+ await go('livetv');await click('live-capital21');await page.waitForFunction(()=>AlmaPlayer.snapshot().playing);
+ assert.equal(await page.evaluate(()=>AlmaPlayer.snapshot().native),true);
+ const calls=await page.evaluate(()=>liveCalls);
+ assert.ok(calls.some(c=>c[0]==='Window'&&c[1]==='SetSource'&&c[2]===43));
+ assert.ok(calls.some(c=>c[0]==='Player'&&c[1]==='InitPlayer'&&c[2]==='https://video.cdmx.gob.mx/redes/stream.m3u8|COMPONENT=HLS|'));
+ assert.equal(calls.filter(c=>c[0]==='Open').length,2);assert.ok(calls.every(c=>c[1]!=='Audio'));
+ await go('home');assert.equal(await page.locator('#stage').getAttribute('data-home-video'),'true');assert.equal(await page.locator('#media-video').evaluate(n=>getComputedStyle(n).visibility),'hidden');
+ await click('home-fullscreen');assert.equal(await page.locator('#stage').evaluate(n=>getComputedStyle(n).visibility),'hidden');
+ assert.deepEqual(await page.evaluate(()=>liveCalls.filter(c=>c[1]==='SetDisplayArea').at(-1).slice(2)),[0,0,1280,720,720]);await key(88);
+ await go('media');const box=await page.locator('.media-stage').boundingBox();
+ const rect=await page.evaluate(()=>liveCalls.filter(c=>c[1]==='SetDisplayArea').at(-1).slice(2));assert.ok(Math.abs(rect[0]-box.x)<=1&&Math.abs(rect[2]/rect[3]-16/9)<.02);
+ const starts=await page.evaluate(()=>liveCalls.filter(c=>c[1]==='StartPlayback').length);
+ await go('saver');assert.equal(await page.locator('#alma-live-cover').isVisible(),true);await key(88);
+ assert.equal(await page.evaluate(()=>liveCalls.filter(c=>c[1]==='StartPlayback').length),starts);
+
+ await page.evaluate(()=>{const p=document.getElementById('alma-live-player'),old=p.Execute;p.Execute=function(command,...args){if(command==='GetVideoResolution')return '640|480';if(command==='Stop')throw new Error('Stop no respondió');return old.call(this,command,...args);};p.OnEvent(9,0);});
+ await click('media-fullscreen');assert.deepEqual(await page.evaluate(()=>liveCalls.filter(c=>c[1]==='SetDisplayArea').at(-1).slice(2)),[160,0,960,720,720]);await key(88);
+ await page.evaluate(()=>Alma.hubControl('stop'));assert.equal(await page.locator('html').getAttribute('class'),'');assert.equal(await page.evaluate(()=>liveSource),18);
+ assert.ok(await page.evaluate(()=>liveCalls.some(c=>c[0]==='Close'&&c[1]==='Player')));
+
+ assert.deepEqual(errors,[]);
+});
+
+test('Señal HLS nativa sin respuesta termina la espera y restaura el equipo, sin afectar archivos propios (API simulada)',async()=>{
+ await samsungLiveFixture('stalled');await go('livetv');await click('live-canalonce');await page.clock.runFor(21000);
+ assert.equal(await page.evaluate(()=>AlmaPlayer.snapshot().status),'No disponible');assert.match(await page.locator('#live-status').innerText(),/20 segundos/);
+ assert.equal(await page.evaluate(()=>liveSource),18);assert.equal(await page.locator('html').getAttribute('class'),'');
+ await page.route('http://127.0.0.1:8765/native-transition.mp4',r=>r.fulfill({contentType:'video/mp4',body:fs.readFileSync(path.join(ROOT,'tests/fixtures/video-prueba.mp4'))}));
+ await page.evaluate(()=>{AlmaPlayer.setTracks([{name:'Archivo propio',kind:'video',url:'http://127.0.0.1:8765/native-transition.mp4'}]);AlmaPlayer.play(0);});
+ await page.waitForFunction(()=>AlmaPlayer.snapshot().playing);assert.equal(await page.evaluate(()=>!!AlmaPlayer.snapshot().native),false);
+ assert.deepEqual(errors,[]);
+});
+
+test('Sin Player nativo ni soporte HLS declarado se explica la incompatibilidad sin espera infinita',async()=>{
+ await page.evaluate(()=>{HTMLMediaElement.prototype.canPlayType=function(){return '';};});
+ await go('livetv');await click('live-capital21');assert.equal(await page.evaluate(()=>AlmaPlayer.snapshot().status),'No disponible');assert.match(await page.locator('#live-status').innerText(),/firmware/);assert.deepEqual(errors,[]);
+});
+
+test('El fallback HTML5 de HLS también tiene límite de espera (motor simulado sin datos)',async()=>{
+ await page.route('https://video.cdmx.gob.mx/redes/stream.m3u8',()=>{});
+ await page.evaluate(()=>{HTMLMediaElement.prototype.canPlayType=function(){return 'maybe';};HTMLMediaElement.prototype.load=function(){};HTMLMediaElement.prototype.play=function(){return Promise.resolve();};HTMLMediaElement.prototype.pause=function(){};});
+ await go('livetv');await click('live-capital21');await page.clock.runFor(21000);
+ assert.equal(await page.evaluate(()=>AlmaPlayer.snapshot().status),'No disponible');assert.match(await page.locator('#live-status').innerText(),/20 segundos/);assert.deepEqual(errors,[]);
 });

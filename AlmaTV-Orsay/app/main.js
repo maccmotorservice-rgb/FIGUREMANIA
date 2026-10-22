@@ -506,7 +506,7 @@ var Alma = (function () {
   }
   function updateHero(index) {
     var own=AlmaPlayer.snapshot(),online=AlmaYouTube.snapshot();
-    if(state.view==="home"&&((youtubeLoaded&&!youtubeAudioOnly)||(!youtubeLoaded&&own.index>=0&&own.kind==="video"&&own.status!=="Detenido"&&own.status!=="Finalizado"))){
+    if(state.view==="home"&&((youtubeLoaded&&!youtubeAudioOnly)||(!youtubeLoaded&&own.index>=0&&own.kind==="video"&&own.status!=="Detenido"&&own.status!=="Finalizado"&&own.status!=="No disponible"&&(!own.native||AlmaNativeLive.isOpen())))){
       htmlIfChanged(el("hero-label"),"");htmlIfChanged(el("hero-title"),"Disfruta tu contenido");
       htmlIfChanged(el("hero-copy"),"El vídeo continúa mientras eliges qué hacer.");htmlIfChanged(el("hero-cta"),"Pantalla completa");actions["hero-cta"]=fullscreenCurrent;return;
     }
@@ -1371,7 +1371,7 @@ var Alma = (function () {
     htmlIfChanged(el("media-play"), player.playing ? "Pausar" : "Reproducir");
     htmlIfChanged(
       el("media-volume"),
-      "Volumen: " + Math.round(player.volume * 100) + " %"
+      player.native?"Volumen de esta señal: control Samsung":"Volumen: " + Math.round(player.volume * 100) + " %"
     );
     // Keep the active video attached and laid out while browsing other views.
     // Some legacy engines suspend media when display is set to none.
@@ -1390,7 +1390,7 @@ var Alma = (function () {
     el("safe").setAttribute("data-home-media", active ? player.kind : "none");
     htmlIfChanged(el("home-media-title"), esc(active&&player.kind==="video"?"":(active ? player.title : "Tu música y tus vídeos")));
     htmlIfChanged(el("home-media-state"), esc(active ? (player.error || player.status) : "Selecciona un archivo desde Multimedia."));
-    var video=el("media-video"),backdrop=backdropView()&&!videoFull&&active&&player.kind==="video"&&player.status!=="Detenido"&&player.status!=="Finalizado";
+    var video=el("media-video"),backdrop=backdropView()&&!videoFull&&active&&player.kind==="video"&&player.status!=="Detenido"&&player.status!=="Finalizado"&&player.status!=="No disponible"&&(!player.native||AlmaNativeLive.isOpen());
     homeBackdrop(backdrop);
     if(state.view==="home")updateHero(heroIndex);
     video.style.zIndex=videoFull?"110":(backdrop?"0":"12");
@@ -1406,7 +1406,13 @@ var Alma = (function () {
       for(var property in geometry)if(Object.prototype.hasOwnProperty.call(geometry,property)&&video.style[property]!==geometry[property])video.style[property]=geometry[property];
         ownVideoGeometryKey=placementKey;
       }
-      video.style.visibility=(backdrop||videoFull||state.view==="media")&&(!modal||backdrop)?"visible":"hidden";
+      styleIfChanged(video,"visibility",!player.native&&(backdrop||videoFull||state.view==="media")&&(!modal||backdrop)?"visible":"hidden");
+      if(player.native){
+        var nativeRect={left:parseFloat(video.style.left)||0,top:parseFloat(video.style.top)||0,width:parseFloat(video.style.width)||1280,height:parseFloat(video.style.height)||720};
+        var nativeVisible=state.view!=="saver"&&!modal;
+        if(state.view==="media"&&!videoFull){var bounds=el("view").getBoundingClientRect();if(nativeRect.top<bounds.top||nativeRect.top+nativeRect.height>bounds.bottom)nativeVisible=false;}
+        AlmaNativeLive.layout(nativeRect,nativeVisible,videoFull);
+      }
     }
     if (el("media-progress"))
       el("media-progress").style.width =
@@ -1496,7 +1502,7 @@ var Alma = (function () {
     else{h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor · Alma TV 10.1.0",
+        "Tu reproductor · Alma TV 10.1.1",
         "Archivos propios, enlaces directos y YouTube integrado experimental mediante el puente de la Mac."
       ) +
       pill("media-fullscreen","Pantalla completa",function(){fullscreenVideo(true);})+'<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +
@@ -2754,6 +2760,7 @@ var Alma = (function () {
       else throw new Error("No hay un vídeo abierto para ampliar");return;
     }
     if(action==="home"||action==="media"||action==="saver"){go(action);return;}
+    if(AlmaPlayer.snapshot().native&&["volume","volume-up","volume-down","mute"].indexOf(action)>=0){notice("Esta señal utiliza el volumen del control Samsung.");return;}
     if(action==="volume"){
       if(typeof seconds!=="number"||!isFinite(seconds)||seconds<0||seconds>100)throw new Error("Volumen no válido");
       prefs.appMuted=false;setAppAudio(Math.round(seconds)-prefs.appVolume,false);return;
@@ -2772,7 +2779,7 @@ var Alma = (function () {
   };
   A.hubStatus = function(){
     if(youtubeLoaded){var value=AlmaYouTube.snapshot();return {title:value.title||(youtubeSelection&&youtubeSelection.name)||"Vídeo",kind:(youtubeSelection&&youtubeSelection.provider)||"youtube",state:value.failed?"Error":(value.state===1?"Reproduciendo":(value.state===2?"En pausa":"Preparado")),seconds:value.seconds||0,duration:value.duration||0,volume:prefs.appVolume,muted:prefs.appMuted,observed_volume:value.volume,observed_muted:value.muted,finished:value.finished,error:value.failed?value.status:""};}
-    var current=AlmaPlayer.snapshot();return {title:current.index>=0?current.title:"Sin reproducción",kind:current.kind,state:current.status,seconds:current.time,duration:current.duration,error:current.error,volume:prefs.appVolume,muted:prefs.appMuted,observed_volume:Math.round(current.volume*100),observed_muted:current.muted};
+    var current=AlmaPlayer.snapshot();return {title:current.index>=0?current.title:"Sin reproducción",kind:current.kind,state:current.status,seconds:current.time,duration:current.duration,error:current.error,engine:current.native?"samsung-hls":"html5",volume:prefs.appVolume,muted:prefs.appMuted,observed_volume:current.native?null:Math.round(current.volume*100),observed_muted:current.muted};
   };
   A.key = key;
   A.go = go;

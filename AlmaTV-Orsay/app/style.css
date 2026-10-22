@@ -1869,3 +1869,13 @@ body>#video-help{z-index:112}
 .live-channels .pill{vertical-align:middle}.hint{color:#c7ced9;font-size:13px;line-height:1.45}
 .card.app.netflix,.card.app.netflix.focus{background:#191317;color:#fff}.card.app.youtube,.card.app.youtube.focus{background:#fff;color:#161b22}.card.app.prime,.card.app.prime.focus{background:#087fb8;color:#fff}.card.app.disney,.card.app.disney.focus{background:#101c51;color:#fff}.card.app.apple,.card.app.apple.focus{background:#15191c;color:#fff}.card.app.max,.card.app.max.focus{background:#182ecf;color:#fff}.card.app.xbox,.card.app.xbox.focus{background:#167d31;color:#fff}.card.app.browser,.card.app.browser.focus,.card.app.more,.card.app.more.focus{background:#353c49;color:#fff}
 .home-tools .card.tool .card-icon{float:none}.home-tools .card.tool strong{color:#f5f5f7;font-size:13px}.home-tools .card.tool small{font-size:11px}
+/* The Orsay HLS decoder paints below HTML, independently of <video>. */
+html.native-live,html.native-live body{background:transparent!important}
+html.native-live #wallpaper{visibility:hidden!important}
+html.native-live #wallpaper-shade{background:transparent}
+html.native-live #safe[data-view="media"] #view,html.native-live .media-stage{background:transparent!important}
+html.native-live .media-stage>*{visibility:hidden}
+html.native-live #stage[data-view="saver"]{background:#fff}
+html.native-live #stage[data-view="saver"] #wallpaper{visibility:visible!important}
+html.native-live #dialog{background:#292f3a}
+html.native-live.native-live-full #stage{visibility:hidden}
