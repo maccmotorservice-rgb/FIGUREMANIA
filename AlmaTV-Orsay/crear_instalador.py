@@ -9,7 +9,7 @@ import tempfile
 from xml.etree import ElementTree as ET
 from zipfile import ZipFile, ZIP_DEFLATED
 ROOT=Path(__file__).resolve().parent
-FILES=('tv_channels.json','puente.py','preparar.py','servir.py','configurar_puente_mac.py','instalar_mac.py','youtube_player.html','dailymotion_player.html','youtube_library.py','link_panel.html','hub.py','hub_http.py','hub_panel.html','importar_salvapantallas.py','app/assets/qrcode.js','app/assets/QR-LICENSE.txt','app/assets/salvapantallas.png') + tuple(str(path.relative_to(ROOT)) for path in sorted((ROOT/'app/assets/icons').glob('*.png')))
+FILES=('iptv.py','tv_channels.json','puente.py','preparar.py','servir.py','configurar_puente_mac.py','instalar_mac.py','youtube_player.html','dailymotion_player.html','youtube_library.py','link_panel.html','hub.py','hub_http.py','hub_panel.html','importar_salvapantallas.py','app/assets/qrcode.js','app/assets/QR-LICENSE.txt','app/assets/salvapantallas.png') + tuple(str(path.relative_to(ROOT)) for path in sorted((ROOT/'app/assets/icons').glob('*.png')))
 def build():
     manifest=json.loads((ROOT/'servidor/manifest.json').read_text());version=manifest['version']
     result=ROOT/'instaladores'/('AlmaTV-'+version+'-instalador.zip')

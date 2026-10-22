@@ -2,6 +2,15 @@
 var AlmaHub = (function () {
   "use strict";
   var next=0,busy=false,failures=0,active=null,ended="",pins={pin:"",guest_pin:""},slide=null,slideIndex=0,lastSlide=0,seen=[],lastAck="",lastError="",seenFor="",timer=null,running=false,pollDelay=2000,lastContact=0;
+  var liveRevision="";
+  function applyCatalog(channels,revision){
+    if(Object.prototype.toString.call(channels)!=="[object Array]"||!channels.length||channels.length>504||typeof revision!=="string")return;
+    for(var i=0;i<channels.length;i++)if(!channels[i]||!/^[a-z0-9-]{1,60}$/.test(channels[i].id)||typeof channels[i].name!=="string"||channels[i].name.length>120||!/^https?:\/\/[^\s|]+$/.test(channels[i].url))return;
+    AlmaLiveTV=channels;liveRevision=revision;
+    try{localStorage.setItem("alma.live.catalog",JSON.stringify({channels:channels,revision:revision}));}catch(ignore){}
+    if(typeof Alma!=="undefined"&&Alma.hubRemoteStatus().view==="livetv")Alma.go("livetv");
+  }
+  try{var cachedLive=JSON.parse(localStorage.getItem("alma.live.catalog")||"null");if(cachedLive)applyCatalog(cachedLive.channels,cachedLive.revision);}catch(ignore){}
   function base(){return "http://"+Alma.hubConfig().macIp+":8088";}
   function request(body,callback){var x=new XMLHttpRequest();x.open("POST",base()+"/hub/tv",true);x.timeout=6000;x.setRequestHeader("Content-Type","application/json");x.onload=function(){try{callback(x.status===200?JSON.parse(x.responseText):null);}catch(e){callback(null);}};x.onerror=x.ontimeout=function(){callback(null);};x.send(JSON.stringify(body));}
   function show(item){
@@ -46,10 +55,10 @@ var AlmaHub = (function () {
     if(slide&&slide.items.length&&now-lastSlide>=slide.interval*1000){slideIndex=(slideIndex+1)%slide.items.length;lastSlide=now;show(slide.items[slideIndex]);}
     if(busy||now<next||document.hidden)return;
     next=now+pollDelay;busy=true;
-    var status=Alma.hubStatus();if(slide&&slide.music&&status.state==="Finalizado")Alma.hubPlay(slide.music,true);if(lastError)status.error=lastError;var remote=Alma.hubRemoteStatus();status.view=remote.view;status.focus=remote.focus;status.focus_id=remote.focus_id;var event={telemetry:status};
+    var status=Alma.hubStatus();if(slide&&slide.music&&status.state==="Finalizado")Alma.hubPlay(slide.music,true);if(lastError)status.error=lastError;var remote=Alma.hubRemoteStatus();status.view=remote.view;status.focus=remote.focus;status.focus_id=remote.focus_id;var event={telemetry:status,live_revision:liveRevision};
     if(lastAck)event.ack=lastAck;
     if(active&&active.kind!=="photo"&&active.kind!=="card"&&ended!==active.play_id&&((status.kind==="youtube"||status.kind==="dailymotion")?status.finished:status.state==="Finalizado")) {event.ended=active.play_id;ended=active.play_id;}
-    request(event,function(data){busy=false;if(!data){failures++;next=new Date().getTime()+Math.min(30000,failures*5000);return;}failures=0;lastContact=new Date().getTime();pollDelay=data.poll_ms===250?250:2000;next=new Date().getTime()+pollDelay;pins.pin=data.pin||"";pins.guest_pin=data.guest_pin||"";var commands=data.commands||[];if(commands.length){execute(commands[0]);next=0;}onRender();});
+    request(event,function(data){busy=false;if(!data){failures++;next=new Date().getTime()+Math.min(30000,failures*5000);return;}failures=0;lastContact=new Date().getTime();pollDelay=data.poll_ms===250?250:2000;next=new Date().getTime()+pollDelay;pins.pin=data.pin||"";pins.guest_pin=data.guest_pin||"";if(data.live_catalog)applyCatalog(data.live_catalog,data.live_revision);var commands=data.commands||[];if(commands.length){execute(commands[0]);next=0;}onRender();});
   }
   function onRender(){
     if(slide&&slide.items.length)show(slide.items[slideIndex]);

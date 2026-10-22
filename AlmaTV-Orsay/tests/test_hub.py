@@ -132,6 +132,7 @@ class HubHTTPTests(unittest.TestCase):
         status,body,headers=self.request('/hub/pair',{'pin':self.server.hub.guest_pin});self.assertEqual(status,200)
         cookie=headers['Set-Cookie'].split(';')[0];token=cookie.split('=',1)[1];csrf=self.server.hub.session(token)['csrf']
         status,body,_=self.request('/hub/state',cookie=cookie);self.assertEqual(status,200);self.assertNotIn('pin',json.loads(body))
+        self.assertEqual(self.request('/hub/iptv',{'action':'publish','country':''},cookie=cookie,csrf=csrf)[0],403)
         self.assertEqual(self.request('/hub/action',{'action':'play','youtube':'https://youtu.be/M7lc1UVf-VE'},cookie=cookie,csrf=csrf)[0],403)
         self.assertEqual(self.request('/hub/action',{'action':'enqueue','youtube':'https://youtu.be/M7lc1UVf-VE'},cookie=cookie,csrf='wrong')[0],403)
         self.assertEqual(self.request('/hub/action',{'action':'enqueue','youtube':'https://youtu.be/M7lc1UVf-VE'},cookie=cookie,csrf=csrf)[0],200)

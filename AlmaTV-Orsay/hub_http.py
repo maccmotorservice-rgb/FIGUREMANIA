@@ -63,10 +63,12 @@ class HubHTTP:
                 from puente import media_files, MEDIA_TYPES
                 hub.mac_files={ 'mac:'+ident:(file,MEDIA_TYPES[file.suffix.lower()][0]) for ident,file in media_files(getattr(self.server,'media_dir',None)).items() }
                 self.reply(200,hub.snapshot(target,session['role']));return
-            if path in ('/hub/action','/hub/podcast','/hub/convert') and method=='POST':
+            if path in ('/hub/action','/hub/podcast','/hub/convert','/hub/iptv') and method=='POST':
                 auth=self.hub_authorized(owner=path!='/hub/action')
                 if not auth:raise PermissionError('Acción no autorizada. Recarga el panel.')
                 data=self.hub_json()
+                if path=='/hub/iptv':
+                    result=hub.iptv.mutate(data,public_open);self.reply(200,result);return
                 if path=='/hub/podcast':self.reply(200,{'imported':hub.podcast(data.get('url',''))});return
                 if path=='/hub/convert':hub.convert(data.get('id'));self.reply(200,{'status':'Convirtiendo'});return
                 self.reply(200,hub.mutate(data,auth['role'],self.server.tv));return

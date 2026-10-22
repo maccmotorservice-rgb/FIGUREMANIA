@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="10.1.1"'))
+      if (!html.includes('name="alma-build" content="10.2.0"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -122,7 +122,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /10\.1\.1/);
+  assert.match(await page.locator(".brand").innerText(), /10\.2\.0/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -1848,8 +1848,8 @@ test('TV en vivo usa Player HLS de Orsay solo al seleccionar; fondo, Multimedia,
 });
 
 test('Señal HLS nativa sin respuesta termina la espera y restaura el equipo, sin afectar archivos propios (API simulada)',async()=>{
- await samsungLiveFixture('stalled');await go('livetv');await click('live-canalonce');await page.clock.runFor(21000);
- assert.equal(await page.evaluate(()=>AlmaPlayer.snapshot().status),'No disponible');assert.match(await page.locator('#live-status').innerText(),/20 segundos/);
+ await samsungLiveFixture('stalled');await go('livetv');await click('live-canalonce');await page.clock.runFor(59000);assert.notEqual(await page.evaluate(()=>AlmaPlayer.snapshot().status),'No disponible');await page.clock.runFor(2000);
+ assert.equal(await page.evaluate(()=>AlmaPlayer.snapshot().status),'No disponible');assert.match(await page.locator('#live-status').innerText(),/60 segundos/);
  assert.equal(await page.evaluate(()=>liveSource),18);assert.equal(await page.locator('html').getAttribute('class'),'');
  await page.route('http://127.0.0.1:8765/native-transition.mp4',r=>r.fulfill({contentType:'video/mp4',body:fs.readFileSync(path.join(ROOT,'tests/fixtures/video-prueba.mp4'))}));
  await page.evaluate(()=>{AlmaPlayer.setTracks([{name:'Archivo propio',kind:'video',url:'http://127.0.0.1:8765/native-transition.mp4'}]);AlmaPlayer.play(0);});
@@ -1865,6 +1865,6 @@ test('Sin Player nativo ni soporte HLS declarado se explica la incompatibilidad 
 test('El fallback HTML5 de HLS también tiene límite de espera (motor simulado sin datos)',async()=>{
  await page.route('https://video.cdmx.gob.mx/redes/stream.m3u8',()=>{});
  await page.evaluate(()=>{HTMLMediaElement.prototype.canPlayType=function(){return 'maybe';};HTMLMediaElement.prototype.load=function(){};HTMLMediaElement.prototype.play=function(){return Promise.resolve();};HTMLMediaElement.prototype.pause=function(){};});
- await go('livetv');await click('live-capital21');await page.clock.runFor(21000);
- assert.equal(await page.evaluate(()=>AlmaPlayer.snapshot().status),'No disponible');assert.match(await page.locator('#live-status').innerText(),/20 segundos/);assert.deepEqual(errors,[]);
+ await go('livetv');await click('live-capital21');await page.clock.runFor(61000);
+ assert.equal(await page.evaluate(()=>AlmaPlayer.snapshot().status),'No disponible');assert.match(await page.locator('#live-status').innerText(),/60 segundos/);assert.deepEqual(errors,[]);
 });

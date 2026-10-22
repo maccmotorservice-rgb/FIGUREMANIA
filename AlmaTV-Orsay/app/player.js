@@ -185,7 +185,7 @@ var AlmaPlayer = (function () {
     }
     status = "Cargando…";
     error = "";
-    if(tracks[index].live){var loadingUrl=activeUrl;liveDeadline=setTimeout(function(){if(activeUrl!==loadingUrl||status!=="Cargando…")return;status="No disponible";error="La señal HLS no respondió en 20 segundos. Este firmware puede no admitir su formato o TLS; prueba otro canal.";if(active)active.pause();change();},20000);}
+    if(tracks[index].live){var loadingUrl=activeUrl;liveDeadline=setTimeout(function(){if(activeUrl!==loadingUrl||status!=="Cargando…")return;status="No disponible";error="La señal HLS no respondió en 60 segundos. Este firmware puede no admitir su formato o TLS; prueba otro canal.";if(active)active.pause();change();},60000);}
     change();
     try {
       var promise = active.play();

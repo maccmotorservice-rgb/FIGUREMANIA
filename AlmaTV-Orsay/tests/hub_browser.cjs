@@ -10,6 +10,15 @@ from pathlib import Path
 import sys
 from puente import Handler
 from hub import Hub
+import hub_http,io
+# Import fixture: only this public test URL is intercepted, no LAN or external calls.
+_original_open=hub_http.public_open
+def playlist_open(url,headers=None,allow_redirect=False):
+ if url!='https://lists.example.org/test.m3u': return _original_open(url,headers,allow_redirect)
+ data=('#EXTM3U\\n'+''.join('#EXTINF:-1 tvg-id="Fixture%d.mx",Canal importado %d\\nhttps://streams.example.org/%d.m3u8\\n'%(i,i,i) for i in range(40))).encode()
+ response=io.BytesIO(data);response.status=200;response.getheader=lambda n,d=None:d
+ return io.BytesIO(),response
+hub_http.public_open=playlist_open
 from youtube_library import Library,Realtime
 s=ThreadingHTTPServer(('127.0.0.1',0),Handler)
 s.tv='127.0.0.1';s.admin_token='owner';s.origins=['null','http://127.0.0.1:8766'];s.allow_launch=False
@@ -97,4 +106,20 @@ test('El panel manda un canal público y la TV recibe el vídeo sin usar el puen
  await panel.locator('#tabs [data-tab="live-tv"]').click();await panel.locator('#live-channels .item').first().getByRole('button',{name:'Ver canal',exact:true}).click();
  await p.waitForFunction(()=>AlmaPlayer.snapshot().playing&&AlmaPlayer.snapshot().live);await p.locator('#media-video').evaluate(n=>n.loop=true);
  assert.equal(await p.locator('#media-video').getAttribute('src'),url);assert.equal(await p.locator('#safe').getAttribute('data-view'),'livetv');
+});
+
+test('Importar M3U desde el celular sincroniza catálogo, pagina y conserva canales sin puente (señales simuladas)',{timeout:30000},async t=>{
+ const p=await tv(t),c=await browser.newContext({viewport:{width:390,height:844}});t.after(()=>c.close());const panel=await c.newPage();const errors=[];panel.on('pageerror',e=>errors.push(e.message));await panel.goto(base+'/control');await panel.locator('#tabs [data-tab="live-tv"]').click();await panel.locator('#iptv-url').fill('https://lists.example.org/test.m3u');await panel.locator('#iptv-import').click();await panel.waitForFunction(()=>document.getElementById('iptv-info').textContent.includes('40 canales'));
+ await p.waitForFunction(()=>AlmaLiveTV.length===44);await p.evaluate(()=>Alma.go('livetv'));assert.equal(await p.locator('.live-channel').count(),12);assert.equal(await panel.locator('#live-channels .item').count(),30);
+ await panel.locator('#live-next').click();assert.equal(await panel.locator('#live-channels .item').count(),14);
+ await p.evaluate(()=>Alma.hubControl('right'));await p.locator('#live-next').click();assert.equal(await p.locator('.live-channel').count(),12);
+ // Selecting an entry beyond the old 31-track limit must select that exact channel.
+ await p.evaluate(()=>{window.importedIndex=AlmaLiveTV[40].id;window.importedName=AlmaLiveTV[40].name;Alma.hubControl('live-channel',0,importedIndex);});assert.equal(await p.evaluate(()=>AlmaPlayer.snapshot().title),await p.evaluate(()=>importedName));
+ await panel.locator('#live-search').fill('importado 39');assert.equal(await panel.locator('#live-channels .item').count(),1);
+ await panel.screenshot({path:'/tmp/alma-iptv-phone.png',fullPage:true});
+ await p.evaluate(()=>{AlmaLiveTV=AlmaLiveTV.slice(0,4);Alma.go('livetv');});assert.equal(await p.locator('.live-channel').count(),4);
+ await p.route('http://192.168.1.30:8088/**',r=>r.abort());await p.reload();await p.evaluate(()=>Alma.go('livetv'));assert.equal(await p.evaluate(()=>AlmaLiveTV.length),44);
+ await panel.locator('#iptv-search').fill('importado 39');await panel.locator('#iptv-filter button').click();await panel.waitForFunction(()=>document.getElementById('iptv-info').textContent.includes('1 canales'));
+ await panel.locator('#iptv-sources').getByRole('button',{name:'Actualizar lista',exact:true}).click();await panel.waitForFunction(()=>!document.getElementById('iptv-import').disabled);assert.equal(await panel.locator('#iptv-sources .item').count(),1);
+ const rejected=await c.request.post(base+'/hub/iptv',{headers:{Origin:base,'X-Alma-Token':'wrong'},data:{action:'remove',url:'https://lists.example.org/test.m3u'}});assert.equal(rejected.status(),403);assert.deepEqual(errors,[]);
 });

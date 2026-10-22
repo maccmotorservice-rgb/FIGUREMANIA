@@ -662,20 +662,24 @@ var Alma = (function () {
     var index=-1;for(var i=0;i<AlmaLiveTV.length;i++)if(AlmaLiveTV[i].id===id)index=i;
     if(index<0)throw new Error("Canal no disponible");
     closeYoutube();
-    AlmaPlayer.setTracks(AlmaLiveTV.map(function(c){return {name:c.name,url:c.url,kind:"video",live:true};}));
-    AlmaPlayer.play(index);go("livetv");
+    AlmaPlayer.pause();
+    var channel=AlmaLiveTV[index];AlmaPlayer.setTracks([{name:channel.name,url:channel.url,kind:"video",live:true}]);
+    AlmaPlayer.play(0);go("livetv");
   }
+  var livePage=0;
   function liveTVView(){
-    var current=AlmaPlayer.snapshot(),h=head("MÉXICO · SEÑALES PÚBLICAS","TV en vivo","Conexión directa a internet, sin Mac. Catálogo piloto: comprueba cada señal en tu TV.");
+    livePage=Math.min(livePage,Math.max(0,Math.ceil(AlmaLiveTV.length/12)-1));
+    var current=AlmaPlayer.snapshot(),h=head("CANALES · TV EN VIVO","TV en vivo","Conexión directa a internet, sin Mac. Añade listas desde el control de tu celular o laptop.");
     h+='<div class="live-controls">'+pill("live-full","Pantalla completa",fullscreenCurrent)+pill("live-media","Ver reproductor",function(){go("media");})+pill("live-retry","Reintentar canal",function(){if(current.live)AlmaPlayer.play(current.index);else notice("Elige primero un canal.");})+'</div>';
     row(["live-full","live-media","live-retry"]);
     h+='<p id="live-status" role="status">'+esc(current.live?(current.title+" · "+(current.error||current.status)):"Selecciona un canal. Sin anuncios ni cuentas añadidas por Alma TV.")+'</p><div class="live-channels">';
-    for(var i=0;i<AlmaLiveTV.length;i++)(function(c){
+    for(var i=livePage*12;i<Math.min(AlmaLiveTV.length,(livePage+1)*12);i++)(function(c){
       var favorite=prefs.liveFavorites.indexOf(c.id)>=0;
-      h+=button("live-"+c.id,c.name,c.region+" · "+c.note+" Prueba en TV pendiente.",function(){playLive(c.id);},"card live-channel")+pill("favorite-"+c.id,favorite?"★ Favorito":"☆ Favorito",function(){var at=prefs.liveFavorites.indexOf(c.id);if(at<0)prefs.liveFavorites.push(c.id);else prefs.liveFavorites.splice(at,1);save();render();});
+      h+=button("live-"+c.id,c.name,c.region+" · "+c.note,function(){playLive(c.id);},"card live-channel")+pill("favorite-"+c.id,favorite?"★ Favorito":"☆ Favorito",function(){var at=prefs.liveFavorites.indexOf(c.id);if(at<0)prefs.liveFavorites.push(c.id);else prefs.liveFavorites.splice(at,1);save();render();});
       row(["live-"+c.id,"favorite-"+c.id]);
     })(AlmaLiveTV[i]);
-    return h+'</div><p class="hint">Si una señal no abre, puede estar fuera de horario, restringida por región o usar TLS/códecs incompatibles. No se activa un puente ni se descarga contenido.</p>';
+    h+='</div>'+pill("live-prev","Página anterior",function(){livePage=Math.max(0,livePage-1);render();})+pill("live-next","Página siguiente",function(){livePage=Math.min(Math.max(0,Math.ceil(AlmaLiveTV.length/12)-1),livePage+1);render();});row(["live-prev","live-next"]);
+    return h+'<p class="hint">Página '+(livePage+1)+' de '+Math.max(1,Math.ceil(AlmaLiveTV.length/12))+'. Si una señal no abre, puede estar fuera de horario, restringida por región o usar TLS/códecs incompatibles. No se activa un puente ni se descarga contenido.</p>';
   }
   function settings() {
     var items = [
@@ -1502,7 +1506,7 @@ var Alma = (function () {
     else{h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor · Alma TV 10.1.1",
+        "Tu reproductor · Alma TV 10.2.0",
         "Archivos propios, enlaces directos y YouTube integrado experimental mediante el puente de la Mac."
       ) +
       pill("media-fullscreen","Pantalla completa",function(){fullscreenVideo(true);})+'<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +

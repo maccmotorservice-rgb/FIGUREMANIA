@@ -23,7 +23,7 @@ var AlmaNativeLive = (function(){
     previousSource=null;mode(false);var mask=document.getElementById("alma-live-cover");if(mask)mask.style.display="none";
   }
   function fail(message){release(true);value={status:"No disponible",error:message,playing:false,time:0};changed();}
-  function arm(){clearTimeout(deadline);deadline=setTimeout(function(){fail("Samsung HLS no inició la señal en 20 segundos. Puede ser red, TLS, formato o señal fuera de servicio. Prueba otro canal.");},20000);}
+  function arm(){clearTimeout(deadline);deadline=setTimeout(function(){fail("Samsung HLS no inició la señal en 60 segundos. Puede ser red, TLS, formato o señal fuera de servicio. Prueba otro canal.");},60000);}
   function start(url,callback){
     release(true);videoRatio=16/9;changed=callback||function(){};value={status:"Cargando señal con Samsung HLS…",error:"",playing:false,time:0};
     if(!/^https?:\/\/[^\s|]+\.m3u8(?:[?#][^\s|]*)?$/i.test(url)){fail("Dirección HLS no válida.");return false;}

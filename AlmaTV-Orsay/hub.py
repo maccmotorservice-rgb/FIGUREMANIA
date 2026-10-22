@@ -28,8 +28,8 @@ class PublicConnection(http.client.HTTPSConnection):
     def connect(self):
         self.sock = self._context.wrap_socket(socket.create_connection((self.address,443),12),server_hostname=self.host)
 
-def public_open(url, headers=None):
-    """Pin a validated public IP; forbid redirects, credentials and other ports."""
+def public_open(url, headers=None, allow_redirect=False):
+    """Pin public DNS; redirects require explicit opt-in and hop validation by caller."""
     parsed=urlsplit(url)
     if parsed.scheme not in ('http','https') or not parsed.hostname or parsed.username or parsed.password or parsed.port not in (None,443 if parsed.scheme=='https' else 80):
         raise ValueError('Usa una dirección pública HTTP o HTTPS sin credenciales.')
@@ -43,7 +43,7 @@ def public_open(url, headers=None):
     safe_headers.update(headers or {})
     connection.request('GET',(parsed.path or '/')+('?' + parsed.query if parsed.query else ''),headers=safe_headers)
     response=connection.getresponse()
-    if response.status not in (200,206):
+    if response.status not in (200,206) and not (allow_redirect and response.status in (301,302,303,307,308)):
         response.close();connection.close()
         raise ValueError('La fuente devolvió HTTP %s. Usa su enlace directo, sin redirecciones.' % response.status)
     return connection,response
@@ -52,6 +52,8 @@ class Hub:
     def __init__(self, root, tv, clock=None):
         self.root=Path(root);self.root.mkdir(parents=True,exist_ok=True)
         self.files=self.root/'uploads';self.files.mkdir(exist_ok=True)
+        from iptv import IPTV
+        self.iptv=IPTV(self.root/'iptv.json',json.loads((Path(__file__).resolve().parent/'tv_channels.json').read_text()))
         self.path=self.root/'hub.json';self.lock=threading.RLock();self.clock=clock or time.time
         self.pin='%06d'%secrets.randbelow(1000000);self.guest_pin='%06d'%secrets.randbelow(1000000)
         self.mac_files={};self.attempts={};self.commands=[];self.jobs={};self.converting=threading.Lock();self.schedule_seen=set();self.remote_until={}
@@ -132,11 +134,14 @@ class Hub:
                     self.advance(target)
                 telemetry=event.get('telemetry')
                 if isinstance(telemetry,dict):channel['telemetry']={k:v for k,v in telemetry.items() if k in ('title','state','seconds','duration','kind','error','volume','muted','observed_volume','observed_muted','engine','view','focus','focus_id') and isinstance(v,(str,int,float,bool)) and len(str(v))<=300}
-            return {'commands':[dict(command) for command in self.commands if command['target']==target and command['expires']>self.clock()], 'pin':self.pin,'guest_pin':self.guest_pin,'poll_ms':250 if self.remote_until.get(target,0)>self.clock() else 2000}
+            result={'commands':[dict(command) for command in self.commands if command['target']==target and command['expires']>self.clock()], 'pin':self.pin,'guest_pin':self.guest_pin,'poll_ms':250 if self.remote_until.get(target,0)>self.clock() else 2000}
+            result['live_revision']=self.iptv.revision
+            if not event or event.get('live_revision')!=self.iptv.revision:result['live_catalog']=self.iptv.catalog
+            return result
     def snapshot(self,target,role):
         with self.lock:
             self.schedules();channel=self.channel(target)
-            result={'live_tv':json.loads((Path(__file__).resolve().parent/'tv_channels.json').read_text()),'target':target,'channels':[{'id':key,'name':value['name'],'online':self.clock()-value['seen']<10} for key,value in self.data['channels'].items()], 'queue':channel['queue'],'repeat':channel.get('repeat',False),'playlists':self.data['playlists'],'current':channel['current'],'telemetry':channel['telemetry'],'sources':[{k:v for k,v in source.items() if k not in ('url','filename')} for source in self.data['sources']]+[{'id':ident,'name':file.stem,'kind':kind,'local':True,'favorite':ident in self.data['favorites']} for ident,(file,kind) in self.mac_files.items()], 'scenes':self.data['scenes'],'role':role,'jobs':self.jobs}
+            result={'iptv':self.iptv.info(),'live_tv':self.iptv.catalog,'target':target,'channels':[{'id':key,'name':value['name'],'online':self.clock()-value['seen']<10} for key,value in self.data['channels'].items()], 'queue':channel['queue'],'repeat':channel.get('repeat',False),'playlists':self.data['playlists'],'current':channel['current'],'telemetry':channel['telemetry'],'sources':[{k:v for k,v in source.items() if k not in ('url','filename')} for source in self.data['sources']]+[{'id':ident,'name':file.stem,'kind':kind,'local':True,'favorite':ident in self.data['favorites']} for ident,(file,kind) in self.mac_files.items()], 'scenes':self.data['scenes'],'role':role,'jobs':self.jobs}
             if role=='owner':result.update(pin=self.pin,guest_pin=self.guest_pin,schedules=self.data['schedules'],ffmpeg=bool(shutil.which('ffmpeg')))
             return result
     def item(self,data):
@@ -171,7 +176,7 @@ class Hub:
                 if command=='volume' and (type(seconds) is not int or not 0<=seconds<=100):raise ValueError('Volumen no válido.')
                 if command=='seek' and seconds not in (-30,-10,-5,5,10,30):raise ValueError('Salto no válido.')
                 view=data.get('view','')
-                if command=='live-channel' and view not in {c['id'] for c in json.loads((Path(__file__).resolve().parent/'tv_channels.json').read_text())}:raise ValueError('Canal no disponible.')
+                if command=='live-channel' and view not in {c['id'] for c in self.iptv.catalog}:raise ValueError('Canal no disponible.')
                 if command=='navigate' and view not in VIEWS:raise ValueError('Menú no disponible.')
                 self.remote_until[target]=self.clock()+5
                 if command=='volume':self.commands=[c for c in self.commands if not (c['target']==target and c.get('action')=='volume')]

@@ -1,6 +1,16 @@
-# Alma TV 10.1.1 · Samsung Orsay
+# Alma TV 10.2.0 · Listas de TV en vivo
 
-Aplicación ES5 para Samsung UN50J5200, con puente local en una Mac. El proyecto anterior FIGUREMANIA se conserva. Identificador estable `AlmaTV86`; versión interna **10.1.1**.
+Desde `http://192.168.1.30:8088/control`, abre **TV en vivo → Mis listas M3U**, pega una URL pública (por ejemplo `https://iptv-org.github.io/iptv/index.m3u`) y pulsa **Importar lista**. Después usa **Actualizar lista** para renovar sus enlaces sin reinstalar Alma TV. Hasta ocho listas, 16 MB y 50 000 entradas por lista. Las importaciones fallidas conservan los canales anteriores.
+
+El filtro inicial es `mx` (México), obtenido de `tvg-country` o del sufijo de país en `tvg-id`. Deja el país vacío para todos. Puedes filtrar por nombre o categoría y pulsar **Enviar selección a la TV**. Se envían hasta 500 canales, además de los cuatro originales; el panel informa de coincidencias y truncamiento. La web muestra 30 canales por página y la TV 12 para reducir el trabajo del navegador antiguo. Los cambios no reinician el canal que esté sonando.
+
+La Mac importa las listas y sincroniza el catálogo mientras Alma TV está abierta. Una vez recibido, se guarda en la TV y sus enlaces se reproducen directamente, incluso con la Mac apagada. Para usar el control web o actualizar la selección necesitas la Mac encendida. No se descargan logotipos ni miles de imágenes. No todas las señales de una lista son compatibles, están disponibles o permiten verse desde tu región.
+
+La carga de señales nativas y HTML5 espera **60 segundos** antes de mostrar un fallo por tiempo de espera. Los errores explícitos de la señal pueden mostrarse antes. Se conserva el receptor Samsung HLS de 10.1.1, cuya reproducción confirmó el propietario. La importación y sincronización se verifican en pruebas locales; los canales y el firmware físico necesitan comprobación en la TV.
+
+## Base técnica de Samsung Orsay
+
+Aplicación ES5 para Samsung UN50J5200, con puente local en una Mac. El proyecto anterior FIGUREMANIA se conserva. Identificador estable `AlmaTV86`; versión interna **10.2.0**.
 
 ## Corrección de carga 10.1.1
 
@@ -60,7 +70,7 @@ Corrección 10.1.1: [Multimedia con MP4 real de prueba](docs/capturas/34-alma10-
 
 ## Instalar y actualizar
 
-El paquete `instaladores/AlmaTV-10.1.1-instalador.zip` contiene el widget, los archivos del puente y `Instalar Alma TV.app`. Descomprime y abre el asistente en macOS: instala el puente al iniciar sesión y publica el instalador Wi-Fi durante diez minutos. Sincroniza aplicaciones en la TV usando la IP de la Mac. El asistente requiere Python 3.8 o posterior y todavía no tiene firma ni notarización de Apple; su ejecución física en macOS está pendiente de validación. Incluye recuperación del widget 8.7.0.
+El paquete `instaladores/AlmaTV-10.2.0-instalador.zip` contiene el widget, los archivos del puente y `Instalar Alma TV.app`. Descomprime y abre el asistente en macOS: instala el puente al iniciar sesión y publica el instalador Wi-Fi durante diez minutos. Sincroniza aplicaciones en la TV usando la IP de la Mac. El asistente requiere Python 3.8 o posterior y todavía no tiene firma ni notarización de Apple; su ejecución física en macOS está pendiente de validación. Incluye recuperación del widget 8.7.0.
 
 Alternativa en Terminal, dentro de la carpeta descomprimida:
 
@@ -110,3 +120,5 @@ python3 crear_instalador.py
 Python ≥3.8, Node ≥22 para pruebas. La app no requiere Node en la TV ni en la Mac. `preparar.py` construye un ZIP reproducible y valida los recursos; `.preview/app` se extrae del mismo paquete. `crear_instalador.py` incluye el paquete actual y el respaldo 8.7 sin recomprimirlo internamente. El QR se genera localmente; licencia en `app/assets/QR-LICENSE.txt`.
 
 Para distribuir comercialmente faltan firma/notarización, pruebas de hardware por modelo, licencias de contenidos y servicios de cuentas/pagos si se necesitan. Este repositorio implementa un sistema local; no simula esos servicios. Consulta el historial en [docs/HISTORIAL-HASTA-8.7.md](docs/HISTORIAL-HASTA-8.7.md).
+
+Validación 10.2.0: 46 pruebas Python; 85 pruebas previas de interfaz y una prueba nueva de importación/sincronización/caché M3U. La prueba nueva utiliza una lista y señales simuladas; no confirma disponibilidad de emisoras. El lector también procesó la lista global pública de iptv-org (10 623 señales únicas aceptadas, 172 identificadas como México en el momento de la consulta).
