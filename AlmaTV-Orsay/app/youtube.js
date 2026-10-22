@@ -2,7 +2,7 @@
 var AlmaYouTube = (function () {
   "use strict";
   var frame = null, host = null, base = "", token = "", timer = null, lastWidth = 0, lastHeight = 0, presented = null;
-  var changed = function () {}, value = { status: "Sin vídeo", ready: false, state: -1, title: "" };
+  var changed = function () {}, value = { status: "Sin vídeo", ready: false, state: -1, title: "", failed: false };
   function parseUrl(input) {
     var text = String(input || "").replace(/^\s+|\s+$/g, ""), a = document.createElement("a"), id = "";
     if (!/^https?:\/\//i.test(text)) return "";
@@ -17,7 +17,7 @@ var AlmaYouTube = (function () {
     }
     return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : "";
   }
-  function snapshot() { return { status: value.status, ready: value.ready, state: value.state, title: value.title }; }
+  function snapshot() { return { status: value.status, ready: value.ready, state: value.state, title: value.title, failed: value.failed }; }
   function present(visible, remove) {
     remove = remove === true;
     var presentationKey = visible + ":" + remove;
@@ -45,10 +45,11 @@ var AlmaYouTube = (function () {
     try { data = typeof event.data === "string" ? JSON.parse(event.data) : event.data; } catch (e) { return; }
     if (!data || data.channel !== "alma-youtube" || data.token !== token) return;
     if (data.type === "ready") { lastWidth = 0; lastHeight = 0; presented = null; value.ready = true; clearTimeout(timer); }
-    if (data.type === "error") { value.ready = false; clearTimeout(timer); }
+    if (data.type === "error") { value.failed = true; value.ready = false; clearTimeout(timer); }
     if (typeof data.state === "number") value.state = data.state;
     if (typeof data.title === "string") value.title = data.title.slice(0, 160);
     if (typeof data.status === "string") value.status = data.status.slice(0, 300);
+    if (typeof data.status === "string" && /YT-ACTIVACION|YT-INICIO|YT-ORDEN/.test(data.status)) value.failed = true;
     changed();
   }
   function close() {
@@ -56,7 +57,7 @@ var AlmaYouTube = (function () {
     if (frame) { send("pause"); frame.src = "about:blank"; host.innerHTML = ""; }
     frame = null; lastWidth = 0; lastHeight = 0; presented = null;
     if (host) host.style.display = "none";
-    value = { status: "Sin vídeo", ready: false, state: -1, title: "" };
+    value = { status: "Sin vídeo", ready: false, state: -1, title: "", failed: false };
   }
   function open(node, mac, id, callback) {
     close();
@@ -75,6 +76,7 @@ var AlmaYouTube = (function () {
     frame.src = base + "/youtube/player?video=" + id + "&token=" + token + "&parent=" + encodeURIComponent(origin);
     host.style.display = "block"; host.appendChild(frame);
     timer = setTimeout(function () {
+      value.failed = true;
       value.status = "YouTube no respondió. Comprueba el puente actualizado y la conexión. El navegador de la TV puede ser incompatible.";
       changed();
     }, 25000);

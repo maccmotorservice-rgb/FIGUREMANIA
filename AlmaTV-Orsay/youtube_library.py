@@ -117,3 +117,47 @@ class Library:
                 if temporary is not None and temporary.exists():
                     temporary.unlink()
             return items
+
+
+class Realtime:
+    """One short-lived user command; never persisted or replayed after bridge restart."""
+    def __init__(self, clock=None):
+        import time
+        self.clock = clock or time.time
+        self.lock = threading.RLock()
+        self.command = None
+        self.status = 'idle'
+
+    def publish(self, data):
+        import secrets
+        if not isinstance(data, dict):
+            raise ValueError('Solicitud no válida.')
+        ident = video_id(data.get('url'))
+        mode = data.get('mode')
+        name = data.get('name', '').strip() if isinstance(data.get('name', ''), str) else None
+        if not ident or mode not in ('video', 'audio') or name is None or len(name) > 80:
+            raise ValueError('Usa un enlace individual de YouTube y elige vídeo o solo audio.')
+        with self.lock:
+            self.command = {'id': secrets.token_hex(16), 'video': ident, 'name': name or 'YouTube en tiempo real', 'mode': mode, 'expires': self.clock() + 45}
+            self.status = 'waiting'
+            return self.snapshot()
+
+    def snapshot(self):
+        with self.lock:
+            command = self.command
+            if command and self.clock() >= command['expires']:
+                if self.status in ('waiting', 'received'):
+                    self.status = 'expired'
+                command = None
+            return {'command': dict(command) if command else None, 'status': self.status}
+
+    def acknowledge(self, data):
+        with self.lock:
+            if not isinstance(data, dict) or not self.command or data.get('id') != self.command['id'] or self.clock() >= self.command['expires']:
+                raise ValueError('La orden ya no está disponible.')
+            status = data.get('status')
+            if status not in ('received', 'playing', 'blocked', 'error'):
+                raise ValueError('Estado no válido.')
+            if self.status not in ('playing', 'blocked', 'error'):
+                self.status = status
+            return self.snapshot()

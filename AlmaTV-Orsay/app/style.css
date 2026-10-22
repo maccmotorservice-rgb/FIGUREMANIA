@@ -1912,3 +1912,6 @@ body > #youtube-host.youtube-full { left: 0; top: 0; }
 #safe[data-view="youtube"] .page-head h1 { font-size: 18px; line-height: 22px; }
 .youtube-state { font-size: 12px; line-height: 16px; min-height: 18px; margin: 4px 0; }
 .youtube-controls .pill, .youtube-options .pill { font-size: 13px; line-height: 18px; padding: 5px 8px; margin: 0 6px 4px 0; }
+
+#safe[data-home-media="youtube"][data-youtube-mode="audio"] .home-audio { display: block; visibility: visible; }
+#safe[data-home-media="youtube"][data-youtube-mode="audio"] .home-player { height: 160px; }

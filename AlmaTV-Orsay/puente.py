@@ -12,7 +12,7 @@ from urllib.parse import parse_qs, urlsplit, urlencode
 from urllib.request import urlopen, Request, build_opener, ProxyHandler, HTTPRedirectHandler
 from urllib.error import HTTPError
 from preparar import private_ipv4
-from youtube_library import Library
+from youtube_library import Library, Realtime
 
 CACHE={}
 WEATHER_CODES={0:'Despejado',1:'Mayormente despejado',2:'Parcialmente nublado',3:'Nublado',45:'Niebla',48:'Niebla con escarcha',51:'Llovizna ligera',53:'Llovizna',55:'Llovizna intensa',61:'Lluvia ligera',63:'Lluvia',65:'Lluvia intensa',71:'Nieve ligera',73:'Nieve',75:'Nieve intensa',80:'Chubascos ligeros',81:'Chubascos',82:'Chubascos intensos',95:'Tormenta',96:'Tormenta con granizo',99:'Tormenta intensa con granizo'}
@@ -125,7 +125,7 @@ class Handler(BaseHTTPRequestHandler):
         self.dispatch('GET')
     def do_POST(self):
         self.dispatch('POST')
-    def panel(self,method):
+    def panel(self,method,live=False):
         if not self.panel_host_allowed():
             self.reply(403,{'error':'Dirección del puente no autorizada'})
             return
@@ -135,7 +135,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             if method=='GET':
-                self.reply(200,{'items':library.read()})
+                self.reply(200,self.server.realtime.snapshot() if live else {'items':library.read()})
                 return
             origin=self.headers.get('Origin')
             token=self.headers.get('X-Alma-Token','')
@@ -152,9 +152,23 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self.connection.settimeout(5)
             data=json.loads(self.rfile.read(size).decode('utf-8'))
-            self.reply(200,{'items':library.change(data)})
+            self.reply(200,self.server.realtime.publish(data) if live else {'items':library.change(data)})
         except (ValueError,UnicodeError) as error:
             self.reply(400,{'error':str(error) if not isinstance(error,json.JSONDecodeError) else 'Solicitud JSON no válida.'})
+    def live_ack(self):
+        if self.client_address[0] != self.server.tv:
+            self.reply(403,{'error':'Solo la TV configurada puede confirmar la orden'})
+            return
+        try:
+            size=int(self.headers.get('Content-Length','0'))
+            if not 0<size<=2048 or self.headers.get('Content-Type','').split(';')[0]!='application/json':
+                raise ValueError('Solicitud no válida.')
+            self.connection.settimeout(5)
+            data=json.loads(self.rfile.read(size).decode('utf-8'))
+            self.reply(200,self.server.realtime.acknowledge(data))
+        except (ValueError,UnicodeError):
+            self.reply(400,{'error':'Confirmación no válida o vencida'})
+
     def serve_panel(self):
         if not self.panel_host_allowed():
             self.reply(403,{'error':'Dirección del puente no autorizada'})
@@ -223,6 +237,10 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(200,{'service':'alma-lan-bridge','dial_launch_enabled':self.server.allow_launch})
             elif method=='GET' and parsed.path in ('/','/enlaces'):
                 self.serve_panel()
+            elif parsed.path=='/youtube/live' and method in ('GET','POST'):
+                self.panel(method,live=True)
+            elif parsed.path=='/youtube/live/ack' and method=='POST':
+                self.live_ack()
             elif parsed.path=='/youtube/library' and method in ('GET','POST'):
                 self.panel(method)
             elif parsed.path=='/youtube/diagnostic' and method in ('GET','POST'):
@@ -283,6 +301,7 @@ def main():
     server=ThreadingHTTPServer((private_ipv4(a.bind),a.port),Handler)
     server.media_dir=Path(a.media_dir).expanduser().resolve() if a.media_dir else None
     if server.media_dir is not None and not server.media_dir.is_dir():p.error('La carpeta de archivos multimedia no existe')
+    server.realtime=Realtime()
     server.youtube_library=Library(Path(a.links_file).expanduser())
     server.admin_token=secrets.token_urlsafe(32)
     server.tv=private_ipv4(a.tv)

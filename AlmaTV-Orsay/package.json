@@ -1,6 +1,6 @@
 {
   "name": "alma-tv-orsay",
-  "version": "8.6.6",
+  "version": "8.7.0",
   "private": true,
   "description": "Alma TV para Samsung Orsay; aplicación ES5 sin dependencias en runtime",
   "scripts": {

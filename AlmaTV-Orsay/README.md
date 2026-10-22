@@ -328,3 +328,20 @@ y cada pulsación usa SetVolumeWithKey o SetUserMute con lectura del nivel real.
 La activación no se guarda: se realiza una vez por apertura de la app para evitar
 repetir automáticamente una llamada nativa incompatible. Si falla se liberan las
 teclas y se muestra rechazo, sin afirmar que se cambió el volumen. No añade HDMI.
+
+### 8.7.0: enlaces en tiempo real desde la Mac
+
+En `http://IP-DE-LA-MAC:8088/enlaces`, «En tiempo real» permite pegar un enlace
+y pulsar «Reproducir ahora», eligiendo «Vídeo en Inicio» o «Solo audio». Alma TV
+debe estar abierta y conectada al puente actualizado. La TV consulta cada dos
+segundos, con espera mayor ante fallos. Solo este envío solicita reproducción
+automática cuando la API esté lista; los enlaces guardados normales siguen manuales.
+La orden vive 45 segundos en memoria, sustituye la anterior y no altera la lista.
+Se deduplica por ID en la TV y no se vuelve a ejecutar al reabrir la app. La página
+muestra envío, recepción, reproducción confirmada por la API, bloqueo o error.
+No enciende la TV ni abre Alma TV desde Smart Hub. Si YouTube bloquea autoplay,
+se indica y queda disponible Reproducir en la TV; no se anuncia éxito falso.
+Solo audio conserva el iframe oculto sin extraer, descargar ni retransmitir audio.
+Su resultado físico depende del mismo motor de YouTube que las versiones previas.
+Los POST del panel exigen origen exacto y token; las confirmaciones exigen ID
+de orden vigente y la dirección IP de la TV configurada.

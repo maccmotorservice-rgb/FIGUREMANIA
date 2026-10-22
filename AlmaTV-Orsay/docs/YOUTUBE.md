@@ -1,3 +1,5 @@
+> 8.7.0 añade En tiempo real en la página de la Mac: vídeo en Inicio o solo audio, con reproducción solicitada solo al pulsar Reproducir ahora. Requiere Alma TV abierta y puente actualizado. Los bloqueos de autoplay se muestran; la lista normal conserva inicio manual.
+
 > 8.6.6 prueba ocultar el dibujo con display:none en el salvapantallas, conservando URL y nodos. El resto de navegación conserva el modo anterior. En Ajustes puede activarse Audio nativo para el control remoto; no se instancia al arrancar. Ambas correcciones requieren verificación física.
 
 > 8.6.5 requiere actualizar también el puente: añade presentación oculta desplazando las dos superficies fuera de pantalla sin pausar. Incluye saltos 5/10/30 y caché de geometría. El propietario confirmó mejoras en 8.6.4; el ocultamiento del plano nativo y el rendimiento de esta revisión siguen pendientes de prueba física.

@@ -4,11 +4,15 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Alma TV · Tus enlaces</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#edf5f2;color:#153d3a;font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:900px;margin:48px auto;padding:0 24px}header{margin-bottom:30px}.brand{font-weight:700;letter-spacing:-1px;font-size:25px}.brand span{font-weight:400;color:#508b80}.eyebrow{font-size:12px;letter-spacing:3px;text-transform:uppercase;color:#548177;margin-top:32px}h1{font-size:42px;letter-spacing:-1.5px;margin:12px 0}p{line-height:1.6;color:#54716c}.box{background:#fff;border:1px solid #cddfd9;border-radius:22px;padding:26px;margin-bottom:24px;box-shadow:0 10px 35px #153d3a06}label{display:block;font-weight:600;margin:0 0 10px}input,textarea{display:block;width:100%;font:inherit;color:#153d3a;background:#f6faf8;border:1px solid #bed6ce;border-radius:12px;padding:14px;margin-bottom:20px}textarea{min-height:130px;resize:vertical}input:focus,textarea:focus{outline:3px solid #9acebf}button{border:0;border-radius:999px;padding:13px 24px;font:inherit;font-weight:600;font-size:15px;cursor:pointer;background:#215e50;color:white}button:disabled{opacity:.6;cursor:wait}.hint{font-size:13px;margin-top:-12px}.list-header{display:flex;align-items:center;justify-content:space-between;gap:12px}h2{font-size:23px}.item{display:flex;gap:16px;align-items:center;justify-content:space-between;border-top:1px solid #e0eae6;padding:20px 0}.item strong{display:block;overflow-wrap:anywhere}.item a{color:#558378;font-size:13px;display:block;margin-top:6px;overflow-wrap:anywhere}.remove{background:#eff5f2;color:#315d51;flex-shrink:0}.empty{padding:15px 0}.status{min-height:26px;margin:15px 0 0;color:#245b4e}.status.error{color:#a33333}.quiet{background:#edf5f2;color:#315d51;padding:10px 15px}footer{font-size:13px;color:#647e76;margin:28px 0 50px}@media(max-width:560px){main{margin-top:25px;padding:0 16px}h1{font-size:34px}.box{padding:20px}.item{align-items:flex-start}.item button{padding:10px 15px}}
+*{box-sizing:border-box}body{margin:0;background:#edf5f2;color:#153d3a;font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:900px;margin:48px auto;padding:0 24px}header{margin-bottom:30px}.brand{font-weight:700;letter-spacing:-1px;font-size:25px}.brand span{font-weight:400;color:#508b80}.eyebrow{font-size:12px;letter-spacing:3px;text-transform:uppercase;color:#548177;margin-top:32px}h1{font-size:42px;letter-spacing:-1.5px;margin:12px 0}p{line-height:1.6;color:#54716c}.box{background:#fff;border:1px solid #cddfd9;border-radius:22px;padding:26px;margin-bottom:24px;box-shadow:0 10px 35px #153d3a06}label{display:block;font-weight:600;margin:0 0 10px}input,textarea,select{display:block;width:100%;font:inherit;color:#153d3a;background:#f6faf8;border:1px solid #bed6ce;border-radius:12px;padding:14px;margin-bottom:20px}textarea{min-height:130px;resize:vertical}input:focus,textarea:focus{outline:3px solid #9acebf}button{border:0;border-radius:999px;padding:13px 24px;font:inherit;font-weight:600;font-size:15px;cursor:pointer;background:#215e50;color:white}button:disabled{opacity:.6;cursor:wait}.hint{font-size:13px;margin-top:-12px}.list-header{display:flex;align-items:center;justify-content:space-between;gap:12px}h2{font-size:23px}.item{display:flex;gap:16px;align-items:center;justify-content:space-between;border-top:1px solid #e0eae6;padding:20px 0}.item strong{display:block;overflow-wrap:anywhere}.item a{color:#558378;font-size:13px;display:block;margin-top:6px;overflow-wrap:anywhere}.remove{background:#eff5f2;color:#315d51;flex-shrink:0}.empty{padding:15px 0}.status{min-height:26px;margin:15px 0 0;color:#245b4e}.status.error{color:#a33333}.quiet{background:#edf5f2;color:#315d51;padding:10px 15px}footer{font-size:13px;color:#647e76;margin:28px 0 50px}@media(max-width:560px){main{margin-top:25px;padding:0 16px}h1{font-size:34px}.box{padding:20px}.item{align-items:flex-start}.item button{padding:10px 15px}}
 </style>
 </head>
 <body><main>
 <header><div class="brand">alma<span>tv</span></div><div class="eyebrow">De tu Mac a tu pantalla</div><h1>Tus vídeos, a un enlace.</h1><p>Pega enlaces de YouTube y guárdalos aquí. En la TV, abre <strong>Multimedia → Enlaces de la Mac</strong>. Puedes añadir vídeos cuando quieras, sin reinstalar Alma TV.</p></header>
+<section class="box"><h2>En tiempo real</h2><p>Con Alma TV abierta, envía un vídeo a Inicio o escucha solo su audio. Solo este botón solicita reproducción automática. No añade el enlace a tu lista.</p>
+<form id="live-form"><label for="live-url">Enlace de YouTube</label><input id="live-url" type="url" required maxlength="1000" placeholder="https://www.youtube.com/watch?v=…">
+<label for="live-mode">Cómo reproducir</label><select id="live-mode"><option value="video">Vídeo en Inicio</option><option value="audio">Solo audio · sin imagen</option></select>
+<button id="live-play" type="submit">Reproducir ahora</button></form><p id="live-status" role="status">Abre Alma TV en la televisión para recibir enlaces.</p></section>
 <section class="box"><form id="add-form">
 <label for="urls">Enlaces de YouTube</label><textarea id="urls" name="urls" maxlength="16000" placeholder="https://www.youtube.com/watch?v=…" required></textarea>
 <p class="hint">Uno por línea. También puedes pegar enlaces de Shorts o youtu.be.</p>
@@ -75,6 +79,23 @@
     xhr.onerror = xhr.ontimeout = function () { document.getElementById("player-status").textContent = "No se pudo conectar con el puente."; };
     xhr.send(null);
   }
+  var liveBusy = false;
+  function liveRequest(method, body, callback) {
+    var x = new XMLHttpRequest(); x.open(method, "/youtube/live", true); x.timeout = 6000;
+    if (body) { x.setRequestHeader("Content-Type", "application/json"); x.setRequestHeader("X-Alma-Token", token); }
+    x.onload = function () { try { var data=JSON.parse(x.responseText); callback(x.status===200 ? null : (data.error || "No se pudo enviar."), data); } catch(e) { callback("Respuesta no válida del puente."); } };
+    x.onerror = x.ontimeout = function () { callback("No se pudo conectar con el puente."); };
+    x.send(body ? JSON.stringify(body) : null);
+  }
+  function liveStatus(data) {
+    var labels={idle:"Abre Alma TV en la televisión para recibir enlaces.",waiting:"Enviado. Esperando a Alma TV…",received:"La TV recibió el enlace. Iniciando YouTube…",playing:"YouTube confirmó que está reproduciendo en la TV.",blocked:"YouTube bloqueó el inicio automático. Usa Reproducir en la TV.",error:"La TV recibió la orden, pero YouTube no pudo iniciarse.",expired:"La TV no recibió la orden a tiempo. Abre Alma TV y vuelve a pulsar Reproducir ahora."};
+    document.getElementById("live-status").textContent=labels[data.status] || "Estado no disponible.";
+  }
+  document.getElementById("live-form").onsubmit=function(event){
+    event.preventDefault(); if(liveBusy) return; liveBusy=true; document.getElementById("live-play").disabled=true;
+    liveRequest("POST",{url:document.getElementById("live-url").value,mode:document.getElementById("live-mode").value},function(error,data){liveBusy=false;document.getElementById("live-play").disabled=false;if(error) document.getElementById("live-status").textContent=error;else liveStatus(data);});
+  };
+  setInterval(function(){if(document.hidden || liveBusy) return;liveRequest("GET",null,function(error,data){if(!error) liveStatus(data);});},2000);
   document.getElementById("player-refresh").onclick = playerState;
   document.getElementById("refresh").onclick = load; load(); playerState();
 })();

@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="8.6.6"'))
+      if (!html.includes('name="alma-build" content="8.7.0"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -117,10 +117,11 @@ beforeEach(async (t) => {
   });
   await page.route("http://192.168.1.30:8088/youtube/diagnostic", r => r.fulfill({status:200,contentType:"application/json",body:JSON.stringify({ok:true,report:null})}));
   await page.route("http://192.168.1.30:8088/youtube/library", r => r.fulfill({status:200,contentType:"application/json",headers:{"Access-Control-Allow-Origin":"*"},body:JSON.stringify({items:[]})}));
+  await page.route("http://192.168.1.30:8088/youtube/live",r=>r.fulfill({status:200,contentType:"application/json",headers:{"Access-Control-Allow-Origin":"*"},body:JSON.stringify({command:null,status:"idle"})}));
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /8\.6\.6/);
+  assert.match(await page.locator(".brand").innerText(), /8\.7\.0/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -1565,5 +1566,59 @@ test("Salvapantallas desmonta el dibujo de ambos iframes sin destruir sesión ni
   await key(88);
   await child.waitForFunction(()=>document.getElementById("surface").style.display==="block",null,{polling:50});
   assert.equal(await page.locator("#youtube-frame").getAttribute("src"),identity);
+  assert.deepEqual(errors,[]);
+});
+
+
+for(const mode of ["video","audio"]) test("Panel de Mac envía Reproducir ahora a Inicio una sola vez: "+mode+" (API simulada)",{timeout:20000},async(t)=>{
+  await officialYouTubeFixture();let command=null,status="idle",acks=[];
+  await page.route("http://192.168.1.30:8088/youtube/live",r=>r.fulfill({status:200,contentType:"application/json",headers:{"Access-Control-Allow-Origin":"*"},body:JSON.stringify({command,status})}));
+  await page.route("http://192.168.1.30:8088/youtube/live/ack",r=>{
+    if(r.request().method()==="POST"){const data=r.request().postDataJSON();acks.push(data);status=data.status;}
+    return r.fulfill({status:200,headers:{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type","Access-Control-Allow-Methods":"POST"},body:"{}"});
+  });
+  const laptop=await browser.newContext();t.after(()=>laptop.close());
+  const mac=await laptop.newPage();
+  await mac.route("http://192.168.1.30:8088/**",r=>{
+    const routePath=new URL(r.request().url()).pathname;
+    if(routePath==="/enlaces")return r.fulfill({contentType:"text/html",body:fs.readFileSync(path.join(ROOT,"link_panel.html"),"utf8").replace("__ALMA_PANEL_TOKEN__",JSON.stringify("test-token"))});
+    if(routePath==="/youtube/live" && r.request().method()==="POST"){
+      const body=r.request().postDataJSON();assert.equal(body.mode,mode);assert.equal(r.request().headers()["x-alma-token"],"test-token");
+      command={id:"a".repeat(32),video:"M7lc1UVf-VE",name:"Desde la Mac",mode};status="waiting";
+    }
+    return r.fulfill({contentType:"application/json",body:JSON.stringify(routePath==="/youtube/live" ? {command,status} : {items:[],report:null})});
+  });
+  await mac.goto("http://192.168.1.30:8088/enlaces");
+  await mac.locator("#live-url").fill("https://youtu.be/M7lc1UVf-VE");await mac.locator("#live-mode").selectOption(mode);await mac.locator("#live-play").click();
+  for(let retry=0;retry<10;retry++) {
+    await page.clock.runFor(1000);await page.waitForTimeout(100);
+    if(await page.evaluate(()=>AlmaYouTube.snapshot().state===1))break;
+  }
+  assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1,JSON.stringify(await page.evaluate(()=>AlmaYouTube.snapshot())));
+  assert.equal(await page.locator("#safe").getAttribute("data-view"),"home");
+  assert.equal(await page.locator("#safe").getAttribute("data-youtube-mode"),mode);
+  const child=page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
+  assert.equal(await child.evaluate(()=>testYoutube.play),1);
+  await page.waitForTimeout(100);assert.ok(acks.some(a=>a.status==="received"));assert.ok(acks.some(a=>a.status==="playing"));
+  if(mode==="audio")assert.equal(await page.locator("#youtube-host").evaluate(n=>getComputedStyle(n).display),"none");
+  else assert.equal(await page.locator("#youtube-host").evaluate(n=>getComputedStyle(n).visibility),"visible");
+  await page.clock.runFor(6000);assert.equal(await child.evaluate(()=>testYoutube.play),1);
+  await page.reload();await page.clock.runFor(2100);assert.equal(await page.locator("#youtube-frame").count(),0);
+  await mac.close();assert.deepEqual(errors,[]);
+});
+
+
+test("En tiempo real informa bloqueo de autoplay sin anunciar reproducción ni reintentar (API simulada)",{timeout:15000},async()=>{
+  await officialYouTubeFixture(0,"blocked");
+  const command={id:"b".repeat(32),video:"M7lc1UVf-VE",name:"Solo audio",mode:"audio"};const acks=[];
+  await page.route("http://192.168.1.30:8088/youtube/live",r=>r.fulfill({status:200,contentType:"application/json",headers:{"Access-Control-Allow-Origin":"*"},body:JSON.stringify({command,status:acks.length ? "received" : "waiting"})}));
+  await page.route("http://192.168.1.30:8088/youtube/live/ack",r=>{
+    if(r.request().method()==="POST")acks.push(r.request().postDataJSON().status);
+    return r.fulfill({status:200,headers:{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type","Access-Control-Allow-Methods":"POST"},body:"{}"});
+  });
+  for(let retry=0;retry<10;retry++){await page.clock.runFor(1000);await page.waitForTimeout(100);if(acks.includes("blocked"))break;}
+  assert.ok(acks.includes("blocked"));assert.ok(!acks.includes("playing"));
+  const child=page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
+  await page.clock.runFor(5000);assert.equal(await child.evaluate(()=>testYoutube.play),1);
   assert.deepEqual(errors,[]);
 });

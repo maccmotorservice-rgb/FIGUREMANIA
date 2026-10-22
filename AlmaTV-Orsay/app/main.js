@@ -1121,6 +1121,7 @@ var Alma = (function () {
     return h + "</div>";
   }
   function youtubeFullscreen(enabled) {
+    if (enabled) youtubeAudioOnly = false;
     youtubeFull = enabled;
     var host = el("youtube-host");
     host.className = enabled ? "youtube-full" : "";
@@ -1135,6 +1136,33 @@ var Alma = (function () {
     el("safe").setAttribute("data-youtube", "none");
     if (youtubeFull) youtubeFullscreen(false);
   }
+  var youtubeAudioOnly = false, livePending = null, liveBusy = false, liveNext = 0, liveFailures = 0;
+  function liveAck(command, status) {
+    request("POST", "http://" + prefs.macIp + ":8088/youtube/live/ack", function () {}, {id: command.id, status: status});
+  }
+  function pollLive() {
+    var now = new Date().getTime();
+    if (liveBusy || now < liveNext || document.hidden || modal || edit || state.view === "calibrate") return;
+    liveBusy = true; liveNext = now + 2000;
+    var mac = prefs.macIp, epoch = generation;
+    request("GET", "http://" + mac + ":8088/youtube/live", function (code, body) {
+      liveBusy = false;
+      if (epoch !== generation || mac !== prefs.macIp) return;
+      if (code !== 200) { liveFailures++; liveNext = new Date().getTime() + Math.min(30000, 5000 * liveFailures); return; }
+      liveFailures = 0;
+      try {
+        var data = JSON.parse(body), command = data.command;
+        if (data.status !== "waiting" || !command || !/^[a-f0-9]{32}$/.test(command.id) || !/^[A-Za-z0-9_-]{11}$/.test(command.video) || (command.mode !== "audio" && command.mode !== "video")) return;
+        var storage = "alma.live.last." + mac;
+        if (livePending && livePending.id === command.id) return;
+        try { if (localStorage.getItem(storage) === command.id) return; localStorage.setItem(storage, command.id); } catch (ignore) {}
+        livePending = {id: command.id, sent: false, confirmed: false};
+        openYoutube({id: command.video, name: typeof command.name === "string" ? command.name.slice(0,80) : "YouTube en tiempo real"}, command.mode === "audio");
+        go("home");
+        liveAck(livePending, "received");
+      } catch (error) {}
+    });
+  }
   var youtubeLayoutKey = "";
   function cycleSeekStep() {
     var values = [5, 10, 30];
@@ -1142,24 +1170,34 @@ var Alma = (function () {
     save(); render();
   }
   function hideYoutubeImage(host) {
-    AlmaYouTube.present(false, state.view === "saver");
+    AlmaYouTube.present(false, youtubeAudioOnly || state.view === "saver");
     if (host.style.left !== "-10000px") {
       host.style.left = "-10000px"; host.style.top = "-10000px";
       host.style.clip = "rect(0px,0px,0px,0px)";
       host.style.visibility = "hidden";
     }
-    host.style.display = state.view === "saver" ? "none" : "block";
+    host.style.display = youtubeAudioOnly || state.view === "saver" ? "none" : "block";
     youtubeLayoutKey = "";
     el("safe").setAttribute("data-youtube", "hidden");
   }
   function updateYoutube() {
     var value = AlmaYouTube.snapshot(), host = el("youtube-host");
+    el("safe").setAttribute("data-youtube-mode", youtubeAudioOnly ? "audio" : "video");
+    if (livePending && !livePending.confirmed) {
+      if (value.state === 1) { livePending.confirmed = true; liveAck(livePending, "playing"); }
+      else if (value.failed) { livePending.confirmed = true; liveAck(livePending, /ACTIVACION/.test(value.status) ? "blocked" : "error"); }
+      else if (value.ready && !livePending.sent) { livePending.sent = true; AlmaYouTube.send("play"); }
+    }
+    if (youtubeAudioOnly) {
+      htmlIfChanged(el("home-media-title"), esc(value.title || (youtubeSelection && youtubeSelection.name) || "YouTube"));
+      htmlIfChanged(el("home-media-state"), "Solo audio · " + esc(value.status));
+    }
     var slot = el(state.view === "home" ? "home-player" : "youtube-slot");
     htmlIfChanged(el("youtube-state"), esc(value.status));
     if (value.title) htmlIfChanged(el("youtube-title"), esc(value.title));
     if (!youtubeLoaded) return;
     // Navigation changes presentation only; never send pause/play or reload.
-    if (state.view === "saver" || modal || (!youtubeFull && !slot)) {
+    if (youtubeAudioOnly || state.view === "saver" || modal || (!youtubeFull && !slot)) {
       hideYoutubeImage(host);
       return;
     }
@@ -1207,7 +1245,9 @@ var Alma = (function () {
     if (!items.length) h += '<p>Añade tus enlaces en http://' + esc(prefs.macIp) + ':8088/enlaces o usa Pegar enlace.</p>';
     return h + "</div>";
   }
-  function openYoutube(item) {
+  function openYoutube(item, audioOnly) {
+    youtubeAudioOnly = audioOnly === true;
+    if (typeof audioOnly === "undefined") livePending = null;
     youtubeSelection = item;
     closeYoutube();
     AlmaPlayer.pause();
@@ -1405,7 +1445,7 @@ var Alma = (function () {
     var h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor · Alma TV 8.6.6",
+        "Tu reproductor · Alma TV 8.7.0",
         "Archivos propios, enlaces directos y YouTube integrado experimental mediante el puente de la Mac."
       ) +
       '<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +
@@ -1991,7 +2031,7 @@ var Alma = (function () {
     macLinksLast = 0;
     net = { YouTube: "Sin comprobar", Netflix: "Sin comprobar" };
   }
-  function request(method, url, callback) {
+  function request(method, url, callback, body) {
     var x = new XMLHttpRequest(),
       done = false,
       t = null;
@@ -2005,6 +2045,7 @@ var Alma = (function () {
     }
     try {
       x.open(method, url, true);
+      if (body) x.setRequestHeader("Content-Type", "application/json");
       x.onreadystatechange = function () {
         if (x.readyState === 4) finish(x.status, x.responseText);
       };
@@ -2018,7 +2059,7 @@ var Alma = (function () {
         } catch (e) {}
       }, 6000);
       requests.push(x);
-      x.send(method === "POST" ? "" : null);
+      x.send(body ? JSON.stringify(body) : (method === "POST" ? "" : null));
     } catch (e) {
       finish(0, "");
     }
@@ -2309,6 +2350,7 @@ var Alma = (function () {
     );
   }
   function tick() {
+    pollLive();
     if ((state.view === "media" || state.view === "youtube-list") && !modal && (macLinksHost !== prefs.macIp || new Date().getTime() - macLinksLast >= 15000)) loadMacYoutube(true);
     htmlIfChanged(el("time"), time());
     updateNetwork();
