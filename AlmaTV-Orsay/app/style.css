@@ -1904,7 +1904,7 @@ body > #youtube-host.youtube-full { left: 0; top: 0; }
   -webkit-animation: none; animation: none; -webkit-transform: none; transform: none;
 }
 #safe[data-home-media="youtube"][data-youtube="hidden"] .home-player { background: #f4faf8; }
-#safe[data-home-media="youtube"][data-youtube="hidden"] .home-audio { visibility: visible; }
+#safe[data-home-media="youtube"] .home-audio { display: none; }
 
 /* Keep transport controls and the complete player visible together in 720p. */
 #youtube-slot, #safe[data-home-media="youtube"] .home-player { max-width: 840px; margin-left: auto; margin-right: auto; }

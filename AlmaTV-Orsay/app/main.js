@@ -1128,52 +1128,43 @@ var Alma = (function () {
   function closeYoutube() {
     AlmaYouTube.close();
     youtubeLoaded = "";
-    youtubeAutoPaused = false;
     el("safe").setAttribute("data-youtube", "none");
     if (youtubeFull) youtubeFullscreen(false);
   }
-  var youtubeAutoPaused = false;
   function updateYoutube() {
-    var value = AlmaYouTube.snapshot(), host = el("youtube-host"), slot = el(state.view === "home" ? "home-player" : "youtube-slot");
+    var value = AlmaYouTube.snapshot(), host = el("youtube-host");
+    var slot = el(state.view === "home" ? "home-player" : "youtube-slot");
     htmlIfChanged(el("youtube-state"), esc(value.status));
     if (value.title) htmlIfChanged(el("youtube-title"), esc(value.title));
     if (!youtubeLoaded) return;
-    if (state.view === "saver") {
+    // Navigation changes presentation only; never send pause/play or reload.
+    if (state.view === "saver" || modal || (!youtubeFull && !slot)) {
       host.style.visibility = "hidden";
       el("safe").setAttribute("data-youtube", "hidden");
-      // Keep the same live session and audio; do not reload, seek or pause it.
-      if (youtubeAutoPaused) { youtubeAutoPaused = false; AlmaYouTube.send("play"); }
       return;
     }
-    htmlIfChanged(el("home-media-title"), esc(value.title || (youtubeSelection && youtubeSelection.name) || "YouTube"));
     var screenWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
     var screenHeight = window.innerHeight || document.documentElement.clientHeight || 720;
-    var width = screenWidth, height = screenHeight, left = 0, top = 0, visible = youtubeFull && !modal;
-    if (!youtubeFull && slot && !modal) {
-      var slotHeight = slot.offsetWidth * 9 / 16 + "px";
-      if (slot.style.height !== slotHeight) slot.style.height = slotHeight;
+    var width = screenWidth, height = screenHeight, left = 0, top = 0;
+    var clipTop = 0, clipBottom = height;
+    if (!youtubeFull) {
+      slot.style.height = slot.offsetWidth * 9 / 16 + "px";
       var box = slot.getBoundingClientRect(), viewport = el("view").getBoundingClientRect();
       width = box.width; height = width * 9 / 16; left = box.left; top = box.top;
-      visible = box.top >= viewport.top - 1 && box.top + height <= viewport.bottom + 1;
+      clipTop = Math.max(0, viewport.top - top, -top);
+      clipBottom = Math.min(height, viewport.bottom - top, screenHeight - top);
     }
-    // No floating duplicate, no clipping of native video planes or provider controls.
-    // Keep one fixed-size session; pause whenever its real area is outside view.
-    if (!visible || !isFinite(width) || !isFinite(height) || !isFinite(left) || !isFinite(top) || width <= 0 || height <= 0 || left < -1 || top < -1 || left + width > screenWidth + 2 || top + height > screenHeight + 2) {
+    if (!isFinite(width) || !isFinite(height) || !isFinite(left) || !isFinite(top) || width <= 0 || height <= 0 || left < 0 || left + width > screenWidth + 2 || clipBottom <= clipTop) {
       host.style.visibility = "hidden";
       el("safe").setAttribute("data-youtube", "hidden");
-      htmlIfChanged(el("home-media-state"), "Baja hasta En reproducción para ver y continuar el video.");
-      if (rendering) return;
-      if (modal) youtubeAutoPaused = false;
-      if (value.state === 1) { youtubeAutoPaused = !modal; AlmaYouTube.send("pause"); }
       return;
     }
-    el("safe").setAttribute("data-youtube", "large");
-    host.style.visibility = "visible";
-    htmlIfChanged(el("home-media-state"), esc(value.status));
     var geometry = { left: Math.round(left) + "px", top: Math.round(top) + "px", width: Math.round(width) + "px", height: Math.round(height) + "px" };
     for (var property in geometry) if (Object.prototype.hasOwnProperty.call(geometry, property) && host.style[property] !== geometry[property]) host.style[property] = geometry[property];
+    host.style.clip = "rect(" + Math.ceil(clipTop) + "px," + Math.round(width) + "px," + Math.floor(clipBottom) + "px,0px)";
+    host.style.visibility = "visible";
+    el("safe").setAttribute("data-youtube", "large");
     AlmaYouTube.resize(width, height);
-    if (youtubeAutoPaused) { youtubeAutoPaused = false; AlmaYouTube.send("play"); }
   }
   function youtubeList() {
     var h = head("TUS ENLACES", "Videos de YouTube", "Guarda enlaces desde la Mac. Selecciona un video y pulsa Reproducir.");

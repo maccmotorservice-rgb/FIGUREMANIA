@@ -291,3 +291,12 @@ El salvapantallas es la excepción: oculta la imagen y conserva la misma sesión
 sin orden de pausa, reinicio ni recarga, para continuar el audio. Volver recupera
 la imagen. Las pruebas de API simulada no garantizan el resultado del decodificador
 de YouTube en el televisor; requiere comprobación física.
+
+### 8.6.4: continuidad de YouTube y eliminación de texto duplicado
+
+La prueba física de 8.6.3 sigue mostrando un plano de vídeo demasiado grande.
+Esta versión elimina la pausa automática al navegar y el texto duplicado de
+Inicio. La misma sesión permanece activa, oculta en otras secciones y salvapantallas.
+Se aplica un recorte al área visible al desplazarse; no se crea ventana flotante.
+La composición del plano nativo en este firmware NO está verificada y no se
+presenta como resuelta con pruebas de Chromium. No se añaden módulos nativos.

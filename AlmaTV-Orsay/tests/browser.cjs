@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="8.6.3"'))
+      if (!html.includes('name="alma-build" content="8.6.4"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -120,7 +120,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /8\.6\.3/);
+  assert.match(await page.locator(".brand").innerText(), /8\.6\.4/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -1025,7 +1025,7 @@ test("YouTube integrado: enlace guardado, controles y pantalla completa sin reca
   assert.equal(await page.locator("#safe").getAttribute("data-home-media"),"youtube");
   await go("apps");
   assert.equal(await page.locator("#youtube-frame").getAttribute("data-test-identity"),"same-frame");
-  await page.waitForFunction(() => AlmaYouTube.snapshot().state===2);
+  await page.waitForFunction(() => AlmaYouTube.snapshot().state===1);
   await go("saver");
   assert.equal(await page.locator("#youtube-frame").count(),1);
   await page.waitForFunction(() => AlmaYouTube.snapshot().state===1);
@@ -1251,7 +1251,7 @@ test("La prueba directa permite pulsación real sin el widget intermedio (API si
 });
 
 
-test("YouTube conserva una sola área y pausa fuera de ella, sin ventana flotante (API simulada)", async () => {
+test("YouTube conserva una sola área y continúa al navegar, sin ventana flotante (API simulada)", async () => {
   await officialYouTubeFixture();
   await savedYouTube();
   await page.locator(".page-surface").evaluate(n => n.classList.remove("page-enter"));
@@ -1271,19 +1271,21 @@ test("YouTube conserva una sola área y pausa fuera de ella, sin ventana flotant
   for (const view of ["home","apps","settings","media","home"]) {
     await go(view);
     assert.equal(await page.locator("#youtube-frame").getAttribute("data-identity"),"persistent-85");
-    await page.waitForFunction(expected => AlmaYouTube.snapshot().state===expected, view==="home" ? 1 : 2);
+    await page.waitForFunction(expected => AlmaYouTube.snapshot().state===expected, 1);
     if (view!=="home") {
       assert.equal(await page.locator("#safe").getAttribute("data-youtube"),"hidden");
       assert.equal(await page.locator("#youtube-host").evaluate(n=>getComputedStyle(n).visibility),"hidden");
     }
   }
   await page.locator("#view").evaluate(n => { n.scrollTop=0; n.dispatchEvent(new Event("scroll")); });
-  assert.equal(await page.locator("#safe").getAttribute("data-youtube"),"hidden");
-  await page.waitForFunction(() => AlmaYouTube.snapshot().state===2);
+  const crop=await page.locator("#youtube-host").evaluate(n=>({clip:n.style.clip,height:n.getBoundingClientRect().height}));
+  assert.match(crop.clip,/^rect\(/);
+  assert.ok(Number(crop.clip.match(/[\d.]+/g)[2])<crop.height);
+  await page.waitForFunction(() => AlmaYouTube.snapshot().state===1);
   await page.locator("#home-player").scrollIntoViewIfNeeded();
   await page.locator("#view").evaluate(n => n.dispatchEvent(new Event("scroll")));
   assert.equal(await page.locator("#safe").getAttribute("data-youtube"),"large");
-  assert.ok(await frame.evaluate(() => testYoutube.pause)>0);
+  assert.equal(await frame.evaluate(() => testYoutube.pause),0);
   await page.evaluate(() => Alma.go("youtube"));
   await click("youtube-full");
   await page.waitForFunction(() => document.getElementById("youtube-frame").width==="1280");
@@ -1386,6 +1388,24 @@ test("Salvapantallas conserva YouTube solo con audio, sin pausa ni recarga, y re
   assert.ok(await page.locator("#saver-clock").isVisible());
   await key(88);
   await page.waitForFunction(()=>document.getElementById("youtube-host").style.visibility==="visible");
+  assert.equal(await page.locator("#youtube-frame").getAttribute("src"),src);
+  assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);
+  assert.deepEqual(errors,[]);
+});
+
+
+test("Inicio no duplica el título de YouTube; scroll conserva sesión y limita la capa al contenido (API simulada)",async()=>{
+  await officialYouTubeFixture();await savedYouTube();await click("youtube-play");
+  await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
+  const child=page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
+  const pauses=await child.evaluate(()=>testYoutube.pause);
+  const src=await page.locator("#youtube-frame").getAttribute("src");
+  await go("home");
+  assert.equal(await page.locator("#home-player .home-audio").evaluate(n=>getComputedStyle(n).display),"none");
+  await page.locator("#view").evaluate(n=>{n.scrollTop-=60;n.dispatchEvent(new Event("scroll"));});
+  assert.match(await page.locator("#youtube-host").evaluate(n=>n.style.clip),/^rect\(/);
+  await go("apps");await go("home");await go("saver");await key(88);
+  assert.equal(await child.evaluate(()=>testYoutube.pause),pauses);
   assert.equal(await page.locator("#youtube-frame").getAttribute("src"),src);
   assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);
   assert.deepEqual(errors,[]);
