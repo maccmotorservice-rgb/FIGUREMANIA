@@ -6,7 +6,7 @@ import shutil
 import sys
 import tempfile
 
-VERSION = '10.3.1'
+VERSION = '10.3.2'
 
 def install(source, directory):
     source=Path(source);directory=Path(directory)
@@ -16,7 +16,7 @@ def install(source, directory):
     if 'def edit(self,data)' not in (directory/'iptv.py').read_text(encoding='utf-8'):
         raise ValueError('Esta guía necesita el puente de Alma TV 10.3.0 para usar tus categorías.')
     content=source.read_bytes()
-    if b'content="10.3.1"' not in content or b'id="tv-guide"' not in content:
+    if ('content="'+VERSION+'"').encode() not in content or b'id="tv-guide"' not in content:
         raise ValueError('La actualización del control no es válida.')
     backup=directory/'hub_panel.antes-guia.html'
     if not backup.exists():shutil.copy2(destination,backup)
