@@ -1,3 +1,5 @@
+> 8.6.3 conserva el arranque de recuperación y cambia solo la presentación de YouTube: una zona sin ventana flotante y salvapantallas con imagen oculta sin pausa. El resultado de imagen y audio necesita prueba física. Los módulos nativos HDMI/Audio continúan retirados.
+
 > Recuperación 8.6.2: el widget vuelve al código de 8.5.1. Los apartados de 8.6 describen cambios retirados temporalmente. La imagen errática y el volumen siguen pendientes; no se declara resuelto el arranque hasta comprobarlo en la TV.
 
 # YouTube integrado experimental · Alma TV 8.2

@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="8.6.2"'))
+      if (!html.includes('name="alma-build" content="8.6.3"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -120,7 +120,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /8\.6\.2/);
+  assert.match(await page.locator(".brand").innerText(), /8\.6\.3/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -1025,9 +1025,11 @@ test("YouTube integrado: enlace guardado, controles y pantalla completa sin reca
   assert.equal(await page.locator("#safe").getAttribute("data-home-media"),"youtube");
   await go("apps");
   assert.equal(await page.locator("#youtube-frame").getAttribute("data-test-identity"),"same-frame");
-  assert.equal(await page.evaluate(() => AlmaYouTube.snapshot().state),1);
+  await page.waitForFunction(() => AlmaYouTube.snapshot().state===2);
   await go("saver");
-  assert.equal(await page.locator("#youtube-frame").count(),0);
+  assert.equal(await page.locator("#youtube-frame").count(),1);
+  await page.waitForFunction(() => AlmaYouTube.snapshot().state===1);
+  assert.equal(await page.locator("#youtube-host").evaluate(n=>getComputedStyle(n).visibility),"hidden");
   await page.reload();
   await go("media");
   assert.equal(await page.locator("#youtube-item-0").count(),1);
@@ -1249,7 +1251,7 @@ test("La prueba directa permite pulsación real sin el widget intermedio (API si
 });
 
 
-test("YouTube grande: dimensiones explícitas en ambas capas y ventana fija sin pausas al navegar (API simulada)", async () => {
+test("YouTube conserva una sola área y pausa fuera de ella, sin ventana flotante (API simulada)", async () => {
   await officialYouTubeFixture();
   await savedYouTube();
   await page.locator(".page-surface").evaluate(n => n.classList.remove("page-enter"));
@@ -1258,32 +1260,30 @@ test("YouTube grande: dimensiones explícitas en ambas capas y ventana fija sin 
   const frame = page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
   await page.locator("#youtube-frame").evaluate(n => { n.dataset.identity="persistent-85"; });
   const large = await page.locator("#youtube-host").boundingBox();
-  assert.ok(large.width >= 800 && large.height >= 450, JSON.stringify(large));
+  assert.ok(large.width >= 700 && large.height >= 390, JSON.stringify(large));
   assert.ok(Math.abs(large.width/large.height-16/9)<0.02);
   const outer = await page.locator("#youtube-frame").evaluate(n => [Number(n.width),Number(n.height)]);
   const inner = await frame.locator("#surface iframe").evaluate(n => [Number(n.width),Number(n.height)]);
-  assert.ok(outer[0]>=800 && inner[0]>=800);
+  assert.ok(outer[0]>=700 && inner[0]>=700);
   assert.ok(Math.abs(inner[0]/inner[1]-16/9)<0.02);
   await click("youtube-play");
   await page.waitForFunction(() => AlmaYouTube.snapshot().state===1);
   for (const view of ["home","apps","settings","media","home"]) {
     await go(view);
     assert.equal(await page.locator("#youtube-frame").getAttribute("data-identity"),"persistent-85");
-    assert.equal(await page.evaluate(() => AlmaYouTube.snapshot().state),1);
+    await page.waitForFunction(expected => AlmaYouTube.snapshot().state===expected, view==="home" ? 1 : 2);
     if (view!=="home") {
-      assert.equal(await page.locator("#safe").getAttribute("data-youtube"),"docked");
-      const video = await page.locator("#youtube-host").boundingBox();
-      const content = await page.locator("#view").boundingBox();
-      assert.ok(video.y >= content.y + content.height, JSON.stringify({video,content}));
+      assert.equal(await page.locator("#safe").getAttribute("data-youtube"),"hidden");
+      assert.equal(await page.locator("#youtube-host").evaluate(n=>getComputedStyle(n).visibility),"hidden");
     }
   }
   await page.locator("#view").evaluate(n => { n.scrollTop=0; n.dispatchEvent(new Event("scroll")); });
-  assert.equal(await page.locator("#safe").getAttribute("data-youtube"),"docked");
-  assert.equal(await page.evaluate(() => AlmaYouTube.snapshot().state),1);
+  assert.equal(await page.locator("#safe").getAttribute("data-youtube"),"hidden");
+  await page.waitForFunction(() => AlmaYouTube.snapshot().state===2);
   await page.locator("#home-player").scrollIntoViewIfNeeded();
   await page.locator("#view").evaluate(n => n.dispatchEvent(new Event("scroll")));
   assert.equal(await page.locator("#safe").getAttribute("data-youtube"),"large");
-  assert.equal(await frame.evaluate(() => testYoutube.pause),0);
+  assert.ok(await frame.evaluate(() => testYoutube.pause)>0);
   await page.evaluate(() => Alma.go("youtube"));
   await click("youtube-full");
   await page.waitForFunction(() => document.getElementById("youtube-frame").width==="1280");
@@ -1367,5 +1367,26 @@ test("Volumen del control remoto se libera a Samsung y no se bloquea ni cierra A
   assert.ok(!(await page.evaluate(()=>platformCalls)).includes("exit"));
   await page.evaluate(()=>window.dispatchEvent(new Event("focus")));
   assert.deepEqual((await page.evaluate(()=>nativeVolumeKeys)).slice(-3),[7,11,27]);
+  assert.deepEqual(errors,[]);
+});
+
+test("Salvapantallas conserva YouTube solo con audio, sin pausa ni recarga, y recupera la imagen al volver (API simulada)", async () => {
+  await officialYouTubeFixture(); await savedYouTube();
+  await click("youtube-play");
+  await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
+  const child=page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
+  const src=await page.locator("#youtube-frame").getAttribute("src");
+  const before=await child.evaluate(()=>testYoutube.pause);
+  await go("saver");
+  assert.equal(await page.locator("#youtube-frame").getAttribute("src"),src);
+  assert.equal(await page.locator("#youtube-host").evaluate(n=>getComputedStyle(n).visibility),"hidden");
+  assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);
+  await page.clock.runFor(16000);
+  assert.equal(await child.evaluate(()=>testYoutube.pause),before);
+  assert.ok(await page.locator("#saver-clock").isVisible());
+  await key(88);
+  await page.waitForFunction(()=>document.getElementById("youtube-host").style.visibility==="visible");
+  assert.equal(await page.locator("#youtube-frame").getAttribute("src"),src);
+  assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);
   assert.deepEqual(errors,[]);
 });

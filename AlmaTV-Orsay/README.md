@@ -279,3 +279,15 @@ sin confirmar. Se retiran temporalmente los cambios de 8.6 (HDMI en ventana,
 audio SEF, nuevos saltos, memoria de archivos y audio de YouTube en salvapantallas)
 para recuperar primero el arranque. Los problemas de imagen y volumen de 8.5.1
 no se presentan como corregidos. El puente actualizado sigue disponible.
+
+### 8.6.3: una zona de YouTube y salvapantallas con audio
+
+El propietario confirmó que 8.6.2 abrió tras desconectar la TV durante un minuto.
+Se conserva ese arranque sin módulos SEF nuevos y el reproductor de archivos propios.
+YouTube deja de crear una ventana flotante al desplazarse: solo se muestra dentro
+de su zona en Multimedia o En reproducción, o a pantalla completa si se solicita.
+Fuera de esa zona visible se pausa y al volver se reanuda si la pausa fue automática.
+El salvapantallas es la excepción: oculta la imagen y conserva la misma sesión
+sin orden de pausa, reinicio ni recarga, para continuar el audio. Volver recupera
+la imagen. Las pruebas de API simulada no garantizan el resultado del decodificador
+de YouTube en el televisor; requiere comprobación física.
