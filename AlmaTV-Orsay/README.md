@@ -1,4 +1,15 @@
-# Alma TV 10.3.0 · Favoritos a tu manera
+# Alma TV · Guía web 10.3.1
+
+El control de celular/laptop ahora separa **Guía de TV** (categorías, favoritos, búsqueda y reproducción) de **Importar canales** (listas M3U, búsqueda para organizar, categorías manuales, eliminación y restauración). La guía pagina 20 canales, conserva las categorías que asignaste y muestra el estado confirmado del televisor. No inventa programas u horarios: las listas importadas no incluyen una guía XMLTV.
+
+Esta actualización modifica únicamente `hub_panel.html` en la Mac. **El widget Samsung sigue en 10.3.0 y no necesita sincronizarse de nuevo.** Requiere tener instalado el puente 10.3.0 con favoritos/categorías. El actualizador comprueba ese requisito y conserva la primera página anterior como `hub_panel.antes-guia.html`. No reinicia el puente y no modifica listas, favoritos, medios, imágenes ni sesiones.
+
+Descomprime `instaladores/AlmaTV-Control-10.3.1.zip` y ejecuta `python3 actualizar_control_mac.py` dentro de la carpeta extraída; no uses sudo. Después recarga `http://192.168.1.30:8088/control` en la laptop o celular. El servidor lee la página actualizada en cada apertura. Puedes cerrar Terminal. Para generar el paquete pequeño: `python3 crear_actualizacion_control.py`.
+
+Validación de esta actualización: 50 pruebas Python y 11 pruebas del panel completas pasaron; se volvió a comprobar la guía tras los ajustes finales de paginación, teclado y diseño adaptable. Pruebas del panel con puente HTTP real y navegador en laptop/celular, filtros independientes, categorías manuales, paginación, búsqueda, selección real de canal hacia el receptor Samsung simulado, controles de volumen/YouTube anteriores y actualización local sin tocar datos o widget. Capturas de pruebas: [guía en laptop](docs/capturas/44-guia-TV-laptop-prueba.png), [guía en celular](docs/capturas/45-guia-TV-celular-prueba.png) y [importación y búsqueda separadas](docs/capturas/46-importar-buscar-canales-celular.png).
+
+## Alma TV 10.3.0 · Favoritos a tu manera
+
 
 En **TV en vivo**, pulsa ☆ Favorito para guardar un canal sin clasificar. **Organizar** permite asignar manualmente Deportes, Entretenimiento, Películas, Series, Documentales, Noticias o Streaming, o eliminarlo. Entra en **★ Favoritos → Categorías** para consultar cada sección. No se clasifica ningún canal automáticamente.
 
