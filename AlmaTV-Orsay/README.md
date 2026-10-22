@@ -234,3 +234,28 @@ widget; abre Alma TV 8.5.1 (ID independiente AlmaTV851 para evitar confundir la 
 Esta versión también devuelve Vol+/Vol-/Mute al televisor mediante el gestor de
 teclas Orsay cuando está disponible. No intercepta el control remoto para cambiar
 el volumen de un archivo HTML5 y no interpreta Mute como salir.
+
+### Versión 8.6.0: prueba funcional de HDMI 2 en el reproductor
+
+Se encontró una implementación oficial Samsung TOAST de ventanas HDMI en Orsay.
+Xbox ahora intenta abrir HDMI 2 con el módulo nativo Window y comprueba la fuente
+mediante la API. Incluye ampliar, reducir con Volver, mostrar en Inicio y cerrar
+restaurando la fuente original. Conserva las correcciones de imagen de YouTube y
+volumen de 8.5.1. No hay una vista previa simulada; el resultado visual requiere
+prueba en el UN50J5200. Consulta [HDMI-ORSAY.md](docs/HDMI-ORSAY.md).
+
+
+La prueba física de 8.5.1 siguió fallando. En 8.6 se retira la ventana flotante
+YouTube y se conserva una sola zona, pausando al salir de vista. Se adapta el
+control nativo SEF Audio para el volumen físico, con lectura del nivel real y
+liberación de teclas si el firmware lo rechaza. «Saltos» permite elegir y guardar
+5/10/30 segundos para archivos propios y YouTube. Las pruebas de API no sustituyen
+la comprobación de imagen, volumen y HDMI en el televisor físico.
+
+En el salvapantallas de 8.6 se oculta la imagen de YouTube sin pausar ni recargar
+el iframe: se solicita mantener solo el audio. Al salir vuelve la imagen. Los
+archivos propios guardan posición por archivo cada cinco segundos, al pausar,
+cambiar, detener y salir. Al seleccionarlos se reanudan; «Desde el principio»
+borra ese punto. Se conservan hasta 100 posiciones. Los archivos de la Mac se
+identifican por su ID aunque cambie la IP del puente. El almacenamiento depende
+de que el navegador del televisor conserve sus datos locales.

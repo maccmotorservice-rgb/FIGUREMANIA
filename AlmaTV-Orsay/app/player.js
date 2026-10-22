@@ -9,11 +9,53 @@ var AlmaPlayer = (function () {
     status = "Detenido",
     error = "",
     notify = function () {},
-    listeners = [];
+    listeners = [], seekTimer = null, seekTarget = null;
+  var activeUrl = "", positions = [], lastHistoryWrite = 0, pendingResume = null, stopped = false;
+  var historyKey = "alma.media.positions.v1";
+  function identity(url) {
+    var match = String(url || "").match(/\/media\/file\/([a-f0-9]{16})(?:[?#]|$)/i);
+    return match ? "mac:" + match[1].toLowerCase() : String(url || "");
+  }
+  function loadPositions() {
+    try {
+      var data = JSON.parse(localStorage.getItem(historyKey) || "[]");
+      if (Object.prototype.toString.call(data) === "[object Array]") positions = data.filter(function (entry) {
+        return entry && typeof entry.url === "string" && entry.url.length <= 2048 && typeof entry.time === "number" && isFinite(entry.time) && entry.time >= 0 && typeof entry.updated === "number" && isFinite(entry.updated);
+      }).slice(0, 100);
+    } catch (e) { positions = []; }
+  }
+  function writePositions() { try { localStorage.setItem(historyKey, JSON.stringify(positions)); } catch (e) {} }
+  function savedPosition() {
+    if (index < 0 || !tracks[index]) return 0;
+    var key = identity(tracks[index].url);
+    for (var i = 0; i < positions.length; i++) if (positions[i].url === key) return positions[i].time;
+    return 0;
+  }
+  function savePosition(force, finished) {
+    if (!active || !activeUrl || stopped || pendingResume !== null) return;
+    var now = new Date().getTime();
+    if (!force && now - lastHistoryWrite < 5000) return;
+    var seconds = active.currentTime, duration = active.duration;
+    if (typeof seconds !== "number" || !isFinite(seconds) || !isFinite(duration) || duration <= 0) return;
+    lastHistoryWrite = now;
+    var key = identity(activeUrl);
+    positions = positions.filter(function (entry) { return entry.url !== key; });
+    if (!finished && seconds >= 0.5 && seconds < duration - Math.min(5, duration * 0.02)) positions.unshift({ url: key, time: seconds, updated: now });
+    positions = positions.slice(0, 100);
+    writePositions();
+  }
+  function restorePosition() {
+    if (!active || pendingResume === null || !isFinite(active.duration) || active.duration <= 0) return;
+    var value = pendingResume;
+    if (value >= active.duration - Math.min(5, active.duration * 0.02)) value = 0;
+    try { active.currentTime = value; pendingResume = null; }
+    catch (e) {} // Retry on canplay on engines that reject seeking during metadata.
+  }
   function change() {
     notify();
   }
   function init(a, v, callback) {
+    loadPositions();
     audio = a;
     video = v;
     notify = callback || function () {};
@@ -32,6 +74,7 @@ var AlmaPlayer = (function () {
       on("pause", function () {
         if (node === active && status !== "Detenido") {
           status = "En pausa";
+          savePosition(true);
           change();
         }
       });
@@ -41,12 +84,14 @@ var AlmaPlayer = (function () {
           change();
         }
       });
-      on("loadedmetadata", change);
+      on("loadedmetadata", function () { if (node === active) restorePosition(); change(); });
+      on("canplay", function () { if (node === active) restorePosition(); });
       on("durationchange", change);
-      on("timeupdate", change);
+      on("timeupdate", function () { if (node === active) savePosition(false); change(); });
       on("volumechange", change);
       on("ended", function () {
         if (node !== active) return;
+        savePosition(true, true);
         if (index + 1 < tracks.length) play(index + 1);
         else {
           status = "Finalizado";
@@ -85,7 +130,9 @@ var AlmaPlayer = (function () {
       volume: active ? active.volume : 0.7
     };
   }
+  function cancelSeek() { clearTimeout(seekTimer); seekTarget = null; }
   function play(number) {
+    cancelSeek();
     if (!tracks.length) {
       status = "Lista vacía";
       change();
@@ -106,15 +153,20 @@ var AlmaPlayer = (function () {
       change();
       return;
     }
-    if (index !== number || active !== next) {
+    if (index !== number || active !== next || activeUrl !== tracks[number].url) {
+      savePosition(true);
       if (active) active.pause();
       active = next;
       index = number;
+      activeUrl = tracks[number].url;
+      pendingResume = savedPosition() || null; stopped = false;
       active.src = tracks[number].url;
       try {
         active.volume = 0.7;
       } catch (volumeError) {}
       active.load();
+    } else if (stopped) {
+      pendingResume = savedPosition() || null; stopped = false; restorePosition();
     }
     status = "Cargando…";
     error = "";
@@ -146,9 +198,13 @@ var AlmaPlayer = (function () {
     } else play();
   }
   function pause() {
+    savePosition(true);
     if (active) active.pause();
   }
   function stop() {
+    savePosition(true);
+    stopped = true;
+    cancelSeek();
     if (active) {
       active.pause();
       try {
@@ -159,6 +215,14 @@ var AlmaPlayer = (function () {
     error = "";
     change();
   }
+  function restart() {
+    if (!active || index < 0 || !tracks[index]) return;
+    var key = identity(activeUrl);
+    positions = positions.filter(function (entry) { return entry.url !== key; }); writePositions();
+    pendingResume = null; stopped = false; cancelSeek();
+    try { active.currentTime = 0; } catch (e) {}
+    play(index);
+  }
   function step(delta) {
     if (!tracks.length) return;
     play(
@@ -166,17 +230,16 @@ var AlmaPlayer = (function () {
     );
   }
   function seek(delta) {
-    if (!active || !isFinite(active.duration)) return;
-    try {
-      active.currentTime = Math.max(
-        0,
-        Math.min(active.duration - 0.1, active.currentTime + delta)
-      );
-      change();
-    } catch (e) {
-      error = "Este archivo no permite adelantar ni retroceder.";
-      change();
-    }
+    if (!active || !isFinite(active.duration) || active.duration <= 0) return;
+    var node = active;
+    seekTarget = Math.max(0, Math.min(active.duration - 0.1, (seekTarget === null ? active.currentTime : seekTarget) + delta));
+    clearTimeout(seekTimer);
+    seekTimer = setTimeout(function () {
+      var target = seekTarget; seekTarget = null;
+      if (node !== active) return;
+      try { active.currentTime = target; change(); }
+      catch (e) { error = "Este archivo no permite adelantar ni retroceder."; change(); }
+    }, 180);
   }
   function volume(delta) {
     if (!active) return;
@@ -189,6 +252,8 @@ var AlmaPlayer = (function () {
     }
   }
   function destroy() {
+    savePosition(true);
+    cancelSeek();
     if (active) active.pause();
     for (var i = 0; i < listeners.length; i++)
       listeners[i][0].removeEventListener(
@@ -206,6 +271,7 @@ var AlmaPlayer = (function () {
     toggle: toggle,
     pause: pause,
     stop: stop,
+    restart: restart,
     step: step,
     seek: seek,
     volume: volume,

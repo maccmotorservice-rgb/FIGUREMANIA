@@ -1898,3 +1898,31 @@ body,
 /* Orsay video surface: body child with viewport pixel bounds, no theme scaling. */
 body > #youtube-host { position: absolute; overflow: hidden; margin: 0; padding: 0; border: 0; }
 body > #youtube-host.youtube-full { left: 0; top: 0; }
+
+/* Native Orsay Window draws the actual HDMI signal in this rectangle. */
+#hdmi-slot { width: 100%; height: 548px; background: transparent; }
+#hdmi-slot.focus { outline: 3px solid #438d80; outline-offset: -3px; }
+#hdmi-state { min-height: 36px; margin: 8px 0; color: #153f3d; }
+#safe[data-home-media="hdmi"] .home-player { height: 548px; background: transparent; }
+#safe[data-home-media="hdmi"] .home-audio { visibility: hidden; }
+#safe[data-hdmi="docked"]:not([data-view="hdmi"]) #view.content-scroll { height: 300px; }
+#safe[data-view="hdmi"] .page-head { margin: 0 0 8px; }
+#safe[data-view="hdmi"] .page-head h1 { font-size: 20px; line-height: 26px; margin: 0; }
+#safe[data-view="hdmi"] .page-head .eyebrow, #safe[data-view="hdmi"] .page-head p { display: none; }
+html[data-hdmi-full="true"], body[data-hdmi-full="true"] { background: transparent; }
+body[data-hdmi-full="true"] #stage { visibility: hidden; }
+
+/* One YouTube area only. Moving/scaling a live TV decoder caused owner-visible artifacts. */
+#safe[data-view="youtube"] #view { padding: 4px 6px 12px 0; }
+#youtube-slot.focus, #hdmi-slot.focus, .home-player.focus {
+  -webkit-animation: none; animation: none; -webkit-transform: none; transform: none;
+}
+#safe[data-home-media="youtube"][data-youtube="hidden"] .home-player { background: #f4faf8; }
+#safe[data-home-media="youtube"][data-youtube="hidden"] .home-audio { visibility: visible; }
+
+/* Keep transport controls and the complete player visible together in 720p. */
+#youtube-slot, #safe[data-home-media="youtube"] .home-player { max-width: 840px; margin-left: auto; margin-right: auto; }
+#safe[data-view="youtube"] .page-head { margin-bottom: 6px; }
+#safe[data-view="youtube"] .page-head h1 { font-size: 18px; line-height: 22px; }
+.youtube-state { font-size: 12px; line-height: 16px; min-height: 18px; margin: 4px 0; }
+.youtube-controls .pill, .youtube-options .pill { font-size: 13px; line-height: 18px; padding: 5px 8px; margin: 0 6px 4px 0; }

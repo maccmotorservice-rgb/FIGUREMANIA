@@ -17,6 +17,7 @@ var Alma = (function () {
       x: 0,
       y: 0,
       animations: true,
+      seekStep: 10,
       saverFrame: true,
       city: "Tuxtla Gutiérrez, Chiapas, México",
       links: [],
@@ -29,6 +30,7 @@ var Alma = (function () {
     requests = [],
     generation = 0,
     pending = false,
+    rendering = false,
     focusedNode = null,
     lastRenderedView = null,
     heroIndex = 0,
@@ -247,6 +249,7 @@ var Alma = (function () {
     prefs.relay = prefs.relay === true;
     prefs.animations = prefs.animations !== false;
     prefs.saverFrame = prefs.saverFrame !== false;
+    prefs.seekStep = [5, 10, 30].indexOf(Number(prefs.seekStep)) !== -1 ? Number(prefs.seekStep) : 10;
     if (Object.prototype.toString.call(prefs.links) !== "[object Array]")
       prefs.links = [];
     prefs.links = prefs.links.slice(0, 12).filter(function (l) {
@@ -310,6 +313,7 @@ var Alma = (function () {
     el("stage").style.webkitTransform = transform;
     el("stage").style.transform = transform;
     if (youtubeLoaded) updateYoutube();
+    if (AlmaHDMI.snapshot().active) updateHDMI();
   }
   function syncBackgrounds() {
     var saver = state.view === "saver",
@@ -351,7 +355,7 @@ var Alma = (function () {
   }
   function button(id, title, small, fn, cls) {
     actions[id] = fn;
-    var icons = { calibrate: "hub", "tv-ip": "hub", "mac-ip": "network", bridge: "network", relay: "apps", motion: "media", "saver-frame": "saver", location: "weather", links: "browser", diagnostic: "network", reset: "settings" };
+    var icons = { "seek-step": "media", calibrate: "hub", "tv-ip": "hub", "mac-ip": "network", bridge: "network", relay: "apps", motion: "media", "saver-frame": "saver", location: "weather", links: "browser", diagnostic: "network", reset: "settings" };
     var match = /^tool-(\d+)$/.exec(id);
     var icon = match && tools[Number(match[1])] ? tools[Number(match[1])].id : icons[id];
     return (
@@ -581,7 +585,7 @@ var Alma = (function () {
     }
     row(ids);
     h += '</div></div></section><section class="home-now"><h2 class="section-title">En reproducción</h2><div id="home-player" class="home-player" tabindex="0" role="region" aria-label="En reproducción"><div class="home-audio"><span class="media-eq"><b></b><b></b><b></b></span><h3 id="home-media-title"></h3><p id="home-media-state"></p></div></div></section><section class="home-tools"><h2 class="section-title">Herramientas</h2><div class="row">';
-    actions["home-player"] = function () { go(youtubeLoaded ? "youtube" : (AlmaPlayer.snapshot().index >= 0 ? "media" : "youtube-list")); };
+    actions["home-player"] = function () { go(AlmaHDMI.snapshot().active ? "hdmi" : (youtubeLoaded ? "youtube" : (AlmaPlayer.snapshot().index >= 0 ? "media" : "youtube-list"))); };
     row(["home-player"]);
     h = h.replace('</section><section class="home-tools">', '<div class="home-youtube-actions">' + pill("home-youtube", "Elegir video de YouTube", function () { go("youtube-list"); }) + '</div></section><section class="home-tools">');
     row(["home-youtube"]);
@@ -713,6 +717,7 @@ var Alma = (function () {
           render();
         }
       ],
+      ["seek-step", "Avanzar y retroceder", prefs.seekStep + " segundos · elegir 5, 10 o 30", cycleSeekStep],
       [
         "saver-frame",
         "Marco del salvapantallas",
@@ -1127,46 +1132,52 @@ var Alma = (function () {
   function closeYoutube() {
     AlmaYouTube.close();
     youtubeLoaded = "";
+    youtubeAutoPaused = false;
     el("safe").setAttribute("data-youtube", "none");
     if (youtubeFull) youtubeFullscreen(false);
   }
+  var youtubeAutoPaused = false;
   function updateYoutube() {
     var value = AlmaYouTube.snapshot(), host = el("youtube-host"), slot = el(state.view === "home" ? "home-player" : "youtube-slot");
     htmlIfChanged(el("youtube-state"), esc(value.status));
     if (value.title) htmlIfChanged(el("youtube-title"), esc(value.title));
     if (!youtubeLoaded) return;
-    host.style.visibility = modal ? "hidden" : "visible";
-    var screenWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
-    var screenHeight = window.innerHeight || document.documentElement.clientHeight || 720;
-    var width, height, left, top, dock = !slot;
-    if (youtubeFull) {
-      width = screenWidth; height = screenHeight; left = 0; top = 0;
-    } else {
-      if (slot) {
-        var slotHeight = slot.offsetWidth * 9 / 16 + "px";
-        if (slot.style.height !== slotHeight) slot.style.height = slotHeight;
-        var box = slot.getBoundingClientRect(), viewport = el("view").getBoundingClientRect();
-        width = box.width; height = width * 9 / 16;
-        left = box.left; top = box.top;
-        if (box.top < viewport.top - 1 || box.top + height > viewport.bottom + 1) dock = true;
-      }
-      if (dock) {
-        width = Math.min(416, screenWidth * 0.325); height = width * 9 / 16;
-        left = screenWidth - width - screenWidth / 32;
-        var footer = el("footer").getBoundingClientRect();
-        top = Math.max(0, Math.min(screenHeight, footer.top) - height - Math.max(8, screenHeight / 60));
-      }
-      el("safe").setAttribute("data-youtube", dock ? "docked" : "large");
-    }
-    // Use viewport pixels outside every transformed ancestor. Never allow
-    // stale/fullscreen/invalid geometry to turn into a page-sized overlay.
-    if (!isFinite(width) || !isFinite(height) || !isFinite(left) || !isFinite(top) || width <= 0 || height <= 0 || left < -1 || top < -1 || left + width > screenWidth + 2 || top + height > screenHeight + 2) {
+    if (state.view === "saver") {
       host.style.visibility = "hidden";
+      el("safe").setAttribute("data-youtube", "hidden");
+      // Keep the same live session and audio; do not reload, seek or pause it.
+      if (youtubeAutoPaused) { youtubeAutoPaused = false; AlmaYouTube.send("play"); }
       return;
     }
+    htmlIfChanged(el("home-media-title"), esc(value.title || (youtubeSelection && youtubeSelection.name) || "YouTube"));
+    var screenWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
+    var screenHeight = window.innerHeight || document.documentElement.clientHeight || 720;
+    var width = screenWidth, height = screenHeight, left = 0, top = 0, visible = youtubeFull && !modal;
+    if (!youtubeFull && slot && !modal) {
+      var slotHeight = slot.offsetWidth * 9 / 16 + "px";
+      if (slot.style.height !== slotHeight) slot.style.height = slotHeight;
+      var box = slot.getBoundingClientRect(), viewport = el("view").getBoundingClientRect();
+      width = box.width; height = width * 9 / 16; left = box.left; top = box.top;
+      visible = box.top >= viewport.top - 1 && box.top + height <= viewport.bottom + 1;
+    }
+    // No floating duplicate, no clipping of native video planes or provider controls.
+    // Keep one fixed-size session; pause whenever its real area is outside view.
+    if (!visible || !isFinite(width) || !isFinite(height) || !isFinite(left) || !isFinite(top) || width <= 0 || height <= 0 || left < -1 || top < -1 || left + width > screenWidth + 2 || top + height > screenHeight + 2) {
+      host.style.visibility = "hidden";
+      el("safe").setAttribute("data-youtube", "hidden");
+      htmlIfChanged(el("home-media-state"), "Baja hasta En reproducción para ver y continuar el video.");
+      if (rendering) return;
+      if (modal) youtubeAutoPaused = false;
+      if (value.state === 1) { youtubeAutoPaused = !modal; AlmaYouTube.send("pause"); }
+      return;
+    }
+    el("safe").setAttribute("data-youtube", "large");
+    host.style.visibility = "visible";
+    htmlIfChanged(el("home-media-state"), esc(value.status));
     var geometry = { left: Math.round(left) + "px", top: Math.round(top) + "px", width: Math.round(width) + "px", height: Math.round(height) + "px" };
     for (var property in geometry) if (Object.prototype.hasOwnProperty.call(geometry, property) && host.style[property] !== geometry[property]) host.style[property] = geometry[property];
     AlmaYouTube.resize(width, height);
+    if (youtubeAutoPaused) { youtubeAutoPaused = false; AlmaYouTube.send("play"); }
   }
   function youtubeList() {
     var h = head("TUS ENLACES", "Videos de YouTube", "Guarda enlaces desde la Mac. Selecciona un video y pulsa Reproducir.");
@@ -1185,6 +1196,7 @@ var Alma = (function () {
     return h + "</div>";
   }
   function openYoutube(item) {
+    closeHDMI();
     youtubeSelection = item;
     closeYoutube();
     AlmaPlayer.pause();
@@ -1198,6 +1210,11 @@ var Alma = (function () {
     save();
     return true;
   }
+  function cycleSeekStep() {
+    var values = [5, 10, 30];
+    prefs.seekStep = values[(values.indexOf(prefs.seekStep) + 1) % values.length];
+    save(); render();
+  }
   function youtubeView() {
     var h = head("YOUTUBE INTEGRADO · EXPERIMENTAL", youtubeSelection ? youtubeSelection.name : "YouTube", "Reproductor oficial · requiere el puente actualizado e internet en la TV.");
     h = h.replace("<h1>", '<h1 id="youtube-title">');
@@ -1207,8 +1224,9 @@ var Alma = (function () {
     var controls = [
       ["youtube-play", "Reproducir", function () { AlmaYouTube.send("play"); }],
       ["youtube-pause", "Pausar", function () { AlmaYouTube.send("pause"); }],
-      ["youtube-back", "−10 s", function () { AlmaYouTube.send("back"); }],
-      ["youtube-forward", "+10 s", function () { AlmaYouTube.send("forward"); }],
+      ["youtube-back", "−" + prefs.seekStep + " s", function () { AlmaYouTube.send("back", prefs.seekStep); }],
+      ["youtube-forward", "+" + prefs.seekStep + " s", function () { AlmaYouTube.send("forward", prefs.seekStep); }],
+      ["youtube-seek-step", "Saltos: " + prefs.seekStep + " s", cycleSeekStep],
       ["youtube-full", "Pantalla completa", function () { youtubeFullscreen(true); }],
       ["youtube-retry", "Reintentar", function () { openYoutube(youtubeSelection); }]
     ], ids = [];
@@ -1220,7 +1238,7 @@ var Alma = (function () {
     row(["youtube-native", "youtube-return"]);
     return h;
   }
-  function youtubeHidden() { if (document.hidden) closeYoutube(); }
+  function youtubeHidden() { if (document.hidden) { closeYoutube(); closeHDMI(); } }
   function mediaClock(seconds) {
     seconds = Math.max(0, Math.floor(seconds || 0));
     return pad(Math.floor(seconds / 60)) + ":" + pad(seconds % 60);
@@ -1241,12 +1259,14 @@ var Alma = (function () {
         if (result && result.catch) result.catch(function () {});
       } catch (e) {}
     }
+    htmlIfChanged(el("video-help"), "Aceptar: reproducir o pausar · ◀ / ▶: " + prefs.seekStep + " segundos · Volver: reducir");
     el("video-help").style.display = enabled ? "block" : "none";
   }
   function updatePlayer() {
     if (typeof AlmaPlayer === "undefined") return;
     var player = AlmaPlayer.snapshot();
     if (player.playing && youtubeLoaded) closeYoutube();
+    if (player.playing && AlmaHDMI.snapshot().active) closeHDMI();
     if (videoFull && (state.view !== "media" || player.kind !== "video" || player.index < 0)) fullscreenVideo(false);
     var playing = player.playing ? "true" : "false";
     if (el("safe").getAttribute("data-playing") !== playing)
@@ -1268,6 +1288,12 @@ var Alma = (function () {
       player.kind === "video" && player.index >= 0 ? "block" : "none";
     el("media-video").style.visibility = state.view === "media" || state.view === "home" ? "visible" : "hidden";
     var active = player.index >= 0;
+    if (AlmaHDMI.snapshot().active) {
+      el("media-video").style.visibility = "hidden";
+      el("safe").setAttribute("data-home-media", "hdmi");
+      updateHDMI();
+      return;
+    }
     if (youtubeLoaded) {
       el("media-video").style.visibility = "hidden";
       el("safe").setAttribute("data-home-media", "youtube");
@@ -1377,10 +1403,11 @@ var Alma = (function () {
   function mediaView() {
     var player = AlmaPlayer.snapshot();
     if (player.playing && youtubeLoaded) closeYoutube();
+    if (player.playing && AlmaHDMI.snapshot().active) closeHDMI();
     var h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor · Alma TV 8.5.1",
+        "Tu reproductor · Alma TV 8.6.0",
         "Archivos propios, enlaces directos y YouTube integrado experimental mediante el puente de la Mac."
       ) +
       '<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +
@@ -1404,13 +1431,15 @@ var Alma = (function () {
       pill("media-next", "Siguiente", function () {
         AlmaPlayer.step(1);
       }) +
-      pill("media-back", "−10 s", function () {
-        AlmaPlayer.seek(-10);
+      pill("media-back", "−" + prefs.seekStep + " s", function () {
+        AlmaPlayer.seek(-prefs.seekStep);
       }) +
-      pill("media-forward", "+10 s", function () {
-        AlmaPlayer.seek(10);
+      pill("media-forward", "+" + prefs.seekStep + " s", function () {
+        AlmaPlayer.seek(prefs.seekStep);
       }) +
+      pill("media-seek-step", "Saltos: " + prefs.seekStep + " s", cycleSeekStep) +
       pill("media-stop", "Detener", AlmaPlayer.stop) +
+      pill("media-restart", "Desde el principio", AlmaPlayer.restart) +
       pill("media-fullscreen", "Pantalla completa", function () { fullscreenVideo(true); });
     row([
       "media-prev",
@@ -1418,7 +1447,9 @@ var Alma = (function () {
       "media-next",
       "media-back",
       "media-forward",
+      "media-seek-step",
       "media-stop",
+      "media-restart",
       "media-fullscreen"
     ]);
     h +=
@@ -1487,7 +1518,10 @@ var Alma = (function () {
     return h + "</div>";
   }
   function render() {
-    if (state.view === "saver" || state.view === "calibrate") closeYoutube();
+    rendering = true;
+    if (state.view === "calibrate") closeYoutube();
+    if (state.view === "saver" || state.view === "calibrate") closeHDMI();
+    if (hdmiFull && state.view !== "hdmi") hdmiFullscreen(false);
     if (youtubeFull && state.view !== "youtube") youtubeFullscreen(false);
     rows = [];
     actions = {};
@@ -1503,6 +1537,9 @@ var Alma = (function () {
         break;
       case "media":
         h = mediaView();
+        break;
+      case "hdmi":
+        h = hdmiView();
         break;
       case "youtube-list":
         h = youtubeList();
@@ -1558,12 +1595,12 @@ var Alma = (function () {
     syncBackgrounds();
     el("view").className = state.view === "saver" ? "saver-view" : (state.view === "home" ? "home-scroll" : "content-scroll");
     if (viewChanged) el("view").scrollTop = 0;
-    el("view").onscroll = function () { if (state.view === "home") updatePlayer(); else if (youtubeLoaded) updateYoutube(); };
+    el("view").onscroll = function () { if (state.view === "home") updatePlayer(); else if (youtubeLoaded) updateYoutube(); if (AlmaHDMI.snapshot().active) updateHDMI(); };
     el("header").style.display = state.view === "saver" ? "none" : "block";
     el("footer").style.display = state.view === "saver" ? "none" : "block";
     el("view").innerHTML =
       '<div class="page-surface' +
-      (viewChanged && prefs.animations && state.view !== "saver"
+      (viewChanged && prefs.animations && state.view !== "saver" && state.view !== "hdmi" && state.view !== "youtube" && !youtubeLoaded && !AlmaHDMI.snapshot().active
         ? " page-enter"
         : "") +
       '">' +
@@ -1571,7 +1608,9 @@ var Alma = (function () {
       "</div>";
     var surface = el("view").firstChild;
     surface.addEventListener("animationend", updateYoutube, false);
+    surface.addEventListener("animationend", updateHDMI, false);
     surface.addEventListener("webkitAnimationEnd", updateYoutube, false);
+    surface.addEventListener("webkitAnimationEnd", updateHDMI, false);
     if (state.view === "media" && el("view").querySelector(".media-list")) el("view").querySelector(".media-list").scrollTop = previousMediaScroll;
     lastRenderedView = state.view;
     if (
@@ -1599,10 +1638,15 @@ var Alma = (function () {
     tick();
     if (viewChanged && state.view === "youtube-list") loadMacYoutube(true);
     if (youtubeLoaded) updateYoutube();
-    if (viewChanged && state.view === "home" && youtubeLoaded) {
+    if (AlmaHDMI.snapshot().active) updateHDMI();
+    if (viewChanged && state.view === "home" && (youtubeLoaded || AlmaHDMI.snapshot().active)) {
       for (var homeRow = 0; homeRow < rows.length; homeRow++) if (rows[homeRow][0] === "home-player") { state.row = homeRow; state.col = 0; break; }
     }
+    if (state.view === "hdmi") hdmiGeometry();
     if (!modal) focus();
+    rendering = false;
+    if (youtubeLoaded) updateYoutube();
+    if (AlmaHDMI.snapshot().active) updateHDMI();
   }
   function focusedId() {
     return rows[state.row] && rows[state.row][state.col];
@@ -1661,6 +1705,7 @@ var Alma = (function () {
         else if (bounds.bottom > visible.bottom) viewport.scrollTop += (bounds.bottom - visible.bottom) * ratio + 8;
         updatePlayer();
         if (youtubeLoaded) updateYoutube();
+        if (AlmaHDMI.snapshot().active) updateHDMI();
       }
     }
   }
@@ -1678,6 +1723,7 @@ var Alma = (function () {
     if (view === "saver" && prefs.bridge && prefs.city) getWeather(true);
   }
   function back() {
+    if (hdmiFull) { hdmiFullscreen(false); return; }
     if (youtubeFull) { youtubeFullscreen(false); return; }
     if (videoFull) { fullscreenVideo(false); return; }
     if (modal) {
@@ -1694,6 +1740,7 @@ var Alma = (function () {
   }
   function showDialog(title, body, buttons) {
     if (youtubeLoaded) { AlmaYouTube.send("pause"); el("youtube-host").style.visibility = "hidden"; }
+    if (AlmaHDMI.snapshot().active) closeHDMI();
     modal = { state: copy(state), rows: rows, actions: actions };
     rows = [];
     actions = {};
@@ -1749,6 +1796,7 @@ var Alma = (function () {
   function editor(field, title, value, type) {
     edit = { field: field, value: String(value), type: type, title: title };
     if (youtubeLoaded) { AlmaYouTube.send("pause"); el("youtube-host").style.visibility = "hidden"; }
+    if (AlmaHDMI.snapshot().active) closeHDMI();
     modal = { state: copy(state), rows: rows, actions: actions };
     state = { view: state.view, row: 0, col: 0 };
     drawEditor();
@@ -2035,6 +2083,7 @@ var Alma = (function () {
     updateNetwork();
   }
   function launch(a) {
+    closeHDMI();
     closeYoutube();
     if (a.dial) {
       if (pending) {
@@ -2087,8 +2136,67 @@ var Alma = (function () {
       );
     }
   }
-  var hdmiPending = false;
+  var hdmiFull = false;
+  function closeHDMI() {
+    if (!AlmaHDMI.stop(true)) notice("La TV rechazó cerrar HDMI. Usa SOURCE si la imagen permanece.");
+    hdmiFull = false;
+    document.body.setAttribute("data-hdmi-full", "false");
+    document.documentElement.setAttribute("data-hdmi-full", "false");
+    el("safe").setAttribute("data-hdmi", "none");
+  }
+  function hdmiGeometry() {
+    var width = window.innerWidth || document.documentElement.clientWidth || 1280;
+    var height = window.innerHeight || document.documentElement.clientHeight || 720;
+    if (hdmiFull) return { left: 0, top: 0, width: width, height: height };
+    var slot = el(state.view === "home" ? "home-player" : "hdmi-slot");
+    if (slot) {
+      slot.style.height = slot.offsetWidth * 9 / 16 + "px";
+      var box = slot.getBoundingClientRect(), viewport = el("view").getBoundingClientRect();
+      if (box.top >= viewport.top - 1 && box.bottom <= viewport.bottom + 1) {
+        el("safe").setAttribute("data-hdmi", "large");
+        return { left: Math.max(0, box.left), top: Math.max(0, box.top), width: box.width, height: box.height };
+      }
+    }
+    var videoWidth = Math.min(416, width * 0.325), videoHeight = videoWidth * 9 / 16;
+    var footer = el("footer").getBoundingClientRect();
+    el("safe").setAttribute("data-hdmi", "docked");
+    return { left: width - videoWidth - width / 32, top: Math.max(0, footer.top - videoHeight - Math.max(8, height / 60)), width: videoWidth, height: videoHeight };
+  }
+  function updateHDMI() {
+    var value = AlmaHDMI.snapshot();
+    htmlIfChanged(el("hdmi-state"), esc(value.status));
+    if (!value.active) {
+      if (hdmiFull) closeHDMI();
+      el("safe").setAttribute("data-hdmi", "none");
+      return;
+    }
+    var rect = hdmiGeometry();
+    if (!rendering) AlmaHDMI.resize(rect);
+  }
+  function hdmiFullscreen(enabled) {
+    hdmiFull = enabled;
+    document.body.setAttribute("data-hdmi-full", enabled ? "true" : "false");
+    document.documentElement.setAttribute("data-hdmi-full", enabled ? "true" : "false");
+    updateHDMI();
+  }
+  function hdmiView() {
+    var h = head("ENTRADA EXTERNA", "Xbox · HDMI 2", "Imagen directa de la entrada HDMI 2 del televisor.");
+    h += '<div id="hdmi-slot" tabindex="0" role="region" aria-label="Imagen HDMI 2: Aceptar amplía a pantalla completa"></div><p id="hdmi-state"></p>';
+    actions["hdmi-slot"] = function () { hdmiFullscreen(true); }; row(["hdmi-slot"]);
+    h += pill("hdmi-full", "Pantalla completa", function () { hdmiFullscreen(true); }) +
+      pill("hdmi-retry", "Reintentar HDMI 2", openXbox) +
+      pill("hdmi-close", "Cerrar entrada", function () { closeHDMI(); go("home"); });
+    row(["hdmi-full", "hdmi-retry", "hdmi-close"]);
+    return h;
+  }
   function openXbox() {
+    if (!AlmaHDMI.available()) { switchXboxInput(); return; }
+    closeYoutube(); closeHDMI(); AlmaPlayer.pause();
+    go("hdmi");
+    AlmaHDMI.open(hdmiGeometry(), function () { updateHDMI(); });
+  }
+  var hdmiPending = false;
+  function switchXboxInput() {
     var tvWindow =
       typeof webapis !== "undefined" && webapis.tv && webapis.tv.window;
     if (
@@ -2178,6 +2286,7 @@ var Alma = (function () {
     }
   }
   function browser(url) {
+    closeHDMI();
     try {
       if (api && typeof api.runWebBrowser === "function") {
         api.runWebBrowser(url, "");
@@ -2329,6 +2438,7 @@ var Alma = (function () {
     }
   }
   function exit() {
+    closeHDMI();
     closeYoutube();
     AlmaPlayer.pause();
     if (api) {
@@ -2342,12 +2452,16 @@ var Alma = (function () {
   var volumeKeyCodes = [7, 11, 27], nativeKeyPlugin = null;
   function releaseVolumeKeys() {
     try {
-      if (typeof Common === "undefined" || !Common.API) return;
-      if (typeof Common.API.TVKeyValue === "function") {
-        var keys = new Common.API.TVKeyValue();
+      var commonAPI = typeof Common !== "undefined" && Common.API;
+      if (commonAPI && typeof commonAPI.TVKeyValue === "function") {
+        var keys = new commonAPI.TVKeyValue();
         volumeKeyCodes = [typeof keys.KEY_VOL_UP === "number" ? keys.KEY_VOL_UP : 7, typeof keys.KEY_VOL_DOWN === "number" ? keys.KEY_VOL_DOWN : 11, typeof keys.KEY_MUTE === "number" ? keys.KEY_MUTE : 27];
       }
-      if (!nativeKeyPlugin && typeof Common.API.Plugin === "function") nativeKeyPlugin = new Common.API.Plugin();
+      // Unregister alone did not work on the owner's TV. Use native Audio
+      // and AppCommon when available; fall back to system handling otherwise.
+      if (AlmaTVAudio.init(volumeKeyCodes, notice)) return;
+      AlmaTVAudio.release(volumeKeyCodes);
+      if (!nativeKeyPlugin && commonAPI && typeof commonAPI.Plugin === "function") nativeKeyPlugin = new commonAPI.Plugin();
       if (!nativeKeyPlugin || typeof nativeKeyPlugin.unregistKey !== "function") return;
       for (var i = 0; i < volumeKeyCodes.length; i++) {
         try { nativeKeyPlugin.unregistKey(volumeKeyCodes[i]); } catch (unavailableKey) {}
@@ -2355,8 +2469,8 @@ var Alma = (function () {
     } catch (unavailablePlugin) {}
   }
   function key(code) {
-    // Samsung handles its own amplifier and OSD. Do not consume Vol+/Vol-/Mute.
-    if (volumeKeyCodes.indexOf(code) !== -1) return false;
+    // Only consume a volume key when the native Audio API handled it.
+    if (volumeKeyCodes.indexOf(code) !== -1) return AlmaTVAudio.handle(code);
 
     var map = {
         4: "left",
@@ -2384,19 +2498,24 @@ var Alma = (function () {
       }
       return false;
     }
+    if (hdmiFull) {
+      if (k === "back" || k === "exit" || k === "ok") hdmiFullscreen(false);
+      else if (k === "home" || k === "settings") { hdmiFullscreen(false); go(k === "home" ? "home" : "settings"); }
+      return true;
+    }
     if (youtubeFull) {
       if (k === "back" || k === "exit") youtubeFullscreen(false);
       else if (k === "ok") AlmaYouTube.send("toggle");
-      else if (k === "left") AlmaYouTube.send("back");
-      else if (k === "right") AlmaYouTube.send("forward");
+      else if (k === "left") AlmaYouTube.send("back", prefs.seekStep);
+      else if (k === "right") AlmaYouTube.send("forward", prefs.seekStep);
       else if (k === "home" || k === "settings") { go(k === "home" ? "home" : "settings"); }
       return true;
     }
     if (videoFull) {
       if (k === "back" || k === "exit") fullscreenVideo(false);
       else if (k === "ok") AlmaPlayer.toggle();
-      else if (k === "left") AlmaPlayer.seek(-10);
-      else if (k === "right") AlmaPlayer.seek(10);
+      else if (k === "left") AlmaPlayer.seek(-prefs.seekStep);
+      else if (k === "right") AlmaPlayer.seek(prefs.seekStep);
       else if (k === "home" || k === "settings") { fullscreenVideo(false); go(k === "home" ? "home" : "settings"); }
       return true;
     }
@@ -2568,7 +2687,9 @@ var Alma = (function () {
   };
   A.destroy = function () {
     window.onresize = null;
+    AlmaTVAudio.close();
     window.removeEventListener("focus", releaseVolumeKeys, false);
+    closeHDMI();
     AlmaYouTube.destroy();
     document.removeEventListener("visibilitychange", youtubeHidden, false);
     AlmaPlayer.destroy();

@@ -13,7 +13,7 @@
 <script>
 (function () {
   "use strict";
-  var config = __ALMA_YT_CONFIG__, player = null, ready = false, watchdog = null, initialTime = null, layoutWidth = 0, layoutHeight = 0, fittedWidth = 0, fittedHeight = 0;
+  var config = __ALMA_YT_CONFIG__, player = null, ready = false, watchdog = null, initialTime = null, layoutWidth = 0, layoutHeight = 0, fittedWidth = 0, fittedHeight = 0, seekTimer = null, seekTarget = null;
   function details() {
     var state = null, seconds = null, muted = null;
     try { if (ready && player && typeof player.getPlayerState === "function") state = player.getPlayerState(); } catch (e) {}
@@ -99,13 +99,29 @@
     clearTimeout(watchdog);
     try { if (ready && player) player.pauseVideo(); } catch (e) {}
   }
-  function command(name) {
+  function seekBy(delta) {
+    if (!ready || !player || typeof player.seekTo !== "function") return;
+    var base = seekTarget === null ? player.getCurrentTime() : seekTarget;
+    seekTarget = Math.max(0, base + delta);
+    if (typeof player.getDuration === "function") {
+      var duration = player.getDuration();
+      if (typeof duration === "number" && isFinite(duration) && duration > 0) seekTarget = Math.min(duration, seekTarget);
+    }
+    clearTimeout(seekTimer);
+    tell("command", "Salto solicitado: " + (delta > 0 ? "+" : "") + delta + " s.");
+    seekTimer = setTimeout(function () {
+      var target = seekTarget; seekTarget = null;
+      try { if (ready && player) player.seekTo(target, true); }
+      catch (e) { tell("status", "YouTube no pudo buscar ese punto del video."); }
+    }, 180);
+  }
+  function command(name, seconds) {
     try {
       if (name === "play") start();
       else if (name === "pause") pause();
       else if (name === "toggle") { if (details().state === 1) pause(); else start(); }
-      else if (name === "back" && ready) player.seekTo(Math.max(0, player.getCurrentTime() - 10), true);
-      else if (name === "forward" && ready) player.seekTo(player.getCurrentTime() + 10, true);
+      else if (name === "back" && ready) seekBy(-([5, 10, 30].indexOf(seconds) !== -1 ? seconds : 10));
+      else if (name === "forward" && ready) seekBy([5, 10, 30].indexOf(seconds) !== -1 ? seconds : 10);
     } catch (e) { tell("error", "YT-ORDEN: el navegador no pudo enviar el control a YouTube.", -1); report("error", "YT-ORDEN: el navegador no pudo enviar el control a YouTube."); }
   }
   window.onYouTubeIframeAPIReady = function () {
@@ -142,7 +158,7 @@
       layoutWidth = data.width; layoutHeight = data.height; fit();
       return;
     }
-    command(data.command);
+    command(data.command, data.seconds);
   }, false);
   if (config.standalone) {
     document.getElementById("direct").style.display = "block";

@@ -44,12 +44,13 @@ app nativa funcione no demuestra que el reproductor web actual lo haga.
   branding ni opciones del reproductor. El área visible es mayor de 200×200.
 - Los controles de Alma TV envían comandos a la API. Pantalla completa amplía el
   mismo iframe: no lo mueve de padre ni lo recarga. Volver lo reduce.
-- Desde 8.5, navegar por secciones internas conserva el mismo iframe visible:
-  grande en Inicio/reproductor o en una ventana fija al desplazarse. Nunca se
-  recortan los controles oficiales. No se ofrece reproducción invisible de YouTube.
-  Abrir una app nativa, ocultar el documento, entrar en salvapantallas/calibración
-  o iniciar un archivo propio detiene YouTube. Un diálogo pausa y oculta la ventana
-  temporalmente; al volver se puede continuar con Reproducir.
+- En 8.6 se usa una sola zona en Inicio o Multimedia. Al salir de esa zona se
+  pausa y al volver se reanuda si la pausa fue automática. El salvapantallas es
+  la excepción solicitada: conserva el mismo iframe y la reproducción, ocultando
+  la imagen para dejar solo audio con reloj y clima. No extrae audio ni recarga
+  el vídeo. Este comportamiento requiere comprobación física en Orsay.
+  Abrir una app nativa, ocultar el documento, calibrar o iniciar un archivo propio
+  detiene YouTube. Los diálogos lo pausan temporalmente.
 - Un vídeo privado, eliminado o con embedding desactivado puede fallar aunque
   otro funcione. Los errores 2, 5, 100, 101, 150 y 153 tienen explicación visible.
   Si el proveedor bloquea autoplay se indica que requiere interacción.
@@ -206,3 +207,18 @@ OSD reales deben comprobarse con el control remoto del televisor.
 No se añade vista previa HDMI: el proyecto solo tiene una ruta verificada por
 código para seleccionar un descriptor de fuente, no evidencia de captura o
 composición HDMI dentro de un widget en el UN50J5200.
+
+
+## 8.6.0: corrección tras el informe físico de 8.5.1
+
+8.5.1 no resolvió la imagen ni el volumen en el televisor. La foto muestra dos
+áreas: un espacio negro en Inicio y otra ventana flotante sobre el menú. Se retira
+la ventana flotante automática de YouTube. Hay una única zona, sin animaciones
+sobre ella, y los controles caben junto a la imagen en 720p. Fuera de esa zona
+visible se pausa; solo una pausa automática se reanuda al volver. La imagen física
+no se declara resuelta por las pruebas simuladas.
+
+Los saltos ahora permiten 5, 10 o 30 segundos, con búsqueda agrupada por ráfagas
+de pulsaciones. Los controles de pantalla completa respetan la preferencia.
+Ver [HDMI-ORSAY.md](HDMI-ORSAY.md) para la investigación oficial de Window, la
+prueba nativa de HDMI 2 y el nuevo control Audio del televisor.
