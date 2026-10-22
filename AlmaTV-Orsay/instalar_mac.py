@@ -28,7 +28,7 @@ def admin(command):
 
 def main():
     if sys.platform!='darwin':raise ValueError('Este instalador se abre en macOS.')
-    selection=osa('choose from list {"Instalar o actualizar Alma TV 9", "Recuperar Alma TV 8.7", "Detener instalador Wi-Fi", "Abrir centro de control"} with title "Alma TV" with prompt "Elige una acción" default items {"Instalar o actualizar Alma TV 9"}')
+    selection=osa('choose from list {"Instalar o actualizar Alma TV 10", "Recuperar Alma TV 8.7", "Detener instalador Wi-Fi", "Abrir centro de control"} with title "Alma TV" with prompt "Elige una acción" default items {"Instalar o actualizar Alma TV 10"}')
     if selection=='false':return
     home=Path.home();saved=home/'Library/Application Support/AlmaTV/installer-settings.json'
     settings=json.loads(saved.read_text()) if saved.exists() else {'tv':'192.168.1.249','mac':'192.168.1.30'}

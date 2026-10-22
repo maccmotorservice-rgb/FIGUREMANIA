@@ -1,10 +1,20 @@
-# Alma TV 9.1.2 · Samsung Orsay
+# Alma TV 10.0.0 · Samsung Orsay
 
-Aplicación ES5 para Samsung UN50J5200, con puente local en una Mac. El proyecto anterior FIGUREMANIA se conserva. Identificador estable `AlmaTV86`; versión interna **9.1.2**.
+Aplicación ES5 para Samsung UN50J5200, con puente local en una Mac. El proyecto anterior FIGUREMANIA se conserva. Identificador estable `AlmaTV86`; versión interna **10.0.0**.
+
+## Tema 10
+
+Interfaz inspirada en las referencias del propietario: ilustración original a pantalla completa, menú lateral translúcido y carrusel inferior con logotipos reales. El control de celular y Mac comparte el tema y la misma imagen. El PNG original del salvapantallas se conserva sin modificar.
+
+En Inicio, un vídeo propio o de YouTube ocupa el fondo detrás del menú. Multimedia conserva un reproductor independiente con controles; ambas presentaciones utilizan la misma sesión, sin crear una segunda reproducción. Al detener se recupera la ilustración. Música y modo solo audio mantienen la imagen de fondo; el salvapantallas conserva reloj, clima, ubicación, marco opcional y audio sin imagen del vídeo.
+
+Las animaciones y transiciones están desactivadas, también al cargar preferencias antiguas. No se utiliza desenfoque. La geometría del vídeo se calcula en píxeles del viewport, fuera de la escala de los controles, para conservar proporciones y permitir navegación.
+
+Vistas de prueba en navegador: [Inicio](docs/capturas/30-alma10-inicio.png), [fondo con MP4 real de prueba](docs/capturas/31-alma10-video-fondo-MP4-prueba.png), [control en celular](docs/capturas/32-alma10-control-celular.png) y [control en Mac](docs/capturas/33-alma10-control-mac.png). No son fotografías de la TV.
 
 ## Instalar y actualizar
 
-El paquete `instaladores/AlmaTV-9.1.2-instalador.zip` contiene el widget, los archivos del puente y `Instalar Alma TV.app`. Descomprime y abre el asistente en macOS: instala el puente al iniciar sesión y publica el instalador Wi-Fi durante diez minutos. Sincroniza aplicaciones en la TV usando la IP de la Mac. El asistente requiere Python 3.8 o posterior y todavía no tiene firma ni notarización de Apple; su ejecución física en macOS está pendiente de validación. Incluye recuperación del widget 8.7.0.
+El paquete `instaladores/AlmaTV-10.0.0-instalador.zip` contiene el widget, los archivos del puente y `Instalar Alma TV.app`. Descomprime y abre el asistente en macOS: instala el puente al iniciar sesión y publica el instalador Wi-Fi durante diez minutos. Sincroniza aplicaciones en la TV usando la IP de la Mac. El asistente requiere Python 3.8 o posterior y todavía no tiene firma ni notarización de Apple; su ejecución física en macOS está pendiente de validación. Incluye recuperación del widget 8.7.0.
 
 Alternativa en Terminal, dentro de la carpeta descomprimida:
 
@@ -38,7 +48,7 @@ Conversión opcional de videos subidos a MP4 H.264/AAC: requiere FFmpeg instalad
 
 ## Compatibilidad y pruebas
 
-El propietario confirmó anteriormente reproducción de YouTube por enlaces y de archivos propios en esta TV. **Las funciones nuevas de 9.1 necesitan validación física**. Las pruebas automatizadas usan Chromium, puente HTTP real y archivos multimedia reales; las API de YouTube y Dailymotion se simulan. Una simulación no demuestra que Dailymotion decodifique en el firmware Samsung.
+El propietario confirmó anteriormente reproducción de YouTube por enlaces y de archivos propios en esta TV. **El propietario confirmó la reproducción de YouTube en 9.1.2; el tema y las capas de vídeo de 10.0 necesitan validación física**. Las pruebas automatizadas usan Chromium, puente HTTP real y archivos multimedia reales; las API de YouTube y Dailymotion se simulan. Una simulación no demuestra que Dailymotion decodifique en el firmware Samsung.
 
 No se añade Spotify: no hay un receptor Spotify Connect verificado para este Orsay. Tampoco se añade soporte DRM para Disney+, Prime Video o Max. Xbox conserva el acceso existente a HDMI 2; no se promete previsualización HDMI dentro del reproductor. El control de volumen del celular no depende del módulo opcional de volumen del control remoto.
 

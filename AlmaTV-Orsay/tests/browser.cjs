@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="9.1.2"'))
+      if (!html.includes('name="alma-build" content="10.0.0"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -122,7 +122,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /9\.1\.2/);
+  assert.match(await page.locator(".brand").innerText(), /10\.0\.0/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -645,35 +645,10 @@ test("El marco blanco se configura solo para el salvapantallas y persiste", asyn
   await shot("19-salvapantallas-con-marco");
   assert.deepEqual(errors, []);
 });
-test("Las páginas y selecciones se animan; movimiento reducido las desactiva", async () => {
-  await go("apps");
-  assert.equal(await page.locator(".page-enter").count(), 1);
-  assert.equal(
-    await page
-      .locator(".page-enter")
-      .evaluate((n) => getComputedStyle(n).animationName),
-    "alma-page-in"
-  );
-  await key(39);
-  assert.equal(
-    await page
-      .locator(".focus")
-      .evaluate((n) => getComputedStyle(n).animationName),
-    "alma-focus-in"
-  );
-  for (let i = 0; i < 25; i++) await key(i % 2 ? 37 : 39);
-  assert.equal(await page.locator(".focus").count(), 1);
-  await go("settings");
-  await click("motion");
-  await go("apps");
-  assert.equal(
-    await page
-      .locator(".focus")
-      .evaluate((n) => getComputedStyle(n).animationName),
-    "none"
-  );
-  assert.equal(await page.locator(".page-enter").count(), 0);
-  assert.deepEqual(errors, []);
+test("Tema rápido elimina animaciones incluso con preferencias antiguas activadas",async()=>{
+ await page.evaluate(()=>{var p=JSON.parse(localStorage.getItem("alma.orsay.v7")||"{}");p.animations=true;localStorage.setItem("alma.orsay.v7",JSON.stringify(p));});await page.reload();
+ for(const view of ["home","apps","media","settings"]){await go(view);assert.equal(await page.locator(".page-enter").count(),0);assert.ok(await page.locator("button").evaluateAll(nodes=>nodes.every(n=>getComputedStyle(n).animationName==="none"&&getComputedStyle(n).transitionDuration==="0s")));}
+ await click("motion");assert.match(await page.locator("#motion").innerText(),/Sin animaciones/);await go("apps");for(let i=0;i<25;i++)await key(i%2?37:39);assert.equal(await page.locator(".focus").count(),1);assert.deepEqual(errors,[]);
 });
 test("Español con tildes y ñ, incluso al escribir desde el teclado", async () => {
   await go("settings");
@@ -850,6 +825,8 @@ test("El reproductor reproduce video MP4 real con sus controles", async () => {
   );
   assert.equal(await page.locator("#media-video").isVisible(), true);
   assert.ok(await page.locator("#media-video").evaluate(n => n.getBoundingClientRect().height) >= 230);
+  await click("media-add");assert.equal(await page.locator("#media-video").evaluate(n=>getComputedStyle(n).visibility),"hidden");await click("edit-cancel");assert.equal(await page.locator("#media-video").evaluate(n=>getComputedStyle(n).visibility),"visible");
+  assert.equal(await page.evaluate(()=>{var slot=document.querySelector(".media-stage"),original=slot.getBoundingClientRect,count=0;slot.getBoundingClientRect=function(){count++;return original.call(this);};for(var i=0;i<10;i++)document.getElementById("media-video").dispatchEvent(new Event("timeupdate"));return count;}),0);
   await click("media-fullscreen");
   await shot("23-alma8-pantalla-completa");
   assert.equal(await page.locator("#media-video").evaluate(n => n.getBoundingClientRect().width), 1280);
@@ -869,7 +846,10 @@ test("El reproductor reproduce video MP4 real con sus controles", async () => {
       assert.ok(await page.locator("#view").evaluate(n => n.scrollTop) > 0);
       assert.equal(await page.locator("#home-player button").count(), 0);
       assert.ok(await page.locator("#media-video").evaluate(n => n.getBoundingClientRect().width) > 800);
-      assert.ok(await page.locator("#media-video").evaluate(n => n.getBoundingClientRect().height) > 280);
+      assert.deepEqual(await page.locator("#media-video").evaluate(n=>{var b=n.getBoundingClientRect();return [b.x,b.y,b.width,b.height,n.parentElement.tagName];}),[0,0,1280,720,"BODY"]);
+      assert.equal(await page.locator("#stage").getAttribute("data-home-video"),"true");
+      assert.equal(await page.locator("#wallpaper").evaluate(n=>getComputedStyle(n).visibility),"hidden");
+      assert.equal(await page.locator("#nav-0").evaluate(n=>{var b=n.getBoundingClientRect();return document.elementFromPoint(b.x+b.width/2,b.y+b.height/2).closest("button").id;}),"nav-0");
       await shot("24-alma8-video-en-inicio");
     }
   }
@@ -881,6 +861,7 @@ test("El reproductor reproduce video MP4 real con sus controles", async () => {
   );
   await shot("22-reproductor-video-respuesta-de-prueba");
   await click("media-stop");
+  await go("home");assert.equal(await page.locator("#wallpaper").evaluate(n=>getComputedStyle(n).visibility),"visible");
   assert.deepEqual(errors, []);
 });
 
@@ -1283,7 +1264,7 @@ test("YouTube conserva una sola área y continúa al navegar, sin ventana flotan
   await page.locator("#view").evaluate(n => { n.scrollTop=0; n.dispatchEvent(new Event("scroll")); });
   const crop=await page.locator("#youtube-host").evaluate(n=>({clip:n.style.clip,height:n.getBoundingClientRect().height}));
   assert.match(crop.clip,/^rect\(/);
-  assert.ok(Number(crop.clip.match(/[\d.]+/g)[2])<crop.height);
+  assert.equal(Number(crop.clip.match(/[\d.]+/g)[2]),crop.height);
   await page.waitForFunction(() => AlmaYouTube.snapshot().state===1);
   await page.locator("#home-player").scrollIntoViewIfNeeded();
   await page.locator("#view").evaluate(n => n.dispatchEvent(new Event("scroll")));
@@ -1316,7 +1297,7 @@ test("Inicio permite elegir los enlaces de YouTube de la Mac sin pasar por Multi
 });
 
 
-test("YouTube queda dentro de En reproducción sin ancestros escalados ni reajustes repetidos, incluso a Full HD (API simulada)", async () => {
+test("YouTube ocupa el fondo completo sin escalar el iframe y conserva el menú, incluso a Full HD (API simulada)", async () => {
   await officialYouTubeFixture();
   await savedYouTube();
   await click("youtube-play");
@@ -1337,10 +1318,10 @@ test("YouTube queda dentro de En reproducción sin ancestros escalados ni reajus
     });
     assert.equal(geometry.parent,"BODY");
     assert.ok(geometry.ancestors.every(t=>t==="none"));
-    assert.ok(Math.abs(geometry.host.x-geometry.slot.x)<=2,JSON.stringify(geometry));
-    assert.ok(Math.abs(geometry.host.y-geometry.slot.y)<=2,JSON.stringify(geometry));
-    assert.ok(Math.abs(geometry.host.width-geometry.slot.width)<=2,JSON.stringify(geometry));
-    assert.ok(Math.abs(geometry.host.height-geometry.slot.height)<=2,JSON.stringify(geometry));
+    assert.equal(geometry.host.x,0);
+    assert.equal(geometry.host.y,0);
+    assert.equal(geometry.host.width,resolution.width);
+    assert.equal(geometry.host.height,resolution.height);
     assert.equal(await page.locator("#youtube-frame").getAttribute("src"),identity);
     // Let the resize messages from viewport/navigation settle before measuring.
     await page.waitForTimeout(200);
@@ -1397,14 +1378,14 @@ test("Salvapantallas conserva YouTube solo con audio, sin pausa ni recarga, y re
 });
 
 
-test("Inicio no duplica el título de YouTube; scroll conserva sesión y limita la capa al contenido (API simulada)",async()=>{
+test("Inicio mantiene el vídeo de fondo al desplazar los menús y conserva la sesión en salvapantallas (API simulada)",async()=>{
   await officialYouTubeFixture();await savedYouTube();await click("youtube-play");
   await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
   const child=page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
   const pauses=await child.evaluate(()=>testYoutube.pause);
   const src=await page.locator("#youtube-frame").getAttribute("src");
   await go("home");
-  assert.equal(await page.locator("#home-player .home-audio").evaluate(n=>getComputedStyle(n).display),"none");
+  assert.equal(await page.locator("#stage").getAttribute("data-home-video"),"true");
   await page.locator("#view").evaluate(n=>{n.scrollTop-=60;n.dispatchEvent(new Event("scroll"));});
   assert.match(await page.locator("#youtube-host").evaluate(n=>n.style.clip),/^rect\(/);
   await go("apps");await go("home");await go("saver");await key(88);
