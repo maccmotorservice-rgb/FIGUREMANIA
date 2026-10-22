@@ -457,7 +457,7 @@ var Alma = (function () {
           '" data-focus="' +
           id +
           '" class="nav' +
-          (state.view === navViews[i] ? " active" : "") +
+          ((state.view === navViews[i] || (state.view==="youtube"&&navViews[i]==="media")) ? " active" : "") +
           '"><span class="nav-icon icon-' +
           icons[i] +
           '"></span>' +
@@ -504,8 +504,8 @@ var Alma = (function () {
   function updateHero(index) {
     var own=AlmaPlayer.snapshot(),online=AlmaYouTube.snapshot();
     if(state.view==="home"&&((youtubeLoaded&&!youtubeAudioOnly)||(!youtubeLoaded&&own.index>=0&&own.kind==="video"&&own.status!=="Detenido"&&own.status!=="Finalizado"))){
-      htmlIfChanged(el("hero-label"),"EN REPRODUCCIÓN");htmlIfChanged(el("hero-title"),esc(youtubeLoaded?(online.title||(youtubeSelection&&youtubeSelection.name)||"Tu vídeo"):own.title));
-      htmlIfChanged(el("hero-copy"),"El vídeo continúa mientras eliges qué hacer.");htmlIfChanged(el("hero-cta"),"Abrir reproductor");actions["hero-cta"]=function(){go(youtubeLoaded?"youtube":"media");};return;
+      htmlIfChanged(el("hero-label"),"EN REPRODUCCIÓN");htmlIfChanged(el("hero-title"),"Disfruta tu contenido");
+      htmlIfChanged(el("hero-copy"),"El vídeo continúa mientras eliges qué hacer.");htmlIfChanged(el("hero-cta"),"Pantalla completa");actions["hero-cta"]=fullscreenCurrent;return;
     }
 
     heroIndex = index;
@@ -591,10 +591,11 @@ var Alma = (function () {
       ids.push("app-" + i);
     }
     row(ids);
-    h += '</div></div></section><section class="home-now"><h2 class="section-title">En reproducción</h2><div id="home-player" class="home-player" tabindex="0" role="region" aria-label="En reproducción"><div class="home-audio"><span class="media-eq"><b></b><b></b><b></b></span><h3 id="home-media-title"></h3><p id="home-media-state"></p></div></div></section><section class="home-tools"><h2 class="section-title">Herramientas</h2><div class="row">';
+    h += '</div></div></section><section class="home-now"><h2 class="section-title">En reproducción</h2><div id="home-player" class="home-player" tabindex="0" role="region" aria-label="En reproducción"><div class="home-audio"><span class="media-eq"><b></b><b></b><b></b></span><h3 id="home-media-title"></h3><p id="home-media-state"></p></div></div>';
     actions["home-player"] = function () { go(youtubeLoaded ? "youtube" : (AlmaPlayer.snapshot().index >= 0 ? "media" : "youtube-list")); };
     row(["home-player"]);
-    h = h.replace('</section><section class="home-tools">', '<div class="home-youtube-actions">' + pill("home-youtube", "Elegir video de YouTube", function () { go("youtube-list"); }) + '</div></section><section class="home-tools">');
+    h+='<div class="home-playback-actions">'+pill("home-fullscreen","Pantalla completa",fullscreenCurrent)+pill("home-media-open","Multimedia",function(){go("media");})+"</div>";row(["home-fullscreen","home-media-open"]);
+    h += '<div class="home-youtube-actions">' + pill("home-youtube", "Elegir video de YouTube", function () { go("youtube-list"); }) + '</div></section><section class="home-tools"><h2 class="section-title">Herramientas</h2><div class="row">';
     row(["home-youtube"]);
     ids = [];
     var order = [0, 5, 2, 4, 1, 3],
@@ -1180,6 +1181,12 @@ var Alma = (function () {
     youtubeLayoutKey = "";
     el("safe").setAttribute("data-youtube", "hidden");
   }
+  function backdropView(){return state.view!=="media"&&state.view!=="youtube"&&state.view!=="saver";}
+  function fitPlayerSlot(slot){
+    var width=Math.max(240,Math.floor(Math.min(el("view").clientWidth-44,(el("view").clientHeight-210)*16/9)));
+    var w=width+"px",h=(width*9/16)+"px";if(slot.style.width!==w)slot.style.width=w;if(slot.style.height!==h)slot.style.height=h;
+  }
+  function fullscreenCurrent(){if(youtubeLoaded&&!youtubeAudioOnly)youtubeFullscreen(true);else fullscreenVideo(true);}
   function homeBackdrop(active) {
     var value=active?"true":"false",stage=el("stage");
     if(stage.getAttribute("data-home-video")!==value)stage.setAttribute("data-home-video",value);
@@ -1194,21 +1201,21 @@ var Alma = (function () {
       else if (value.ready && !livePending.sent) { livePending.sent = true; AlmaYouTube.send("play"); }
     }
     if (youtubeAudioOnly) {
-      htmlIfChanged(el("home-media-title"), esc(value.title || (youtubeSelection && youtubeSelection.name) || "YouTube"));
+      htmlIfChanged(el("home-media-title"), "");
       htmlIfChanged(el("home-media-state"), "Solo audio · " + esc(value.status));
     }
-    if(!youtubeAudioOnly){htmlIfChanged(el("home-media-title"),"Tu vídeo en segundo plano");htmlIfChanged(el("home-media-state"),esc(value.status));}
-    var slot = el(state.view === "home" ? "home-player" : "youtube-slot");
+    if(!youtubeAudioOnly){htmlIfChanged(el("home-media-title"),"");htmlIfChanged(el("home-media-state"),esc(value.status));}
+    var slot = el("youtube-slot");
     htmlIfChanged(el("youtube-state"), esc(value.status));
     if (value.title) htmlIfChanged(el("youtube-title"), esc(value.title));
     if (!youtubeLoaded) return;
-    var backdrop=state.view==="home"&&!youtubeAudioOnly&&!value.failed&&value.state!==0;
+    var backdrop=backdropView()&&!youtubeFull&&!youtubeAudioOnly&&!value.failed&&value.state!==0;
     homeBackdrop(backdrop);
     if(state.view==="home")updateHero(heroIndex);
     host.style.zIndex=backdrop?"0":(youtubeFull?"110":"12");
     host.style.pointerEvents=backdrop?"none":"auto";
     // Navigation changes presentation only; never send pause/play or reload.
-    if (youtubeAudioOnly || state.view === "saver" || modal || (!youtubeFull && !slot)) {
+    if (youtubeAudioOnly || state.view === "saver" || (modal&&!backdrop) || (!youtubeFull&&!backdrop&&!slot)) {
       hideYoutubeImage(host);
       return;
     }
@@ -1220,8 +1227,7 @@ var Alma = (function () {
     var layoutKey = [state.view, youtubeFull, screenWidth, screenHeight, backdrop?0:el("view").scrollTop, prefs.scale, prefs.x, prefs.y].join(":");
     if (layoutKey === youtubeLayoutKey) { AlmaYouTube.present(true); AlmaYouTube.resize(parseFloat(host.style.width), parseFloat(host.style.height)); return; }
     if (!youtubeFull && !backdrop) {
-      var slotHeight = slot.offsetWidth * 9 / 16 + "px";
-      if (slot.style.height !== slotHeight) slot.style.height = slotHeight;
+      fitPlayerSlot(slot);
       var box = slot.getBoundingClientRect(), viewport = el("view").getBoundingClientRect();
       width = box.width; height = width * 9 / 16; left = box.left; top = box.top;
       clipTop = Math.max(0, viewport.top - top, -top);
@@ -1277,6 +1283,7 @@ var Alma = (function () {
   function youtubeView() {
     var h = head((youtubeSelection && youtubeSelection.provider === "dailymotion" ? "DAILYMOTION" : "YOUTUBE") + " INTEGRADO", youtubeSelection ? youtubeSelection.name : "YouTube", "Reproductor oficial · requiere el puente actualizado e internet en la TV.");
     h = h.replace("<h1>", '<h1 id="youtube-title">');
+    h+=pill("youtube-full","Pantalla completa",function(){youtubeFullscreen(true);});row(["youtube-full"]);
     h += '<div id="youtube-slot" tabindex="0" role="region" aria-label="Vídeo: Aceptar reproduce o pausa"></div><p id="youtube-state" class="youtube-state"></p><div class="youtube-controls">';
     actions["youtube-slot"] = function () { AlmaYouTube.send("toggle"); };
     row(["youtube-slot"]);
@@ -1286,7 +1293,6 @@ var Alma = (function () {
       ["youtube-back", "−" + prefs.seekStep + " s", function () { AlmaYouTube.send("back", prefs.seekStep); }],
       ["youtube-forward", "+" + prefs.seekStep + " s", function () { AlmaYouTube.send("forward", prefs.seekStep); }],
       ["youtube-seek-step", "Saltos: " + prefs.seekStep + " s", cycleSeekStep],
-      ["youtube-full", "Pantalla completa", function () { youtubeFullscreen(true); }],
       ["youtube-retry", "Reintentar", function () { openYoutube(youtubeSelection); }]
     ], ids = [];
     for (var i = 0; i < controls.length; i++) {
@@ -1321,7 +1327,7 @@ var Alma = (function () {
     var player = AlmaPlayer.snapshot();
     el("video-help").style.display=videoFull&&!modal?"block":"none";
     if (player.playing && youtubeLoaded) closeYoutube();
-    if (videoFull && ((state.view !== "media" && state.view !== "home") || player.kind !== "video" || player.index < 0)) fullscreenVideo(false);
+    if (videoFull && (state.view === "saver" || player.kind !== "video" || player.index < 0)) fullscreenVideo(false);
     var playing = player.playing ? "true" : "false";
     if (el("safe").getAttribute("data-playing") !== playing)
       el("safe").setAttribute("data-playing", playing);
@@ -1340,8 +1346,10 @@ var Alma = (function () {
     // Some legacy engines suspend media when display is set to none.
     el("media-video").style.display =
       player.kind === "video" && player.index >= 0 ? "block" : "none";
-    el("media-video").style.visibility = state.view === "media" || state.view === "home" ? "visible" : "hidden";
     var active = player.index >= 0;
+    el("safe").setAttribute("data-media-kind",active?player.kind:"none");
+    var mediaPane=state.view==="media"&&el("view").querySelector(".media-stage");
+    if(mediaPane&&!youtubeLoaded){if(active&&player.kind==="video")fitPlayerSlot(mediaPane);else{mediaPane.style.width="";mediaPane.style.height="";}}
     if (youtubeLoaded) {
       el("media-video").style.visibility = "hidden";
       el("safe").setAttribute("data-home-media", "youtube");
@@ -1349,9 +1357,9 @@ var Alma = (function () {
       return;
     }
     el("safe").setAttribute("data-home-media", active ? player.kind : "none");
-    htmlIfChanged(el("home-media-title"), esc(active ? player.title : "Tu música y tus vídeos"));
+    htmlIfChanged(el("home-media-title"), esc(active&&player.kind==="video"?"":(active ? player.title : "Tu música y tus vídeos")));
     htmlIfChanged(el("home-media-state"), esc(active ? (player.error || player.status) : "Selecciona un archivo desde Multimedia."));
-    var video=el("media-video"),backdrop=state.view==="home"&&active&&player.kind==="video"&&player.status!=="Detenido"&&player.status!=="Finalizado";
+    var video=el("media-video"),backdrop=backdropView()&&!videoFull&&active&&player.kind==="video"&&player.status!=="Detenido"&&player.status!=="Finalizado";
     homeBackdrop(backdrop);
     if(state.view==="home")updateHero(heroIndex);
     video.style.zIndex=videoFull?"110":(backdrop?"0":"12");
@@ -1367,7 +1375,7 @@ var Alma = (function () {
       for(var property in geometry)if(Object.prototype.hasOwnProperty.call(geometry,property)&&video.style[property]!==geometry[property])video.style[property]=geometry[property];
         ownVideoGeometryKey=placementKey;
       }
-      video.style.visibility=(backdrop||videoFull||state.view==="media")&&!modal?"visible":"hidden";
+      video.style.visibility=(backdrop||videoFull||state.view==="media")&&(!modal||backdrop)?"visible":"hidden";
     }
     if (el("media-progress"))
       el("media-progress").style.width =
@@ -1452,13 +1460,15 @@ var Alma = (function () {
   function mediaView() {
     var player = AlmaPlayer.snapshot();
     if (player.playing && youtubeLoaded) closeYoutube();
-    var h =
+    var h="";
+    if(youtubeLoaded)h='<section class="online-player">'+youtubeView()+"</section>";
+    else{h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor · Alma TV 10.0.0",
+        "Tu reproductor · Alma TV 10.0.1",
         "Archivos propios, enlaces directos y YouTube integrado experimental mediante el puente de la Mac."
       ) +
-      '<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +
+      pill("media-fullscreen","Pantalla completa",function(){fullscreenVideo(true);})+'<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +
       esc(player.title) +
       '</h2><p id="media-state">' +
       esc(player.error || player.status) +
@@ -1467,6 +1477,7 @@ var Alma = (function () {
       " / " +
       mediaClock(player.duration) +
       '</div></div><div class="media-controls">';
+    row(["media-fullscreen"]);
     h +=
       pill("media-prev", "Anterior", function () {
         AlmaPlayer.step(-1);
@@ -1486,8 +1497,7 @@ var Alma = (function () {
       pill("media-forward", "+" + prefs.seekStep + " s", function () {
         AlmaPlayer.seek(prefs.seekStep);
       }) +
-      pill("media-stop", "Detener", AlmaPlayer.stop) +
-      pill("media-fullscreen", "Pantalla completa", function () { fullscreenVideo(true); });
+      pill("media-stop", "Detener", AlmaPlayer.stop);
     row([
       "media-prev",
       "media-play",
@@ -1495,11 +1505,11 @@ var Alma = (function () {
       "media-seek-step",
       "media-back",
       "media-forward",
-      "media-stop",
-      "media-fullscreen"
+      "media-stop"
     ]);
+    h+="</div>";}
     h +=
-      '</div><div class="media-actions">' +
+      '<div class="media-actions">' +
       pill("media-add", "Añadir enlace", function () {
         if (prefs.media.length >= 30) {
           notice("Puedes guardar hasta 30 archivos.");
@@ -1566,8 +1576,6 @@ var Alma = (function () {
   function render() {
     rendering = true;
     youtubeLayoutKey = "";ownVideoGeometryKey="";
-    if (state.view === "calibrate") closeYoutube();
-    if (youtubeFull && state.view !== "youtube") youtubeFullscreen(false);
     rows = [];
     actions = {};
     nav();
@@ -1749,6 +1757,7 @@ var Alma = (function () {
     }
   }
   function go(view) {
+    if(view!==state.view){if(youtubeFull)youtubeFullscreen(false);if(videoFull)fullscreenVideo(false);}
     if (state.view === view) {
       state.row = 1;
       state.col = 0;
@@ -1777,9 +1786,9 @@ var Alma = (function () {
     render();
   }
   function showDialog(title, body, buttons) {
-    if (youtubeLoaded) { AlmaYouTube.send("pause"); el("youtube-host").style.visibility = "hidden"; }
     modal = { state: copy(state), rows: rows, actions: actions };
-    el("media-video").style.visibility="hidden";el("video-help").style.display="none";
+    if (youtubeLoaded) updateYoutube();
+    if(!backdropView())el("media-video").style.visibility="hidden";el("video-help").style.display="none";
     rows = [];
     actions = {};
     state = { view: state.view, row: 0, col: 0 };
@@ -1833,9 +1842,9 @@ var Alma = (function () {
   }
   function editor(field, title, value, type) {
     edit = { field: field, value: String(value), type: type, title: title };
-    if (youtubeLoaded) { AlmaYouTube.send("pause"); el("youtube-host").style.visibility = "hidden"; }
     modal = { state: copy(state), rows: rows, actions: actions };
-    el("media-video").style.visibility="hidden";el("video-help").style.display="none";
+    if (youtubeLoaded) updateYoutube();
+    if(!backdropView())el("media-video").style.visibility="hidden";el("video-help").style.display="none";
     state = { view: state.view, row: 0, col: 0 };
     drawEditor();
   }
@@ -2484,7 +2493,7 @@ var Alma = (function () {
       else if (k === "ok") AlmaYouTube.send("toggle");
       else if (k === "left") AlmaYouTube.send("back", prefs.seekStep);
       else if (k === "right") AlmaYouTube.send("forward", prefs.seekStep);
-      else if (k === "home" || k === "settings") { go(k === "home" ? "home" : "settings"); }
+      else if (k === "home" || k === "settings") { youtubeFullscreen(false);go(k === "home" ? "home" : "settings"); }
       return true;
     }
     if (videoFull) {

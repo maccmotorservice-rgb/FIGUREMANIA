@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="10.0.0"'))
+      if (!html.includes('name="alma-build" content="10.0.1"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -122,7 +122,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /10\.0\.0/);
+  assert.match(await page.locator(".brand").innerText(), /10\.0\.1/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -838,7 +838,7 @@ test("El reproductor reproduce video MP4 real con sus controles", async () => {
     await page.waitForTimeout(180);
     assert.equal(await page.locator("#media-video").evaluate(n => n.paused), false);
     assert.ok(await page.locator("#media-video").evaluate(n => n.currentTime) > time);
-    assert.equal(await page.locator("#media-video").isVisible(), view === "home");
+    assert.equal(await page.locator("#media-video").isVisible(), true);
     if (view === "home") {
       await key(29461);
       await key(29461);
@@ -850,6 +850,12 @@ test("El reproductor reproduce video MP4 real con sus controles", async () => {
       assert.equal(await page.locator("#stage").getAttribute("data-home-video"),"true");
       assert.equal(await page.locator("#wallpaper").evaluate(n=>getComputedStyle(n).visibility),"hidden");
       assert.equal(await page.locator("#nav-0").evaluate(n=>{var b=n.getBoundingClientRect();return document.elementFromPoint(b.x+b.width/2,b.y+b.height/2).closest("button").id;}),"nav-0");
+      await key(29461);
+      assert.equal(await page.locator(".focus").getAttribute("id"),"home-fullscreen");
+      await key(29443);
+      assert.equal(await page.locator("#media-video").evaluate(n=>getComputedStyle(n).zIndex),"110");
+      await key(88);
+      assert.equal(await page.locator("#media-video").evaluate(n=>n.paused),false);
       await shot("24-alma8-video-en-inicio");
     }
   }
@@ -1244,11 +1250,11 @@ test("YouTube conserva una sola área y continúa al navegar, sin ventana flotan
   const frame = page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
   await page.locator("#youtube-frame").evaluate(n => { n.dataset.identity="persistent-85"; });
   const large = await page.locator("#youtube-host").boundingBox();
-  assert.ok(large.width >= 700 && large.height >= 390, JSON.stringify(large));
+  assert.ok(large.width >= 600 && large.height >= 330, JSON.stringify(large));
   assert.ok(Math.abs(large.width/large.height-16/9)<0.02);
   const outer = await page.locator("#youtube-frame").evaluate(n => [Number(n.width),Number(n.height)]);
   const inner = await frame.locator("#surface iframe").evaluate(n => [Number(n.width),Number(n.height)]);
-  assert.ok(outer[0]>=700 && inner[0]>=700);
+  assert.ok(outer[0]>=600 && inner[0]>=600);
   assert.ok(Math.abs(inner[0]/inner[1]-16/9)<0.02);
   await click("youtube-play");
   await page.waitForFunction(() => AlmaYouTube.snapshot().state===1);
@@ -1256,9 +1262,12 @@ test("YouTube conserva una sola área y continúa al navegar, sin ventana flotan
     await go(view);
     assert.equal(await page.locator("#youtube-frame").getAttribute("data-identity"),"persistent-85");
     await page.waitForFunction(expected => AlmaYouTube.snapshot().state===expected, 1);
-    if (view!=="home") {
-      assert.equal(await page.locator("#safe").getAttribute("data-youtube"),"hidden");
-      assert.equal(await page.locator("#youtube-host").evaluate(n=>getComputedStyle(n).visibility),"hidden");
+    assert.equal(await page.locator("#youtube-host").evaluate(n=>getComputedStyle(n).visibility),"visible");
+    if(view==="media"){
+      assert.equal(await page.locator("#youtube-slot").count(),1);
+      const b=await page.locator("#youtube-host").boundingBox();
+      assert.ok(b.y>=0 && b.y+b.height<=720 && Math.abs(b.width/b.height-16/9)<0.02,JSON.stringify(b));
+      assert.equal(await page.locator("#media-stage").count(),0);
     }
   }
   await page.locator("#view").evaluate(n => { n.scrollTop=0; n.dispatchEvent(new Event("scroll")); });
@@ -1649,3 +1658,38 @@ test("En tiempo real anterior acepta tres órdenes consecutivas sin reconstruir 
  await page.evaluate(()=>AlmaYouTube.open(document.getElementById("youtube-host"),"192.168.1.30","dQw4w9WgXcQ",function(){},"youtube",false));await frame.waitForFunction(()=>testYoutube.pause===1);assert.equal(await frame.evaluate(()=>testYoutube.load),1);
  await page.evaluate(()=>AlmaYouTube.send("play"));await frame.waitForFunction(()=>testYoutube.load===2);assert.equal(await frame.evaluate(()=>testYoutube.loadedId),"dQw4w9WgXcQ");
  });
+
+test("Inicio desplaza todos los botones inferiores y abre pantalla completa sin reiniciar YouTube (API simulada)",async()=>{
+  await officialYouTubeFixture();await savedYouTube();await click("youtube-play");
+  await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
+  const child=page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
+  const pauses=await child.evaluate(()=>testYoutube.pause);
+  const src=await page.locator("#youtube-frame").getAttribute("src");
+  await go("home");
+  const seen=[];
+  for(let i=0;i<9;i++){
+    const id=await page.evaluate(()=>document.querySelector("#view .focus")?.id);
+    if(id){
+      seen.push(id);
+      const box=await page.locator("#"+id).boundingBox(),view=await page.locator("#view").boundingBox();
+      assert.ok(box.y>=view.y-1 && box.y+box.height<=view.y+view.height+1,id+" fuera del área visible");
+    }
+    await key(29461);
+  }
+  assert.ok(seen.includes("home-fullscreen"),JSON.stringify(seen));
+  assert.ok(seen.includes("home-youtube"),JSON.stringify(seen));
+  assert.ok(seen.some(id=>id.startsWith("tool-")),JSON.stringify(seen));
+  assert.equal(await page.locator("#home-media-title").innerText(),"");
+  await click("home-fullscreen");
+  assert.deepEqual(await page.locator("#youtube-host").evaluate(n=>{const b=n.getBoundingClientRect();return [b.x,b.y,b.width,b.height,getComputedStyle(n).zIndex];}),[0,0,1280,720,"110"]);
+  await key(88);await click("home-media-open");
+  assert.equal(await page.locator("#safe").getAttribute("data-view"),"media");
+  const box=await page.locator("#youtube-host").boundingBox();
+  assert.ok(box.y>=0&&box.y+box.height<=720&&Math.abs(box.width/box.height-16/9)<.02,JSON.stringify(box));
+  await click("youtube-full");await key(88);
+  await go("settings");await go("apps");await go("home");
+  assert.equal(await child.evaluate(()=>testYoutube.pause),pauses);
+  assert.equal(await page.locator("#youtube-frame").getAttribute("src"),src);
+  assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);
+  assert.deepEqual(errors,[]);
+});
