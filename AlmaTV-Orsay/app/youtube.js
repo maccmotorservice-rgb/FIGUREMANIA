@@ -1,7 +1,7 @@
 /* Integración oficial de YouTube. ES5; no extrae ni descarga vídeos. */
 var AlmaYouTube = (function () {
   "use strict";
-  var frame = null, host = null, base = "", token = "", timer = null, lastWidth = 0, lastHeight = 0;
+  var frame = null, host = null, base = "", token = "", timer = null, lastWidth = 0, lastHeight = 0, presented = null;
   var changed = function () {}, value = { status: "Sin vídeo", ready: false, state: -1, title: "" };
   function parseUrl(input) {
     var text = String(input || "").replace(/^\s+|\s+$/g, ""), a = document.createElement("a"), id = "";
@@ -18,9 +18,14 @@ var AlmaYouTube = (function () {
     return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : "";
   }
   function snapshot() { return { status: value.status, ready: value.ready, state: value.state, title: value.title }; }
-  function send(command) {
+  function present(visible) {
+    if (!frame || !frame.contentWindow || presented === visible) return;
+    presented = visible;
+    frame.contentWindow.postMessage(JSON.stringify({ channel: "alma-youtube", token: token, command: "presentation", visible: visible }), base);
+  }
+  function send(command, seconds) {
     if (!frame || !frame.contentWindow) return;
-    frame.contentWindow.postMessage(JSON.stringify({ channel: "alma-youtube", token: token, command: command }), base);
+    frame.contentWindow.postMessage(JSON.stringify({ channel: "alma-youtube", token: token, command: command, seconds: [5, 10, 30].indexOf(seconds) !== -1 ? seconds : 10 }), base);
   }
   function resize(width, height) {
     if (!frame || !frame.contentWindow) return;
@@ -37,7 +42,7 @@ var AlmaYouTube = (function () {
     var data;
     try { data = typeof event.data === "string" ? JSON.parse(event.data) : event.data; } catch (e) { return; }
     if (!data || data.channel !== "alma-youtube" || data.token !== token) return;
-    if (data.type === "ready") { lastWidth = 0; lastHeight = 0; value.ready = true; clearTimeout(timer); }
+    if (data.type === "ready") { lastWidth = 0; lastHeight = 0; presented = null; value.ready = true; clearTimeout(timer); }
     if (data.type === "error") { value.ready = false; clearTimeout(timer); }
     if (typeof data.state === "number") value.state = data.state;
     if (typeof data.title === "string") value.title = data.title.slice(0, 160);
@@ -47,7 +52,7 @@ var AlmaYouTube = (function () {
   function close() {
     clearTimeout(timer);
     if (frame) { send("pause"); frame.src = "about:blank"; host.innerHTML = ""; }
-    frame = null; lastWidth = 0; lastHeight = 0;
+    frame = null; lastWidth = 0; lastHeight = 0; presented = null;
     if (host) host.style.display = "none";
     value = { status: "Sin vídeo", ready: false, state: -1, title: "" };
   }
@@ -75,5 +80,5 @@ var AlmaYouTube = (function () {
   }
   function init() { window.addEventListener("message", receive, false); }
   function destroy() { close(); window.removeEventListener("message", receive, false); }
-  return { init: init, destroy: destroy, parseUrl: parseUrl, open: open, close: close, send: send, resize: resize, snapshot: snapshot };
+  return { init: init, destroy: destroy, parseUrl: parseUrl, open: open, close: close, send: send, present: present, resize: resize, snapshot: snapshot };
 })();

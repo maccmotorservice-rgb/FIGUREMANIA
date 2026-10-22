@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="8.6.4"'))
+      if (!html.includes('name="alma-build" content="8.6.5"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -120,7 +120,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /8\.6\.4/);
+  assert.match(await page.locator(".brand").innerText(), /8\.6\.5/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -960,7 +960,7 @@ async function officialYouTubeFixture(code = 0, behavior = "normal") {
       this.playVideo=function(){window.testYoutube.play++;window.testYoutube.activation=navigator.userActivation ? navigator.userActivation.isActive : null;${code ? `options.events.onError({data:${code}});` : behavior === "stalled" ? "" : behavior === "blocked" ? "options.events.onAutoplayBlocked();" : "state=1;options.events.onStateChange({data:1});"}};
       ${behavior === "explicit" ? 'this.loadVideoById=function(id){window.testYoutube.load++;window.testYoutube.loadedId=id;state=1;options.events.onStateChange({data:1});};' : ''}
       this.pauseVideo=function(){window.testYoutube.pause++;state=2;options.events.onStateChange({data:2});};
-      this.seekTo=function(value){window.testYoutube.seek++;time=value;};
+      this.seekTo=function(value){window.testYoutube.seek++;window.testYoutube.lastSeek=value;time=value;};
       setTimeout(function(){options.events.onReady();},0);
     }};window.onYouTubeIframeAPIReady();
   `}));
@@ -1409,4 +1409,72 @@ test("Inicio no duplica el título de YouTube; scroll conserva sesión y limita 
   assert.equal(await page.locator("#youtube-frame").getAttribute("src"),src);
   assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);
   assert.deepEqual(errors,[]);
+});
+
+test("Saltos de 5, 10 o 30 segundos se guardan y agrupan pulsaciones rápidas de YouTube (API simulada)", async () => {
+  await officialYouTubeFixture();
+  await savedYouTube();
+  assert.match(await page.locator("#youtube-seek-step").innerText(),/10 s/);
+  await click("youtube-seek-step");
+  assert.match(await page.locator("#youtube-forward").innerText(),/30 s/);
+  await click("youtube-full");
+  await page.evaluate(()=>{Alma.key(5);Alma.key(5);Alma.key(5);});
+  const frame=page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
+  await frame.waitForFunction(()=>testYoutube.seek===1);
+  assert.equal(await frame.evaluate(()=>testYoutube.lastSeek),110);
+  await key(88); await click("youtube-seek-step");
+  assert.match(await page.locator("#youtube-back").innerText(),/5 s/);
+  await click("youtube-back");
+  await frame.waitForFunction(()=>testYoutube.seek===2);
+  assert.equal(await frame.evaluate(()=>testYoutube.lastSeek),105);
+  await page.reload(); await go("settings");
+  assert.match(await page.locator("#seek-step").innerText(),/5 segundos/);
+  assert.deepEqual(errors,[]);
+});
+
+test("Saltos configurables en archivos reales y una sola búsqueda por ráfaga", async () => {
+  await go("media"); await click("media-play");
+  await page.waitForFunction(()=>document.getElementById("media-audio").currentTime>0.2);
+  await click("media-play");
+  await click("media-seek-step"); await click("media-seek-step");
+  assert.match(await page.locator("#media-forward").innerText(),/5 s/);
+  await click("media-forward");
+  await page.waitForFunction(()=>document.getElementById("media-audio").currentTime>5);
+  await page.evaluate(()=>{AlmaPlayer.seek(-5);AlmaPlayer.seek(5);AlmaPlayer.seek(-5);});
+  await page.waitForFunction(()=>document.getElementById("media-audio").currentTime<1);
+  assert.deepEqual(errors,[]);
+});
+
+
+
+
+test("Salvapantallas retira ambas superficies fuera de pantalla, conserva audio y restaura sin recarga (API simulada)", async()=>{
+  await officialYouTubeFixture();await savedYouTube();await click("youtube-play");
+  await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
+  const child=page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
+  const src=await page.locator("#youtube-frame").getAttribute("src");
+  const pauses=await child.evaluate(()=>testYoutube.pause);
+  await go("saver");
+  await child.waitForFunction(()=>document.getElementById("surface").style.left==="-10000px");
+  assert.equal(await page.locator("#youtube-host").evaluate(n=>n.style.left),"-10000px");
+  await page.clock.runFor(16000);
+  assert.equal(await child.evaluate(()=>testYoutube.pause),pauses);
+  assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);
+  await key(88);
+  await child.waitForFunction(()=>document.getElementById("surface").style.left==="0px");
+  assert.equal(await page.locator("#youtube-frame").getAttribute("src"),src);
+  assert.deepEqual(errors,[]);
+});
+
+test("YouTube reutiliza la geometría ante estados repetidos sin lecturas de layout (API simulada)",async()=>{
+  await officialYouTubeFixture();await savedYouTube();await click("youtube-play");
+  await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
+  const reads=await page.evaluate(()=>{
+    const slot=document.getElementById("youtube-slot"),original=slot.getBoundingClientRect;
+    let count=0;slot.getBoundingClientRect=function(){count++;return original.call(this);};
+    const frame=document.getElementById("youtube-frame"),token=new URL(frame.src).searchParams.get("token");
+    for(let i=0;i<50;i++) window.dispatchEvent(new MessageEvent("message",{source:frame.contentWindow,origin:"http://192.168.1.30:8088",data:JSON.stringify({channel:"alma-youtube",token,type:"state",state:1,status:"Reproduciendo en YouTube"})}));
+    return count;
+  });
+  assert.equal(reads,0);assert.deepEqual(errors,[]);
 });

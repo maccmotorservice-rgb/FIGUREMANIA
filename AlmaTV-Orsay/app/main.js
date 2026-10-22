@@ -17,6 +17,7 @@ var Alma = (function () {
       x: 0,
       y: 0,
       animations: true,
+      seekStep: 10,
       saverFrame: true,
       city: "Tuxtla Gutiérrez, Chiapas, México",
       links: [],
@@ -247,6 +248,7 @@ var Alma = (function () {
     prefs.bridge = prefs.bridge === true;
     prefs.relay = prefs.relay === true;
     prefs.animations = prefs.animations !== false;
+    prefs.seekStep = [5, 10, 30].indexOf(Number(prefs.seekStep)) !== -1 ? Number(prefs.seekStep) : 10;
     prefs.saverFrame = prefs.saverFrame !== false;
     if (Object.prototype.toString.call(prefs.links) !== "[object Array]")
       prefs.links = [];
@@ -352,7 +354,7 @@ var Alma = (function () {
   }
   function button(id, title, small, fn, cls) {
     actions[id] = fn;
-    var icons = { calibrate: "hub", "tv-ip": "hub", "mac-ip": "network", bridge: "network", relay: "apps", motion: "media", "saver-frame": "saver", location: "weather", links: "browser", diagnostic: "network", reset: "settings" };
+    var icons = { "seek-step": "media", calibrate: "hub", "tv-ip": "hub", "mac-ip": "network", bridge: "network", relay: "apps", motion: "media", "saver-frame": "saver", location: "weather", links: "browser", diagnostic: "network", reset: "settings" };
     var match = /^tool-(\d+)$/.exec(id);
     var icon = match && tools[Number(match[1])] ? tools[Number(match[1])].id : icons[id];
     return (
@@ -714,6 +716,7 @@ var Alma = (function () {
           render();
         }
       ],
+      ["seek-step", "Avanzar y retroceder", prefs.seekStep + " segundos · elegir 5, 10 o 30", cycleSeekStep],
       [
         "saver-frame",
         "Marco del salvapantallas",
@@ -1131,6 +1134,22 @@ var Alma = (function () {
     el("safe").setAttribute("data-youtube", "none");
     if (youtubeFull) youtubeFullscreen(false);
   }
+  var youtubeLayoutKey = "";
+  function cycleSeekStep() {
+    var values = [5, 10, 30];
+    prefs.seekStep = values[(values.indexOf(prefs.seekStep) + 1) % values.length];
+    save(); render();
+  }
+  function hideYoutubeImage(host) {
+    AlmaYouTube.present(false);
+    if (host.style.left !== "-10000px") {
+      host.style.left = "-10000px"; host.style.top = "-10000px";
+      host.style.clip = "rect(0px,0px,0px,0px)";
+      host.style.visibility = "hidden";
+    }
+    youtubeLayoutKey = "";
+    el("safe").setAttribute("data-youtube", "hidden");
+  }
   function updateYoutube() {
     var value = AlmaYouTube.snapshot(), host = el("youtube-host");
     var slot = el(state.view === "home" ? "home-player" : "youtube-slot");
@@ -1139,30 +1158,33 @@ var Alma = (function () {
     if (!youtubeLoaded) return;
     // Navigation changes presentation only; never send pause/play or reload.
     if (state.view === "saver" || modal || (!youtubeFull && !slot)) {
-      host.style.visibility = "hidden";
-      el("safe").setAttribute("data-youtube", "hidden");
+      hideYoutubeImage(host);
       return;
     }
     var screenWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
     var screenHeight = window.innerHeight || document.documentElement.clientHeight || 720;
     var width = screenWidth, height = screenHeight, left = 0, top = 0;
     var clipTop = 0, clipBottom = height;
+    var layoutKey = [state.view, youtubeFull, screenWidth, screenHeight, el("view").scrollTop, prefs.scale, prefs.x, prefs.y].join(":");
+    if (layoutKey === youtubeLayoutKey) { AlmaYouTube.present(true); AlmaYouTube.resize(parseFloat(host.style.width), parseFloat(host.style.height)); return; }
     if (!youtubeFull) {
-      slot.style.height = slot.offsetWidth * 9 / 16 + "px";
+      var slotHeight = slot.offsetWidth * 9 / 16 + "px";
+      if (slot.style.height !== slotHeight) slot.style.height = slotHeight;
       var box = slot.getBoundingClientRect(), viewport = el("view").getBoundingClientRect();
       width = box.width; height = width * 9 / 16; left = box.left; top = box.top;
       clipTop = Math.max(0, viewport.top - top, -top);
       clipBottom = Math.min(height, viewport.bottom - top, screenHeight - top);
     }
     if (!isFinite(width) || !isFinite(height) || !isFinite(left) || !isFinite(top) || width <= 0 || height <= 0 || left < 0 || left + width > screenWidth + 2 || clipBottom <= clipTop) {
-      host.style.visibility = "hidden";
-      el("safe").setAttribute("data-youtube", "hidden");
+      hideYoutubeImage(host);
       return;
     }
     var geometry = { left: Math.round(left) + "px", top: Math.round(top) + "px", width: Math.round(width) + "px", height: Math.round(height) + "px" };
     for (var property in geometry) if (Object.prototype.hasOwnProperty.call(geometry, property) && host.style[property] !== geometry[property]) host.style[property] = geometry[property];
     host.style.clip = "rect(" + Math.ceil(clipTop) + "px," + Math.round(width) + "px," + Math.floor(clipBottom) + "px,0px)";
     host.style.visibility = "visible";
+    youtubeLayoutKey = layoutKey;
+    AlmaYouTube.present(true);
     el("safe").setAttribute("data-youtube", "large");
     AlmaYouTube.resize(width, height);
   }
@@ -1205,8 +1227,9 @@ var Alma = (function () {
     var controls = [
       ["youtube-play", "Reproducir", function () { AlmaYouTube.send("play"); }],
       ["youtube-pause", "Pausar", function () { AlmaYouTube.send("pause"); }],
-      ["youtube-back", "−10 s", function () { AlmaYouTube.send("back"); }],
-      ["youtube-forward", "+10 s", function () { AlmaYouTube.send("forward"); }],
+      ["youtube-back", "−" + prefs.seekStep + " s", function () { AlmaYouTube.send("back", prefs.seekStep); }],
+      ["youtube-forward", "+" + prefs.seekStep + " s", function () { AlmaYouTube.send("forward", prefs.seekStep); }],
+      ["youtube-seek-step", "Saltos: " + prefs.seekStep + " s", cycleSeekStep],
       ["youtube-full", "Pantalla completa", function () { youtubeFullscreen(true); }],
       ["youtube-retry", "Reintentar", function () { openYoutube(youtubeSelection); }]
     ], ids = [];
@@ -1239,6 +1262,7 @@ var Alma = (function () {
         if (result && result.catch) result.catch(function () {});
       } catch (e) {}
     }
+    el("video-help").textContent = "Aceptar: reproducir o pausar · ◀ / ▶: " + prefs.seekStep + " segundos · Volver: reducir";
     el("video-help").style.display = enabled ? "block" : "none";
   }
   function updatePlayer() {
@@ -1378,7 +1402,7 @@ var Alma = (function () {
     var h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor · Alma TV 8.5.1",
+        "Tu reproductor · Alma TV 8.6.5",
         "Archivos propios, enlaces directos y YouTube integrado experimental mediante el puente de la Mac."
       ) +
       '<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +
@@ -1402,11 +1426,12 @@ var Alma = (function () {
       pill("media-next", "Siguiente", function () {
         AlmaPlayer.step(1);
       }) +
-      pill("media-back", "−10 s", function () {
-        AlmaPlayer.seek(-10);
+      pill("media-seek-step", "Saltos: " + prefs.seekStep + " s", cycleSeekStep) +
+      pill("media-back", "−" + prefs.seekStep + " s", function () {
+        AlmaPlayer.seek(-prefs.seekStep);
       }) +
-      pill("media-forward", "+10 s", function () {
-        AlmaPlayer.seek(10);
+      pill("media-forward", "+" + prefs.seekStep + " s", function () {
+        AlmaPlayer.seek(prefs.seekStep);
       }) +
       pill("media-stop", "Detener", AlmaPlayer.stop) +
       pill("media-fullscreen", "Pantalla completa", function () { fullscreenVideo(true); });
@@ -1414,6 +1439,7 @@ var Alma = (function () {
       "media-prev",
       "media-play",
       "media-next",
+      "media-seek-step",
       "media-back",
       "media-forward",
       "media-stop",
@@ -1486,6 +1512,7 @@ var Alma = (function () {
   }
   function render() {
     rendering = true;
+    youtubeLayoutKey = "";
     if (state.view === "calibrate") closeYoutube();
     if (youtubeFull && state.view !== "youtube") youtubeFullscreen(false);
     rows = [];
@@ -2388,16 +2415,16 @@ var Alma = (function () {
     if (youtubeFull) {
       if (k === "back" || k === "exit") youtubeFullscreen(false);
       else if (k === "ok") AlmaYouTube.send("toggle");
-      else if (k === "left") AlmaYouTube.send("back");
-      else if (k === "right") AlmaYouTube.send("forward");
+      else if (k === "left") AlmaYouTube.send("back", prefs.seekStep);
+      else if (k === "right") AlmaYouTube.send("forward", prefs.seekStep);
       else if (k === "home" || k === "settings") { go(k === "home" ? "home" : "settings"); }
       return true;
     }
     if (videoFull) {
       if (k === "back" || k === "exit") fullscreenVideo(false);
       else if (k === "ok") AlmaPlayer.toggle();
-      else if (k === "left") AlmaPlayer.seek(-10);
-      else if (k === "right") AlmaPlayer.seek(10);
+      else if (k === "left") AlmaPlayer.seek(-prefs.seekStep);
+      else if (k === "right") AlmaPlayer.seek(prefs.seekStep);
       else if (k === "home" || k === "settings") { fullscreenVideo(false); go(k === "home" ? "home" : "settings"); }
       return true;
     }

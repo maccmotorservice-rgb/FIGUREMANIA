@@ -153,6 +153,17 @@
       var text = "YT-ORIGEN: el control lleg\u00f3 con un origen distinto del esperado. La orden no se ejecut\u00f3.";
       tell("status", text); report("rejected", text); return;
     }
+    if (data.command === "presentation") {
+      if (typeof data.visible !== "boolean") return;
+      var surface = document.getElementById("surface");
+      // Move the native video surface outside the viewport; keep its session and audio.
+      surface.style.position = data.visible ? "relative" : "absolute";
+      surface.style.left = data.visible ? "0px" : "-10000px";
+      surface.style.top = data.visible ? "0px" : "-10000px";
+      surface.style.visibility = data.visible ? "visible" : "hidden";
+      surface.style.clip = data.visible ? "auto" : "rect(0px,0px,0px,0px)";
+      return;
+    }
     if (data.command === "resize") {
       if (typeof data.width !== "number" || typeof data.height !== "number" || !isFinite(data.width) || !isFinite(data.height) || data.width < 200 || data.height < 200 || data.width > 4096 || data.height > 2160) return;
       layoutWidth = data.width; layoutHeight = data.height; fit();

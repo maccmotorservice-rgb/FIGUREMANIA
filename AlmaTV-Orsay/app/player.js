@@ -9,7 +9,7 @@ var AlmaPlayer = (function () {
     status = "Detenido",
     error = "",
     notify = function () {},
-    listeners = [];
+    listeners = [], seekTimer = null, seekTarget = null;
   function change() {
     notify();
   }
@@ -85,7 +85,9 @@ var AlmaPlayer = (function () {
       volume: active ? active.volume : 0.7
     };
   }
+  function cancelSeek() { clearTimeout(seekTimer); seekTarget = null; }
   function play(number) {
+    cancelSeek();
     if (!tracks.length) {
       status = "Lista vacía";
       change();
@@ -149,6 +151,7 @@ var AlmaPlayer = (function () {
     if (active) active.pause();
   }
   function stop() {
+    cancelSeek();
     if (active) {
       active.pause();
       try {
@@ -166,17 +169,16 @@ var AlmaPlayer = (function () {
     );
   }
   function seek(delta) {
-    if (!active || !isFinite(active.duration)) return;
-    try {
-      active.currentTime = Math.max(
-        0,
-        Math.min(active.duration - 0.1, active.currentTime + delta)
-      );
-      change();
-    } catch (e) {
-      error = "Este archivo no permite adelantar ni retroceder.";
-      change();
-    }
+    if (!active || !isFinite(active.duration) || active.duration <= 0) return;
+    var node = active;
+    seekTarget = Math.max(0, Math.min(active.duration - 0.1, (seekTarget === null ? active.currentTime : seekTarget) + delta));
+    clearTimeout(seekTimer);
+    seekTimer = setTimeout(function () {
+      var target = seekTarget; seekTarget = null;
+      if (node !== active) return;
+      try { active.currentTime = target; change(); }
+      catch (e) { error = "Este archivo no permite adelantar ni retroceder."; change(); }
+    }, 180);
   }
   function volume(delta) {
     if (!active) return;
@@ -189,6 +191,7 @@ var AlmaPlayer = (function () {
     }
   }
   function destroy() {
+    cancelSeek();
     if (active) active.pause();
     for (var i = 0; i < listeners.length; i++)
       listeners[i][0].removeEventListener(
@@ -196,7 +199,7 @@ var AlmaPlayer = (function () {
         listeners[i][2],
         false
       );
-    listeners = [];
+    listeners = [], seekTimer = null, seekTarget = null;
   }
   return {
     init: init,

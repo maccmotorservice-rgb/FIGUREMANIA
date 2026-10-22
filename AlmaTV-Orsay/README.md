@@ -300,3 +300,17 @@ Inicio. La misma sesión permanece activa, oculta en otras secciones y salvapant
 Se aplica un recorte al área visible al desplazarse; no se crea ventana flotante.
 La composición del plano nativo en este firmware NO está verificada y no se
 presenta como resuelta con pruebas de Chromium. No se añaden módulos nativos.
+
+### 8.6.5: imagen del salvapantallas, saltos y menos cálculos de posición
+
+La prueba física de 8.6.4 confirma mejoras, pero visibility:hidden no oculta
+el plano de vídeo de YouTube. Se desplazan fuera de pantalla tanto el iframe
+exterior como la superficie interior servida por la Mac; se recortan y ocultan
+sin pausa, cambio de URL ni reinicio. Actualizar el puente es necesario. El
+resultado sobre el plano nativo aún debe verificarse físicamente.
+Los selectores «Saltos» y Ajustes guardan 5/10/30 segundos para ambos reproductores
+y sus controles a pantalla completa. Se agrupan pulsaciones rápidas en 180 ms.
+La posición de YouTube se reutiliza mientras vista, desplazamiento, pantalla
+y calibración no cambien, evitando lecturas de layout ante estados repetidos.
+La prueba de 50 estados mide cero lecturas nuevas del área del vídeo. Esto
+no mide el rendimiento total del hardware ni garantiza eliminar su lentitud.
