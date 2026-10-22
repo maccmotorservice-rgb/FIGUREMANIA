@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="8.6.1"'))
+      if (!html.includes('name="alma-build" content="8.6.2"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -120,7 +120,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /8\.6\.1/);
+  assert.match(await page.locator(".brand").innerText(), /8\.6\.2/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -960,7 +960,7 @@ async function officialYouTubeFixture(code = 0, behavior = "normal") {
       this.playVideo=function(){window.testYoutube.play++;window.testYoutube.activation=navigator.userActivation ? navigator.userActivation.isActive : null;${code ? `options.events.onError({data:${code}});` : behavior === "stalled" ? "" : behavior === "blocked" ? "options.events.onAutoplayBlocked();" : "state=1;options.events.onStateChange({data:1});"}};
       ${behavior === "explicit" ? 'this.loadVideoById=function(id){window.testYoutube.load++;window.testYoutube.loadedId=id;state=1;options.events.onStateChange({data:1});};' : ''}
       this.pauseVideo=function(){window.testYoutube.pause++;state=2;options.events.onStateChange({data:2});};
-      this.seekTo=function(value){window.testYoutube.seek++;window.testYoutube.lastSeek=value;time=value;};
+      this.seekTo=function(value){window.testYoutube.seek++;time=value;};
       setTimeout(function(){options.events.onReady();},0);
     }};window.onYouTubeIframeAPIReady();
   `}));
@@ -1004,6 +1004,7 @@ test("YouTube integrado: enlace guardado, controles y pantalla completa sin reca
   await page.waitForFunction(() => AlmaYouTube.snapshot().state === 2);
   await click("youtube-forward");
   await frame.waitForFunction(() => testYoutube.seek === 1);
+  assert.equal(await frame.evaluate(() => testYoutube.seek), 1);
   await page.locator("#youtube-frame").evaluate(n => { n.dataset.testIdentity = "same-frame"; });
   await click("youtube-full");
   assert.equal(await page.locator("#youtube-host").evaluate(n => n.getBoundingClientRect().width),1280);
@@ -1024,9 +1025,9 @@ test("YouTube integrado: enlace guardado, controles y pantalla completa sin reca
   assert.equal(await page.locator("#safe").getAttribute("data-home-media"),"youtube");
   await go("apps");
   assert.equal(await page.locator("#youtube-frame").getAttribute("data-test-identity"),"same-frame");
-  await page.waitForFunction(() => AlmaYouTube.snapshot().state === 2);
+  assert.equal(await page.evaluate(() => AlmaYouTube.snapshot().state),1);
   await go("saver");
-  assert.equal(await page.locator("#youtube-frame").count(),1);
+  assert.equal(await page.locator("#youtube-frame").count(),0);
   await page.reload();
   await go("media");
   assert.equal(await page.locator("#youtube-item-0").count(),1);
@@ -1248,7 +1249,7 @@ test("La prueba directa permite pulsación real sin el widget intermedio (API si
 });
 
 
-test("YouTube conserva una sola área y pausa fuera de ella, sin ventana flotante (API simulada)", async () => {
+test("YouTube grande: dimensiones explícitas en ambas capas y ventana fija sin pausas al navegar (API simulada)", async () => {
   await officialYouTubeFixture();
   await savedYouTube();
   await page.locator(".page-surface").evaluate(n => n.classList.remove("page-enter"));
@@ -1257,30 +1258,32 @@ test("YouTube conserva una sola área y pausa fuera de ella, sin ventana flotant
   const frame = page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
   await page.locator("#youtube-frame").evaluate(n => { n.dataset.identity="persistent-85"; });
   const large = await page.locator("#youtube-host").boundingBox();
-  assert.ok(large.width >= 700 && large.height >= 390, JSON.stringify(large));
+  assert.ok(large.width >= 800 && large.height >= 450, JSON.stringify(large));
   assert.ok(Math.abs(large.width/large.height-16/9)<0.02);
   const outer = await page.locator("#youtube-frame").evaluate(n => [Number(n.width),Number(n.height)]);
   const inner = await frame.locator("#surface iframe").evaluate(n => [Number(n.width),Number(n.height)]);
-  assert.ok(outer[0]>=700 && inner[0]>=700);
+  assert.ok(outer[0]>=800 && inner[0]>=800);
   assert.ok(Math.abs(inner[0]/inner[1]-16/9)<0.02);
   await click("youtube-play");
   await page.waitForFunction(() => AlmaYouTube.snapshot().state===1);
   for (const view of ["home","apps","settings","media","home"]) {
     await go(view);
     assert.equal(await page.locator("#youtube-frame").getAttribute("data-identity"),"persistent-85");
-    await page.waitForFunction(expected => AlmaYouTube.snapshot().state===expected, view==="home" ? 1 : 2);
+    assert.equal(await page.evaluate(() => AlmaYouTube.snapshot().state),1);
     if (view!=="home") {
-      assert.equal(await page.locator("#safe").getAttribute("data-youtube"),"hidden");
-      assert.equal(await page.locator("#youtube-host").evaluate(n=>getComputedStyle(n).visibility),"hidden");
+      assert.equal(await page.locator("#safe").getAttribute("data-youtube"),"docked");
+      const video = await page.locator("#youtube-host").boundingBox();
+      const content = await page.locator("#view").boundingBox();
+      assert.ok(video.y >= content.y + content.height, JSON.stringify({video,content}));
     }
   }
   await page.locator("#view").evaluate(n => { n.scrollTop=0; n.dispatchEvent(new Event("scroll")); });
-  assert.equal(await page.locator("#safe").getAttribute("data-youtube"),"hidden");
-  await page.waitForFunction(() => AlmaYouTube.snapshot().state===2);
+  assert.equal(await page.locator("#safe").getAttribute("data-youtube"),"docked");
+  assert.equal(await page.evaluate(() => AlmaYouTube.snapshot().state),1);
   await page.locator("#home-player").scrollIntoViewIfNeeded();
   await page.locator("#view").evaluate(n => n.dispatchEvent(new Event("scroll")));
   assert.equal(await page.locator("#safe").getAttribute("data-youtube"),"large");
-  assert.ok(await frame.evaluate(() => testYoutube.pause)>0);
+  assert.equal(await frame.evaluate(() => testYoutube.pause),0);
   await page.evaluate(() => Alma.go("youtube"));
   await click("youtube-full");
   await page.waitForFunction(() => document.getElementById("youtube-frame").width==="1280");
@@ -1364,276 +1367,5 @@ test("Volumen del control remoto se libera a Samsung y no se bloquea ni cierra A
   assert.ok(!(await page.evaluate(()=>platformCalls)).includes("exit"));
   await page.evaluate(()=>window.dispatchEvent(new Event("focus")));
   assert.deepEqual((await page.evaluate(()=>nativeVolumeKeys)).slice(-3),[7,11,27]);
-  assert.deepEqual(errors,[]);
-});
-
-async function nativeHDMIFixture(mode = "normal", initial = 43) {
-  await page.evaluate(({mode,initial}) => {
-    window.hdmiCalls=[]; window.hdmiSource=initial;
-    const object=document.getElementById("alma-window-plugin");
-    object.Open=(...args)=>{hdmiCalls.push(["Open",...args]);return mode==="open" ? 0 : 1;};
-    object.Close=()=>{hdmiCalls.push(["Close"]);return 1;};
-    object.Execute=(command,value)=>{
-      hdmiCalls.push([command,value]);
-      if(command==="SetSource") {
-        if(value===32 && mode==="source") return -1;
-        hdmiSource=value;
-      }
-      return 1;
-    };
-    window.webapis={tv:{window:{
-      getSource:index=>{
-        hdmiCalls.push(["getSource",index]);
-        if(mode==="unknown") return {type:99,number:1};
-        if(hdmiSource===32 && mode==="mismatch") return {type:5,number:1};
-        return hdmiSource===43 ? {type:8,number:1} : {type:5,number:hdmiSource-30};
-      },
-      setRect:(rect,index)=>{hdmiCalls.push(["setRect",rect,index]);return mode!=="rect";},
-      show:index=>{hdmiCalls.push(["show",index]);return mode!=="show";},
-      hide:index=>{hdmiCalls.push(["hide",index]);return true;}
-    }}};
-  },{mode,initial});
-}
-
-test("Xbox abre HDMI 2 con Window nativo Orsay, amplía, vuelve a Inicio y restaura al cerrar (API Samsung simulada)", async () => {
-  await nativeHDMIFixture();
-  await go("apps"); await click("app-6");
-  assert.equal(await page.locator("#safe").getAttribute("data-view"),"hdmi");
-  assert.equal(await page.evaluate(()=>AlmaHDMI.snapshot().active),true);
-  await page.clock.runFor(250);
-  assert.equal(await page.evaluate(()=>AlmaHDMI.snapshot().confirmed),true);
-  const calls=await page.evaluate(()=>hdmiCalls);
-  assert.ok(calls.some(c=>c[0]==="Open" && c[1]==="Window"));
-  assert.ok(calls.some(c=>c[0]==="SetSource" && c[1]===32));
-  assert.ok(calls.some(c=>c[0]==="SetPreviousSource"));
-  assert.ok(calls.some(c=>c[0]==="show" && c[1]===0));
-  await click("hdmi-full");
-  assert.deepEqual(await page.evaluate(()=>hdmiCalls.filter(c=>c[0]==="setRect").at(-1)[1]),{left:0,top:0,width:1280,height:720});
-  assert.equal(await page.locator("body").getAttribute("data-hdmi-full"),"true");
-  assert.equal(await page.locator("#stage").evaluate(n=>getComputedStyle(n).visibility),"hidden");
-  assert.deepEqual(await page.evaluate(()=>[7,11,27].map(Alma.key)),[false,false,false]);
-  await key(88);
-  assert.equal(await page.locator("body").getAttribute("data-hdmi-full"),"false");
-  await key(20);
-  assert.equal(await page.locator("#safe").getAttribute("data-home-media"),"hdmi");
-  const rect=await page.evaluate(()=>hdmiCalls.filter(c=>c[0]==="setRect").at(-1)[1]);
-  const slot=await page.locator("#home-player").boundingBox();
-  assert.ok(Math.abs(rect.left-slot.x)<2 && Math.abs(rect.top-slot.y)<2,JSON.stringify({rect,slot}));
-  assert.ok(rect.width>800 && Math.abs(rect.width/rect.height-16/9)<0.02);
-  await go("apps");
-  assert.equal(await page.locator("#safe").getAttribute("data-hdmi"),"docked");
-  assert.equal(await page.evaluate(()=>hdmiSource),32);
-  await go("hdmi"); await click("hdmi-close");
-  assert.equal(await page.evaluate(()=>hdmiSource),43);
-  assert.equal(await page.evaluate(()=>AlmaHDMI.snapshot().active),false);
-  assert.ok((await page.evaluate(()=>hdmiCalls)).some(c=>c[0]==="hide"));
-  assert.equal((await page.evaluate(()=>hdmiCalls)).at(-1)[0],"Close");
-  assert.deepEqual(errors,[]);
-});
-
-for (const mode of ["open","source","rect","show","unknown","mismatch"]) {
-  test("HDMI rechaza fallo "+mode+" sin mantener una ventana activa (API Samsung simulada)", async () => {
-    await nativeHDMIFixture(mode,31);
-    await go("apps"); await click("app-6");
-    await page.clock.runFor(1200);
-    assert.equal(await page.evaluate(()=>AlmaHDMI.snapshot().active),false);
-    assert.equal(await page.evaluate(()=>hdmiSource),31);
-    assert.equal(await page.locator("body").getAttribute("data-hdmi-full"),"false");
-    assert.ok((await page.locator("#hdmi-state").innerText()).length>10);
-    if(mode==="unknown") assert.equal((await page.evaluate(()=>hdmiCalls)).filter(c=>c[0]==="SetSource").length,0);
-    assert.deepEqual(errors,[]);
-  });
-}
-
-test("Cambiar de HDMI a YouTube o app nativa libera la ventana; verificación tardía no reactiva nada (API simulada)", async () => {
-  await nativeHDMIFixture();
-  await go("apps"); await click("app-6");
-  await go("apps"); await click("app-0");
-  await page.clock.runFor(2000);
-  assert.equal(await page.evaluate(()=>AlmaHDMI.snapshot().active),false);
-  assert.equal(await page.evaluate(()=>hdmiSource),43);
-  assert.match(commands[0].url,/Netflix$/);
-  await click("app-6");
-  await officialYouTubeFixture();
-  await go("media"); await click("media-youtube-test");
-  await page.waitForFunction(()=>AlmaYouTube.snapshot().ready);
-  assert.equal(await page.evaluate(()=>AlmaHDMI.snapshot().active),false);
-  assert.equal(await page.evaluate(()=>hdmiSource),43);
-  assert.deepEqual(errors,[]);
-});
-
-async function nativeAudioFixture(mode="normal") {
-  await page.evaluate(mode=>{
-    window.audioCalls=[]; window.tvLevel=20; window.tvMuted=0;
-    const audio=document.getElementById("alma-audio-plugin"), common=document.getElementById("alma-keys-plugin");
-    audio.Open=(...args)=>{audioCalls.push(["OpenAudio",...args]);return mode==="open" ? 0 : 1;};
-    audio.Close=()=>{audioCalls.push(["CloseAudio"]);return 1;};
-    common.Open=()=>1; common.Close=()=>1;
-    common.Execute=(command,code)=>{audioCalls.push([command,code]);return mode==="register" && command==="RegisterKey" ? -1 : 1;};
-    audio.Execute=(command,value)=>{
-      audioCalls.push([command,value]);
-      if(command==="GetVolume") return mode==="read" ? -1 : tvLevel;
-      if(command==="GetUserMute") return tvMuted;
-      if(command==="SetUserMute") {tvMuted=value;return 1;}
-      if(command==="SetVolumeWithKey") {if(mode==="write") return -1; tvLevel=Math.max(0,Math.min(100,tvLevel+(value===0 ? 1 : -1)));return 1;}
-      return -1;
-    };
-    window.dispatchEvent(new Event("focus"));
-  },mode);
-}
-
-test("Volumen físico utiliza Audio nativo, cambia un paso real por tecla y Silencio sin salir (API Samsung simulada)", async () => {
-  await nativeAudioFixture();
-  assert.equal(await page.evaluate(()=>AlmaTVAudio.active()),false);
-  assert.deepEqual(await page.evaluate(()=>audioCalls),[]);
-  assert.equal(await key(7),true);
-  assert.equal(await page.evaluate(()=>AlmaTVAudio.active()),true);
-  assert.deepEqual((await page.evaluate(()=>audioCalls)).filter(c=>c[0]==="RegisterKey").map(c=>c[1]),[7,11,27]);
-  await page.evaluate(()=>window.dispatchEvent(new Event("focus")));
-  assert.equal((await page.evaluate(()=>audioCalls)).filter(c=>c[0]==="UnregisterKey").length,0);
-  assert.equal(await page.evaluate(()=>tvLevel),21);
-  assert.match(await page.locator("#toast").innerText(),/Volumen de la TV: 21/);
-  await key(11); assert.equal(await page.evaluate(()=>tvLevel),20);
-  await key(27); assert.equal(await page.evaluate(()=>tvMuted),1);
-  await key(27); assert.equal(await page.evaluate(()=>tvMuted),0);
-  assert.ok(!(await page.evaluate(()=>platformCalls)).includes("exit"));
-  assert.deepEqual((await page.evaluate(()=>audioCalls)).filter(c=>c[0]==="SetVolumeWithKey").map(c=>c[1]),[0,1]);
-  await page.evaluate(()=>AlmaTVAudio.close());
-  assert.deepEqual((await page.evaluate(()=>audioCalls)).filter(c=>c[0]==="UnregisterKey").map(c=>c[1]),[7,11,27]);
-  assert.deepEqual(errors,[]);
-});
-for(const mode of ["open","read","register","write"]) {
-  test("Audio nativo rechaza fallo "+mode+" y devuelve las teclas al sistema (API simulada)",async()=>{
-    await nativeAudioFixture(mode);
-    await key(7);
-    assert.equal(await page.evaluate(()=>AlmaTVAudio.active()),false);
-    assert.equal(await page.evaluate(()=>tvLevel),20);
-    assert.equal(await key(7),false);
-    assert.ok(!(await page.evaluate(()=>platformCalls)).includes("exit"));
-    assert.deepEqual(errors,[]);
-  });
-}
-
-test("Saltos de 5, 10 o 30 segundos se guardan y agrupan pulsaciones rápidas de YouTube (API simulada)", async () => {
-  await officialYouTubeFixture();
-  await savedYouTube();
-  assert.match(await page.locator("#youtube-seek-step").innerText(),/10 s/);
-  await click("youtube-seek-step");
-  assert.match(await page.locator("#youtube-forward").innerText(),/30 s/);
-  await click("youtube-full");
-  await page.evaluate(()=>{Alma.key(5);Alma.key(5);Alma.key(5);});
-  const frame=page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
-  await frame.waitForFunction(()=>testYoutube.seek===1);
-  assert.equal(await frame.evaluate(()=>testYoutube.lastSeek),110);
-  await key(88); await click("youtube-seek-step");
-  assert.match(await page.locator("#youtube-back").innerText(),/5 s/);
-  await click("youtube-back");
-  await frame.waitForFunction(()=>testYoutube.seek===2);
-  assert.equal(await frame.evaluate(()=>testYoutube.lastSeek),105);
-  await page.reload(); await go("settings");
-  assert.match(await page.locator("#seek-step").innerText(),/5 segundos/);
-  assert.deepEqual(errors,[]);
-});
-
-test("Saltos configurables en archivos reales y una sola búsqueda por ráfaga", async () => {
-  await go("media"); await click("media-play");
-  await page.waitForFunction(()=>document.getElementById("media-audio").currentTime>0.2);
-  await click("media-play");
-  await click("media-seek-step"); await click("media-seek-step");
-  assert.match(await page.locator("#media-forward").innerText(),/5 s/);
-  await click("media-forward");
-  await page.waitForFunction(()=>document.getElementById("media-audio").currentTime>5);
-  await page.evaluate(()=>{AlmaPlayer.seek(-5);AlmaPlayer.seek(5);AlmaPlayer.seek(-5);});
-  await page.waitForFunction(()=>document.getElementById("media-audio").currentTime<1);
-  assert.deepEqual(errors,[]);
-});
-
-
-test("Salvapantallas conserva YouTube solo con audio, sin pausa ni recarga, y recupera la imagen al volver (API simulada)", async () => {
-  await officialYouTubeFixture(); await savedYouTube();
-  await click("youtube-play");
-  await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
-  const child=page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
-  const src=await page.locator("#youtube-frame").getAttribute("src");
-  const before=await child.evaluate(()=>testYoutube.pause);
-  await go("saver");
-  assert.equal(await page.locator("#youtube-frame").getAttribute("src"),src);
-  assert.equal(await page.locator("#youtube-host").evaluate(n=>getComputedStyle(n).visibility),"hidden");
-  assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);
-  await page.clock.runFor(16000);
-  assert.equal(await child.evaluate(()=>testYoutube.pause),before);
-  assert.ok(await page.locator("#saver-clock").isVisible());
-  await key(88);
-  await page.waitForFunction(()=>document.getElementById("youtube-host").style.visibility==="visible");
-  assert.equal(await page.locator("#youtube-frame").getAttribute("src"),src);
-  assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);
-  assert.deepEqual(errors,[]);
-});
-
-async function resumeVideoResponse(route) {
-  const body=fs.readFileSync(path.join(ROOT,"tests/fixtures/video-prueba.mp4"));
-  const range=route.request().headers()["range"];
-  const start=range ? Number(range.match(/bytes=(\d+)/)[1]) : 0;
-  await route.fulfill({status:range ? 206 : 200,contentType:"video/mp4",headers:{"Accept-Ranges":"bytes",...(range ? {"Content-Range":`bytes ${start}-${body.length-1}/${body.length}`} : {})},body:body.subarray(start)});
-}
-
-test("Archivos MP4 reales recuerdan la posición al cambiar, detener y volver a abrir la app; reinicio explícito", async () => {
-  const url="http://127.0.0.1:8765/video-memoria.mp4";
-  await page.route(url,resumeVideoResponse);
-  await go("media"); await click("media-add"); await editor("Video con memoria"); await editor(url);
-  await click("media-item-1");
-  await page.waitForFunction(()=>document.getElementById("media-video").currentTime>0.1);
-  await page.locator("#media-video").evaluate(n=>{n.currentTime=1.1;});
-  await page.evaluate(()=>AlmaPlayer.pause());
-  await page.waitForFunction(()=>JSON.parse(localStorage.getItem("alma.media.positions.v1")||"[]").some(p=>p.time>1),null,{timeout:5000});
-  await click("media-item-0"); await click("media-item-1");
-  await page.waitForFunction(()=>document.getElementById("media-video").currentTime>=1);
-  await page.evaluate(()=>AlmaPlayer.pause());
-  await click("media-stop");
-  assert.ok(await page.locator("#media-video").evaluate(n=>n.currentTime)<0.1);
-  await click("media-play");
-  await page.waitForFunction(()=>document.getElementById("media-video").currentTime>=1);
-  await page.evaluate(()=>AlmaPlayer.pause());
-  await page.reload(); await go("media"); await click("media-item-1");
-  await page.waitForFunction(()=>document.getElementById("media-video").currentTime>=1);
-  await page.evaluate(()=>AlmaPlayer.pause());
-  await click("media-restart");
-  await page.waitForFunction(()=>document.getElementById("media-video").currentTime<0.5);
-  const history=await page.evaluate(()=>JSON.parse(localStorage.getItem("alma.media.positions.v1")||"[]"));
-  assert.equal(history.some(p=>p.url===url && p.time>0.5),false);
-  assert.deepEqual(errors,[]);
-});
-
-test("Memoria de archivos de la Mac conserva el punto al cambiar la IP del puente", async () => {
-  for(const host of ["192.168.1.30","192.168.1.31"]) await page.route("http://"+host+":8088/media/file/0123456789abcdef?name=video.mp4",resumeVideoResponse);
-  await go("media"); await click("media-add"); await editor("Archivo de la Mac"); await editor("http://192.168.1.30:8088/media/file/0123456789abcdef?name=video.mp4");
-  await click("media-item-1");
-  await page.waitForFunction(()=>document.getElementById("media-video").currentTime>0.1);
-  await page.locator("#media-video").evaluate(n=>{n.currentTime=1.1;});
-  await page.evaluate(()=>AlmaPlayer.pause());
-  await page.waitForFunction(()=>JSON.parse(localStorage.getItem("alma.media.positions.v1")||"[]").some(p=>p.time>1),null,{timeout:5000});
-  await click("media-add"); await editor("Mismo archivo con otra IP"); await editor("http://192.168.1.31:8088/media/file/0123456789abcdef?name=video.mp4");
-  await click("media-item-2");
-  await page.waitForFunction(()=>document.getElementById("media-video").currentTime>=1);
-  assert.deepEqual(errors,[]);
-});
-
-
-test("El arranque y recuperar foco no instancian ni abren módulos SEF opcionales", async () => {
-  await page.addInitScript(()=>{
-    window.nativeStartupCalls=[];
-    HTMLObjectElement.prototype.Open=function(){nativeStartupCalls.push("Open");throw new Error("SEF no disponible");};
-    HTMLObjectElement.prototype.Execute=function(){nativeStartupCalls.push("Execute");throw new Error("SEF no disponible");};
-  });
-  await page.reload();
-  await page.evaluate(()=>window.dispatchEvent(new Event("focus")));
-  assert.match(await page.locator(".brand").innerText(),/8\.6\.1/);
-  assert.ok(await page.locator("#app-0").isVisible());
-  assert.deepEqual(await page.evaluate(()=>nativeStartupCalls),[]);
-  for(const id of ["alma-window-plugin","alma-audio-plugin","alma-keys-plugin"]) assert.equal(await page.locator("#"+id).getAttribute("classid"),null);
-  await key(7);
-  assert.equal(await page.evaluate(()=>nativeStartupCalls.length),1);
-  await go("apps");
-  assert.ok(await page.locator("#app-0").isVisible());
   assert.deepEqual(errors,[]);
 });

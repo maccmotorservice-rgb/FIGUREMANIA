@@ -18,9 +18,9 @@ var AlmaYouTube = (function () {
     return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : "";
   }
   function snapshot() { return { status: value.status, ready: value.ready, state: value.state, title: value.title }; }
-  function send(command, seconds) {
+  function send(command) {
     if (!frame || !frame.contentWindow) return;
-    frame.contentWindow.postMessage(JSON.stringify({ channel: "alma-youtube", token: token, command: command, seconds: [5, 10, 30].indexOf(seconds) !== -1 ? seconds : 10 }), base);
+    frame.contentWindow.postMessage(JSON.stringify({ channel: "alma-youtube", token: token, command: command }), base);
   }
   function resize(width, height) {
     if (!frame || !frame.contentWindow) return;

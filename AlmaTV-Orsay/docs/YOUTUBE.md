@@ -1,3 +1,5 @@
+> Recuperación 8.6.2: el widget vuelve al código de 8.5.1. Los apartados de 8.6 describen cambios retirados temporalmente. La imagen errática y el volumen siguen pendientes; no se declara resuelto el arranque hasta comprobarlo en la TV.
+
 # YouTube integrado experimental · Alma TV 8.2
 
 ## Resultado de la investigación

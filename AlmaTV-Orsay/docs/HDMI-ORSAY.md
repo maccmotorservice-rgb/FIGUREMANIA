@@ -1,3 +1,5 @@
+> Estado actual 8.6.2: esta integración está retirada de la app para recuperar el arranque tras los cierres físicos de 8.6.0 y 8.6.1. Se conserva este documento como investigación; no describe una función activa de 8.6.2.
+
 # HDMI 2 dentro de Alma TV: implementación 8.6.0
 
 ## Evidencia técnica encontrada

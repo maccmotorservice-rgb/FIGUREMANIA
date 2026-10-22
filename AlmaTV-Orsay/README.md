@@ -268,3 +268,14 @@ recuperar foco. Los objetos reciben su classid solo al solicitar HDMI o volumen.
 El arranque conserva la cesión clásica de teclas. La causa física exacta sigue
 sin confirmar; la prueba de regresión comprueba que no se llama a SEF al arrancar
 y que una excepción del módulo opcional no impide navegar.
+
+### 8.6.2: recuperación de arranque
+
+8.6.0 y 8.6.1 no abren en el UN50J5200: cargan y regresan a HDMI 2.
+Esta recuperación restaura todos los archivos de la app que abría en 8.5.1,
+cambiando únicamente nombre, versión e identificador. Usa AlmaTV86 para sustituir
+8.6.0. No incluye ningún módulo SEF nuevo ni sus llamadas. La causa exacta sigue
+sin confirmar. Se retiran temporalmente los cambios de 8.6 (HDMI en ventana,
+audio SEF, nuevos saltos, memoria de archivos y audio de YouTube en salvapantallas)
+para recuperar primero el arranque. Los problemas de imagen y volumen de 8.5.1
+no se presentan como corregidos. El puente actualizado sigue disponible.
