@@ -1,8 +1,14 @@
-# Alma TV 10.0.3 · Samsung Orsay
+# Alma TV 10.0.4 · Samsung Orsay
 
-Aplicación ES5 para Samsung UN50J5200, con puente local en una Mac. El proyecto anterior FIGUREMANIA se conserva. Identificador estable `AlmaTV86`; versión interna **10.0.3**.
+Aplicación ES5 para Samsung UN50J5200, con puente local en una Mac. El proyecto anterior FIGUREMANIA se conserva. Identificador estable `AlmaTV86`; versión interna **10.0.4**.
 
-## Corrección 10.0.3
+## Estabilidad 10.0.4
+
+Se reprodujo con temporizadores simulados una retirada del fondo al agotarse el watchdog mientras YouTube seguía en estado activo. Ahora la espera y el buffering mantienen la sesión y la superficie; el diagnóstico de arranque fallido permanece para vídeos que no llegaron a iniciar. Las notificaciones de visibilidad transitoria no destruyen el iframe; salir, abrir una app nativa y cerrar Alma TV mantienen su limpieza explícita. Se evitan escrituras repetidas en la superficie y la creación de sondas de vídeo en cada consulta de progreso.
+
+Prueba prolongada: tres minutos de temporizadores simulados, 48 cambios de menú, 12 cambios de volumen, visibilidad transitoria y salvapantallas, sin pausas ni recargas. En reposo, la superficie recibe cero mutaciones de atributos durante los dos primeros minutos simulados. Esto verifica el controlador en Chromium; el firmware y la decodificación de YouTube necesitan confirmación en la TV.
+
+## Volumen y fin de reproducción
 
 El volumen solo aplica órdenes al reproductor activo; el nivel del inactivo se recuerda sin tocar su decodificador. El puente conserva únicamente la orden absoluta de volumen más reciente por TV. YouTube evita `unMute` y `setVolume` redundantes y confirma el final antes de retirar el fondo o avanzar la cola. El 100 % se verifica como 100 en YouTube y 1.0 en HTML5; no amplifica por encima del volumen base de la TV. Pruebas con MP4 real y API de YouTube simulada; requiere confirmación en el firmware físico.
 
@@ -16,11 +22,11 @@ Las animaciones y transiciones están desactivadas, también al cargar preferenc
 
 Vistas de prueba en navegador: [Inicio](docs/capturas/30-alma10-inicio.png), [fondo con MP4 real de prueba](docs/capturas/31-alma10-video-fondo-MP4-prueba.png), [control en celular](docs/capturas/32-alma10-control-celular.png) y [control en Mac](docs/capturas/33-alma10-control-mac.png). No son fotografías de la TV.
 
-Corrección 10.0.3: [Multimedia con MP4 real de prueba](docs/capturas/34-alma10-1-multimedia-MP4-prueba.png) y [botones visibles de Inicio](docs/capturas/35-alma10-1-controles-inicio.png). Se comprueba el desplazamiento con códigos del control Samsung, pantalla completa desde Inicio y continuidad de la misma sesión al pasar por Inicio, Aplicaciones, Ajustes y Multimedia. Las pruebas de YouTube emplean su API simulada.
+Corrección 10.0.4: [Multimedia con MP4 real de prueba](docs/capturas/34-alma10-1-multimedia-MP4-prueba.png) y [botones visibles de Inicio](docs/capturas/35-alma10-1-controles-inicio.png). Se comprueba el desplazamiento con códigos del control Samsung, pantalla completa desde Inicio y continuidad de la misma sesión al pasar por Inicio, Aplicaciones, Ajustes y Multimedia. Las pruebas de YouTube emplean su API simulada.
 
 ## Instalar y actualizar
 
-El paquete `instaladores/AlmaTV-10.0.3-instalador.zip` contiene el widget, los archivos del puente y `Instalar Alma TV.app`. Descomprime y abre el asistente en macOS: instala el puente al iniciar sesión y publica el instalador Wi-Fi durante diez minutos. Sincroniza aplicaciones en la TV usando la IP de la Mac. El asistente requiere Python 3.8 o posterior y todavía no tiene firma ni notarización de Apple; su ejecución física en macOS está pendiente de validación. Incluye recuperación del widget 8.7.0.
+El paquete `instaladores/AlmaTV-10.0.4-instalador.zip` contiene el widget, los archivos del puente y `Instalar Alma TV.app`. Descomprime y abre el asistente en macOS: instala el puente al iniciar sesión y publica el instalador Wi-Fi durante diez minutos. Sincroniza aplicaciones en la TV usando la IP de la Mac. El asistente requiere Python 3.8 o posterior y todavía no tiene firma ni notarización de Apple; su ejecución física en macOS está pendiente de validación. Incluye recuperación del widget 8.7.0.
 
 Alternativa en Terminal, dentro de la carpeta descomprimida:
 
@@ -55,7 +61,7 @@ Conversión opcional de videos subidos a MP4 H.264/AAC: requiere FFmpeg instalad
 
 ## Compatibilidad y pruebas
 
-El propietario confirmó anteriormente reproducción de YouTube por enlaces y de archivos propios en esta TV. **El propietario confirmó la reproducción de YouTube en 9.1.2; el tema y las capas de vídeo de 10.0.3 necesitan validación física**. Las pruebas automatizadas usan Chromium, puente HTTP real y archivos multimedia reales; las API de YouTube y Dailymotion se simulan. Una simulación no demuestra que Dailymotion decodifique en el firmware Samsung.
+El propietario confirmó anteriormente reproducción de YouTube por enlaces y de archivos propios en esta TV. **El propietario confirmó la reproducción de YouTube en 9.1.2; el tema y las capas de vídeo de 10.0.4 necesitan validación física**. Las pruebas automatizadas usan Chromium, puente HTTP real y archivos multimedia reales; las API de YouTube y Dailymotion se simulan. Una simulación no demuestra que Dailymotion decodifique en el firmware Samsung.
 
 No se añade Spotify: no hay un receptor Spotify Connect verificado para este Orsay. Tampoco se añade soporte DRM para Disney+, Prime Video o Max. Xbox conserva el acceso existente a HDMI 2; no se promete previsualización HDMI dentro del reproductor. El control de volumen del celular no depende del módulo opcional de volumen del control remoto.
 

@@ -14,6 +14,9 @@
 (function () {
   "use strict";
   var config = __ALMA_YT_CONFIG__, player = null, ready = false, watchdog = null, initialTime = null, layoutWidth = 0, layoutHeight = 0, fittedWidth = 0, fittedHeight = 0, seekTimer = null, seekTarget = null, loadRequested=false;
+  var codecProbe=document.createElement("video"),codecSupport="";
+  try{codecSupport=codecProbe.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"');}catch(ignore){}
+  codecProbe=null;
   function details() {
     var state = null, seconds = null, muted = null, volume = null;
     try { if (ready && player && typeof player.getPlayerState === "function") state = player.getPlayerState(); } catch (e) {}
@@ -21,9 +24,8 @@
     try { if (ready && player && typeof player.isMuted === "function") muted = player.isMuted(); } catch (e) {}
     try { if(ready && player && typeof player.getVolume === "function") volume=player.getVolume(); } catch(e) {}
     var node = document.querySelector("#surface iframe"), box = node && node.getBoundingClientRect();
-    var video = document.createElement("video"), h264 = "";
-    try { h264 = video.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"'); } catch (e) {}
-    return { state: state, seconds: seconds, volume:volume, muted: muted, width: box ? Math.round(box.width) : 0, height: box ? Math.round(box.height) : 0, h264: h264, mse: !!(window.MediaSource || window.WebKitMediaSource) };
+
+    return { state: state, seconds: seconds, volume:volume, muted: muted, width: box ? Math.round(box.width) : 0, height: box ? Math.round(box.height) : 0, h264: codecSupport, mse: !!(window.MediaSource || window.WebKitMediaSource) };
   }
   function report(phase, status) {
     try {
@@ -86,6 +88,10 @@
       if (data.state === 1 && typeof data.seconds === "number" && typeof initialTime === "number" && data.seconds > initialTime + 0.25) {
         report("progress", "YouTube informa reproducci\u00f3n y su tiempo avanza.");
         return;
+      }
+      if(data.state===1||data.state===2||data.state===3){
+        var waiting=data.state===3?"YouTube está cargando datos. La sesión se conserva.":(data.state===2?"En pausa":"YouTube sigue activo; esperando avance del vídeo.");
+        tell("status",waiting,data.state);report("waiting",waiting);return;
       }
       var message = "YT-INICIO: la orden lleg\u00f3, pero YouTube no inici\u00f3 o no avanz\u00f3. Estado: " + (data.state === null ? "sin datos" : data.state) + ". Tiempo: " + (data.seconds === null ? "sin datos" : Math.round(data.seconds)) + " s. Revisa Estado del reproductor en la Mac.";
       tell("status", message, data.state); report("timeout", message);

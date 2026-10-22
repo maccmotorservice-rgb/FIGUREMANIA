@@ -154,6 +154,8 @@ var Alma = (function () {
       node._almaHTML = value;
     }
   }
+  function styleIfChanged(node, key, value) { if(node.style[key]!==value)node.style[key]=value; }
+  function attributeIfChanged(node,key,value) { if(node.getAttribute(key)!==value)node.setAttribute(key,value); }
   function esc(s) {
     return String(s)
       .replace(/&/g, "&amp;")
@@ -1193,7 +1195,7 @@ var Alma = (function () {
   }
   function updateYoutube() {
     var value = AlmaYouTube.snapshot(), host = el("youtube-host");
-    el("safe").setAttribute("data-youtube-mode", youtubeAudioOnly ? "audio" : "video");
+    attributeIfChanged(el("safe"),"data-youtube-mode",youtubeAudioOnly ? "audio" : "video");
     if (hubAutoplay && value.ready) {hubAutoplay=false;if(value.state!==1)AlmaYouTube.send("play");}
     if (livePending && !livePending.confirmed) {
       if (value.state === 1) { livePending.confirmed = true; liveAck(livePending, "playing"); }
@@ -1212,19 +1214,19 @@ var Alma = (function () {
     var backdrop=backdropView()&&!youtubeFull&&!youtubeAudioOnly&&!value.failed&&!value.finished;
     homeBackdrop(backdrop);
     if(state.view==="home")updateHero(heroIndex);
-    host.style.zIndex=backdrop?"0":(youtubeFull?"110":"12");
-    host.style.pointerEvents=backdrop?"none":"auto";
+    styleIfChanged(host,"zIndex",backdrop?"0":(youtubeFull?"110":"12"));
+    styleIfChanged(host,"pointerEvents",backdrop?"none":"auto");
     // Navigation changes presentation only; never send pause/play or reload.
     if (youtubeAudioOnly || state.view === "saver" || (modal&&!backdrop) || (!youtubeFull&&!backdrop&&!slot)) {
       hideYoutubeImage(host);
       return;
     }
-    host.style.display = "block";
+    styleIfChanged(host,"display","block");
     var screenWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
     var screenHeight = window.innerHeight || document.documentElement.clientHeight || 720;
     var width = screenWidth, height = screenHeight, left = 0, top = 0;
     var clipTop = 0, clipBottom = height;
-    var layoutKey = [state.view, youtubeFull, screenWidth, screenHeight, backdrop?0:el("view").scrollTop, prefs.scale, prefs.x, prefs.y].join(":");
+    var layoutKey = [backdrop?"background":state.view, youtubeFull, screenWidth, screenHeight, backdrop?0:el("view").scrollTop, prefs.scale, prefs.x, prefs.y].join(":");
     if (layoutKey === youtubeLayoutKey) { AlmaYouTube.present(true); AlmaYouTube.resize(parseFloat(host.style.width), parseFloat(host.style.height)); return; }
     if (!youtubeFull && !backdrop) {
       fitPlayerSlot(slot);
@@ -1239,11 +1241,11 @@ var Alma = (function () {
     }
     var geometry = { left: Math.round(left) + "px", top: Math.round(top) + "px", width: Math.round(width) + "px", height: Math.round(height) + "px" };
     for (var property in geometry) if (Object.prototype.hasOwnProperty.call(geometry, property) && host.style[property] !== geometry[property]) host.style[property] = geometry[property];
-    host.style.clip = "rect(" + Math.ceil(clipTop) + "px," + Math.round(width) + "px," + Math.floor(clipBottom) + "px,0px)";
-    host.style.visibility = "visible";
+    styleIfChanged(host,"clip","rect(" + Math.ceil(clipTop) + "px," + Math.round(width) + "px," + Math.floor(clipBottom) + "px,0px)");
+    styleIfChanged(host,"visibility","visible");
     youtubeLayoutKey = layoutKey;
     AlmaYouTube.present(true);
-    el("safe").setAttribute("data-youtube", "large");
+    attributeIfChanged(el("safe"),"data-youtube","large");
     AlmaYouTube.resize(width, height);
   }
   function youtubeList() {
@@ -1304,7 +1306,11 @@ var Alma = (function () {
     row(isDM?["youtube-return"]:["youtube-native", "youtube-return"]);
     return h;
   }
-  function youtubeHidden() { if (document.hidden) closeYoutube(); }
+  function youtubeHidden() {
+    // Legacy engines can report transient visibility loss for native overlays.
+    // Explicit exit, native-app launch and destroy own session teardown.
+    if(!document.hidden&&youtubeLoaded){youtubeLayoutKey="";updateYoutube();}
+  }
   function mediaClock(seconds) {
     seconds = Math.max(0, Math.floor(seconds || 0));
     return pad(Math.floor(seconds / 60)) + ":" + pad(seconds % 60);
@@ -1325,6 +1331,11 @@ var Alma = (function () {
   function updatePlayer() {
     if (typeof AlmaPlayer === "undefined") return;
     var player = AlmaPlayer.snapshot();
+    if(youtubeLoaded&&!player.playing){
+      styleIfChanged(el("media-video"),"visibility","hidden");
+      styleIfChanged(el("video-help"),"display","none");
+      attributeIfChanged(el("safe"),"data-home-media","youtube");updateYoutube();return;
+    }
     el("video-help").style.display=videoFull&&!modal?"block":"none";
     if (player.playing && youtubeLoaded) closeYoutube();
     if (videoFull && (state.view === "saver" || player.kind !== "video" || player.index < 0)) fullscreenVideo(false);
@@ -1465,7 +1476,7 @@ var Alma = (function () {
     else{h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor · Alma TV 10.0.3",
+        "Tu reproductor · Alma TV 10.0.4",
         "Archivos propios, enlaces directos y YouTube integrado experimental mediante el puente de la Mac."
       ) +
       pill("media-fullscreen","Pantalla completa",function(){fullscreenVideo(true);})+'<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +

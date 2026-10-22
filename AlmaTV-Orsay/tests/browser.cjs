@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="10.0.3"'))
+      if (!html.includes('name="alma-build" content="10.0.4"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -122,7 +122,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /10\.0\.3/);
+  assert.match(await page.locator(".brand").innerText(), /10\.0\.4/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -1714,4 +1714,23 @@ test("Volumen absoluto de YouTube no toca el decodificador local ni retira el fo
  await frame.evaluate(()=>{const q=new URLSearchParams(location.search);parent.postMessage(JSON.stringify({channel:'alma-youtube',token:q.get('token'),video:q.get('video'),type:'progress',state:0,seconds:300,duration:300}),q.get('parent'));});
  await page.waitForFunction(()=>Alma.hubStatus().finished===true);
  assert.deepEqual(errors,[]);
+});
+
+test("Sesión prolongada: volumen, menús, visibilidad transitoria y salvapantallas conservan YouTube sin recargas (API simulada)",async()=>{
+ await officialYouTubeFixture();await savedYouTube();await click('youtube-play');await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);await go('home');
+ const frame=page.frame({url:/youtube\/player/}),src=await page.locator('#youtube-frame').getAttribute('src');
+ await page.evaluate(()=>{window.videoMutations=0;window.surfaceObserver=new MutationObserver(items=>{videoMutations+=items.length;});surfaceObserver.observe(document.getElementById('youtube-host'),{attributes:true});});
+ await page.clock.runFor(120000);
+ assert.equal(await page.evaluate(()=>videoMutations),0);
+ for(let i=0;i<12;i++){
+   await page.evaluate(value=>Alma.hubControl('volume',value),i%2?100:25);
+   for(const view of ['apps','settings','media','home'])await go(view);
+   await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});document.dispatchEvent(new Event('visibilitychange'));});
+   assert.equal(await page.locator('#youtube-frame').getAttribute('src'),src);
+   assert.equal(await page.locator('#stage').getAttribute('data-home-video'),'true');
+ }
+ await go('saver');await page.clock.runFor(60000);await key(88);
+ assert.equal(await page.locator('#youtube-frame').getAttribute('src'),src);
+ assert.equal(await frame.evaluate(()=>testYoutube.pause),0);assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);
+ await page.evaluate(()=>surfaceObserver.disconnect());assert.deepEqual(errors,[]);
 });
