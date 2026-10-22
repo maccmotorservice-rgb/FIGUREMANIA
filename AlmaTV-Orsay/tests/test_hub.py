@@ -21,6 +21,16 @@ class HubTests(unittest.TestCase):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.now=[1770000000]
         self.hub=Hub(self.temp.name,'127.0.0.3',lambda:self.now[0]);self.target='127.0.0.3'
     def action(self,**data):return self.hub.mutate(data,'owner',self.target)
+    def test_navigation_whitelist_fast_poll_and_confirmed_selection(self):
+        with self.assertRaises(ValueError):self.action(action='control',command='navigate',view='bad-route')
+        with self.assertRaises(ValueError):self.action(action='control',command='raw-key')
+        self.action(action='control',command='navigate',view='apps')
+        command=self.hub.tv(self.target)['commands'][0]
+        self.assertEqual(command['view'],'apps');self.assertEqual(self.hub.tv(self.target)['poll_ms'],250)
+        self.hub.tv(self.target,{'ack':command['id'],'telemetry':{'view':'apps','focus':'Netflix','focus_id':'app-netflix'}})
+        self.assertEqual(self.hub.snapshot(self.target,'owner')['telemetry']['focus'],'Netflix')
+        self.now[0]+=6;self.assertEqual(self.hub.tv(self.target)['poll_ms'],2000)
+        with self.assertRaises(PermissionError):self.hub.mutate({'action':'control','command':'ok'},'guest',self.target)
     def test_pin_roles_rate_limit_revoke_and_persistence(self):
         token,session=self.hub.pair(self.hub.pin,'phone');self.assertEqual(session['role'],'owner')
         guest,session=self.hub.pair(self.hub.guest_pin,'guest');self.assertEqual(session['role'],'guest')

@@ -17,7 +17,8 @@ import time
 from urllib.parse import urlsplit
 from xml.etree import ElementTree as ET
 
-ACTIONS = {'play','pause','toggle','stop','seek','home','media','saver','volume-up','volume-down','mute'}
+ACTIONS = {'play','pause','toggle','stop','seek','home','media','saver','volume-up','volume-down','mute','navigate','up','down','left','right','ok','back','fullscreen'}
+VIEWS={'home','search','apps','media','hub','clock','weather','calendar','timer','settings','saver'}
 EXTENSIONS = {'.mp3':'audio','.m4a':'audio','.wav':'audio','.mp4':'video','.m4v':'video','.jpg':'photo','.jpeg':'photo','.png':'photo','.mov':'convert','.mkv':'convert'}
 
 class PublicConnection(http.client.HTTPSConnection):
@@ -53,7 +54,7 @@ class Hub:
         self.files=self.root/'uploads';self.files.mkdir(exist_ok=True)
         self.path=self.root/'hub.json';self.lock=threading.RLock();self.clock=clock or time.time
         self.pin='%06d'%secrets.randbelow(1000000);self.guest_pin='%06d'%secrets.randbelow(1000000)
-        self.mac_files={};self.attempts={};self.commands=[];self.jobs={};self.converting=threading.Lock();self.schedule_seen=set()
+        self.mac_files={};self.attempts={};self.commands=[];self.jobs={};self.converting=threading.Lock();self.schedule_seen=set();self.remote_until={}
         self.data={'favorites':[],'playlists':[],'sources':[],'scenes':[],'schedules':[],'sessions':{},'channels':{tv:{'name':'Mi TV','queue':[],'history':[],'current':None,'telemetry':{},'seen':0}}}
         if self.path.exists():
             try:
@@ -130,11 +131,12 @@ class Hub:
                         repeated=dict(channel['current'],play_id=secrets.token_hex(16));channel['queue'].append(repeated)
                     self.advance(target)
                 telemetry=event.get('telemetry')
-                if isinstance(telemetry,dict):channel['telemetry']={k:v for k,v in telemetry.items() if k in ('title','state','seconds','duration','kind','error','volume','muted') and isinstance(v,(str,int,float,bool)) and len(str(v))<=300}
-            return {'commands':[dict(command) for command in self.commands if command['target']==target and command['expires']>self.clock()], 'pin':self.pin,'guest_pin':self.guest_pin}
+                if isinstance(telemetry,dict):channel['telemetry']={k:v for k,v in telemetry.items() if k in ('title','state','seconds','duration','kind','error','volume','muted','view','focus','focus_id') and isinstance(v,(str,int,float,bool)) and len(str(v))<=300}
+            return {'commands':[dict(command) for command in self.commands if command['target']==target and command['expires']>self.clock()], 'pin':self.pin,'guest_pin':self.guest_pin,'poll_ms':250 if self.remote_until.get(target,0)>self.clock() else 2000}
     def snapshot(self,target,role):
         with self.lock:
             self.schedules();channel=self.channel(target)
+            if role=='owner':self.remote_until[target]=self.clock()+5
             result={'target':target,'channels':[{'id':key,'name':value['name'],'online':self.clock()-value['seen']<10} for key,value in self.data['channels'].items()], 'queue':channel['queue'],'repeat':channel.get('repeat',False),'playlists':self.data['playlists'],'current':channel['current'],'telemetry':channel['telemetry'],'sources':[{k:v for k,v in source.items() if k not in ('url','filename')} for source in self.data['sources']]+[{'id':ident,'name':file.stem,'kind':kind,'local':True,'favorite':ident in self.data['favorites']} for ident,(file,kind) in self.mac_files.items()], 'scenes':self.data['scenes'],'role':role,'jobs':self.jobs}
             if role=='owner':result.update(pin=self.pin,guest_pin=self.guest_pin,schedules=self.data['schedules'],ffmpeg=bool(shutil.which('ffmpeg')))
             return result
@@ -168,7 +170,10 @@ class Hub:
                 if command not in ACTIONS:raise ValueError('Control no disponible.')
                 seconds=data.get('seconds',10)
                 if command=='seek' and seconds not in (-30,-10,-5,5,10,30):raise ValueError('Salto no válido.')
-                self.emit(target,{'kind':'control','action':command,'seconds':seconds})
+                view=data.get('view','')
+                if command=='navigate' and view not in VIEWS:raise ValueError('Menú no disponible.')
+                self.remote_until[target]=self.clock()+5
+                self.emit(target,{'kind':'control','action':command,'seconds':seconds,'view':view})
             elif action in ('next','previous'):self.advance(target,action=='previous')
             elif action=='remove-queue':
                 channel=self.channel(target);channel['queue']=[item for item in channel['queue'] if item['play_id']!=data.get('id')];self.save()

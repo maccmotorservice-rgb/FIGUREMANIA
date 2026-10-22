@@ -76,7 +76,7 @@ var AlmaYouTube = (function () {
     if (host) host.style.display = "none";
     value = { status: "Sin vídeo", ready: false, state: -1, title: "", failed: false };
   }
-  function open(node, mac, id, callback, provider) {
+  function open(node, mac, id, callback, provider, autoplay) {
     provider = provider === "dailymotion" ? "dailymotion" : "youtube";
     close();
     if (!(provider === "dailymotion" ? /^[A-Za-z0-9]{5,12}$/ : /^[A-Za-z0-9_-]{11}$/).test(id)) return;
@@ -91,7 +91,7 @@ var AlmaYouTube = (function () {
     frame.setAttribute("referrerpolicy", "origin");
     frame.setAttribute("frameborder", "0");
     value.status = "Conectando con el puente y el reproductor oficial de YouTube…";
-    frame.src = base + "/youtube/player?video=" + id + "&provider=" + provider + "&token=" + token + "&parent=" + encodeURIComponent(origin);
+    frame.src = base + "/youtube/player?video=" + id + "&provider=" + provider + "&autoplay="+(autoplay===true?"1":"0")+"&token=" + token + "&parent=" + encodeURIComponent(origin);
     host.style.display = "block"; host.appendChild(frame);
     timer = setTimeout(function () {
       value.failed = true;

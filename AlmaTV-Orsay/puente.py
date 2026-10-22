@@ -222,7 +222,7 @@ class Handler(HubHTTP,BaseHTTPRequestHandler):
         if provider not in ('youtube','dailymotion') or not (re.fullmatch(r'[A-Za-z0-9]{5,12}',video) if provider=='dailymotion' else re.fullmatch(r'[A-Za-z0-9_-]{11}',video)) or not re.fullmatch(r'[a-f0-9]{32}',token) or (not standalone and parent not in self.server.origins):
             self.reply(400,{'error':'Vídeo, sesión u origen del reproductor no válido'})
             return
-        config=json.dumps({'video':video,'provider':provider,'token':token,'parent':parent,'standalone':standalone},ensure_ascii=True).replace('<','\\u003c')
+        config=json.dumps({'video':video,'provider':provider,'token':token,'parent':parent,'standalone':standalone,'autoplay':not standalone and query.get('autoplay',['0'])[0]=='1'},ensure_ascii=True).replace('<','\\u003c')
         template=(Path(__file__).resolve().parent/'youtube_player.html').read_text(encoding='utf-8')
         body=template.replace('__ALMA_YT_CONFIG__',config).encode('utf-8')
         self.reply(200,body,'text/html; charset=utf-8')

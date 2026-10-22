@@ -47,6 +47,10 @@ class HubHTTP:
                 event=self.hub_json() if method=='POST' else None
                 if method not in ('GET','POST'):raise ValueError('Método no disponible.')
                 self.reply(200,hub.tv(target,event));return
+            if path.startswith('/hub/icon/') and method=='GET':
+                name=path.rsplit('/',1)[1]
+                if name not in {key+'.png' for key in ('home','search','apps','media','hub','clock','weather','calendar','timer','settings','saver')}:raise ValueError('Icono no disponible.')
+                self.reply(200,(Path(__file__).resolve().parent/'app/assets/icons'/name).read_bytes(),'image/png');return
             if path=='/hub/qr.js' and method=='GET':
                 self.reply(200,(Path(__file__).resolve().parent/'app/assets/qrcode.js').read_bytes(),'application/javascript');return
             if self.client_address[0] in hub.data['channels'] and path.startswith(('/hub/file/','/hub/stream/')):

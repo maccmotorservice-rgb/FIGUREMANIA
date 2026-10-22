@@ -26,7 +26,7 @@ class InstallerTests(unittest.TestCase):
         self.files={str(p.relative_to(ROOT/'app')):p.read_bytes() for p in (ROOT/'app').rglob('*') if p.is_file()}
     def test_manifest_identity_plain_info_and_relative_resources(self):
         ident,version,_=preparar.validate(self.files)
-        self.assertEqual((ident,version),('AlmaTV86','9.0.0'))
+        self.assertEqual((ident,version),('AlmaTV86','9.1.0'))
         self.assertNotIn(b'<',self.files['widget.info'])
         self.assertIn(b'1280x720',self.files['widget.info'])
         with tempfile.TemporaryDirectory() as directory:
@@ -149,7 +149,7 @@ class BridgeTests(unittest.TestCase):
                 self.assertIn('"parent": "null"',body)
                 self.assertNotIn('__ALMA_YT_CONFIG__',body)
                 self.assertIn('controls: 1',body)
-                self.assertIn('autoplay: 0',body)
+                self.assertIn('\"autoplay\": false',body)
             network.assert_not_called()
         for query in ['video=../../etc/passwd&token='+'a'*32,'video=M7lc1UVf-VE&token=bad','video=M7lc1UVf-VE&token='+'a'*32+'&parent=https://evil.example']:
             with self.assertRaises(HTTPError) as error:self.req('/youtube/player?'+query)

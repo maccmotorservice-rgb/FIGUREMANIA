@@ -1161,7 +1161,7 @@ var Alma = (function () {
         if (livePending && livePending.id === command.id) return;
         try { if (localStorage.getItem(storage) === command.id) return; localStorage.setItem(storage, command.id); } catch (ignore) {}
         livePending = {id: command.id, sent: false, confirmed: false};
-        openYoutube({id: command.video, provider:command.provider, name: typeof command.name === "string" ? command.name.slice(0,80) : "YouTube en tiempo real"}, command.mode === "audio");
+        openYoutube({id: command.video, provider:command.provider, name: typeof command.name === "string" ? command.name.slice(0,80) : "YouTube en tiempo real"}, command.mode === "audio",true);
         go("home");
         liveAck(livePending, "received");
       } catch (error) {}
@@ -1187,7 +1187,7 @@ var Alma = (function () {
   function updateYoutube() {
     var value = AlmaYouTube.snapshot(), host = el("youtube-host");
     el("safe").setAttribute("data-youtube-mode", youtubeAudioOnly ? "audio" : "video");
-    if (hubAutoplay && value.ready) {hubAutoplay=false;AlmaYouTube.send("play");}
+    if (hubAutoplay && value.ready) {hubAutoplay=false;if(value.state!==1)AlmaYouTube.send("play");}
     if (livePending && !livePending.confirmed) {
       if (value.state === 1) { livePending.confirmed = true; liveAck(livePending, "playing"); }
       else if (value.failed) { livePending.confirmed = true; liveAck(livePending, /ACTIVACION/.test(value.status) ? "blocked" : "error"); }
@@ -1250,10 +1250,11 @@ var Alma = (function () {
     if (!items.length) h += '<p>Añade tus enlaces en http://' + esc(prefs.macIp) + ':8088/enlaces o usa Pegar enlace.</p>';
     return h + "</div>";
   }
-  function openYoutube(item, audioOnly) {
+  function openYoutube(item, audioOnly, autoplay) {
     youtubeAudioOnly = audioOnly === true;
     if (typeof audioOnly === "undefined") livePending = null;
     youtubeSelection = item;
+    youtubeSelection.remoteAutoplay=autoplay===true;
     closeYoutube();
     AlmaPlayer.pause();
     go("youtube");
@@ -1450,7 +1451,7 @@ var Alma = (function () {
     var h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor · Alma TV 9.0.0",
+        "Tu reproductor · Alma TV 9.1.0",
         "Archivos propios, enlaces directos y YouTube integrado experimental mediante el puente de la Mac."
       ) +
       '<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +
@@ -1668,7 +1669,7 @@ var Alma = (function () {
     if (state.view === "youtube" && youtubeSelection) {
       if (youtubeLoaded !== youtubeSelection.id) {
         youtubeLoaded = youtubeSelection.id;
-        AlmaYouTube.open(el("youtube-host"), prefs.macIp, youtubeSelection.id, updateYoutube, youtubeSelection.provider);
+        AlmaYouTube.open(el("youtube-host"), prefs.macIp, youtubeSelection.id, updateYoutube, youtubeSelection.provider, youtubeSelection.remoteAutoplay);
       }
       updateYoutube();
       setTimeout(function () { if (state.view === "youtube") updateYoutube(); }, 250);
@@ -2360,7 +2361,6 @@ var Alma = (function () {
   }
   function tick() {
     pollLive();
-    if (typeof AlmaHub !== "undefined") AlmaHub.tick();
     if ((state.view === "media" || state.view === "youtube-list") && !modal && (macLinksHost !== prefs.macIp || new Date().getTime() - macLinksLast >= 15000)) loadMacYoutube(true);
     htmlIfChanged(el("time"), time());
     updateNetwork();
@@ -2656,8 +2656,10 @@ var Alma = (function () {
     }
     render();
     interval = setInterval(tick, 1000);
+    AlmaHub.start();
   };
   A.destroy = function () {
+    AlmaHub.stop();
     AlmaTVAudio.close();
     window.onresize = null;
     window.removeEventListener("focus", releaseVolumeKeys, false);
@@ -2674,7 +2676,7 @@ var Alma = (function () {
   A.hubPhoto = function () {closeYoutube();el("media-video").style.visibility="hidden";go("home");};
   A.hubPlay = function(item, keepView) {
     if(item.kind==="youtube"){
-      livePending=null;openYoutube({id:item.video,provider:item.provider,name:item.name},item.mode==="audio");hubAutoplay=true;go("home");updateYoutube();
+      livePending=null;openYoutube({id:item.video,provider:item.provider,name:item.name},item.mode==="audio",true);hubAutoplay=true;go("home");updateYoutube();
     }else{
       closeYoutube();var url="http://"+prefs.macIp+":8088"+item.path;
       if(!/^\/(?:hub\/(?:file|stream)\/|media\/file\/)[A-Za-z0-9]+$/.test(item.path))throw new Error("Dirección de archivo no válida");
@@ -2686,7 +2688,20 @@ var Alma = (function () {
     else { prefs.appVolume = clamp(prefs.appVolume + delta,0,100); if(delta>0) prefs.appMuted=false; }
     save(); AlmaPlayer.setLevel(prefs.appVolume/100,prefs.appMuted); AlmaYouTube.level(prefs.appVolume,prefs.appMuted);
   }
-  A.hubControl = function(action,seconds) {
+  A.hubControl = function(action,seconds,view) {
+    var remoteKeys={up:38,down:40,left:37,right:39,ok:13,back:88};
+    if(remoteKeys[action]){key(remoteKeys[action]);return;}
+    if(action==="navigate"){
+      if(["home","search","apps","media","hub","clock","weather","calendar","timer","settings","saver"].indexOf(view)===-1)throw new Error("Menú no disponible");
+      if(view==="hub"){exit();return;}
+      if(modal)closeDialog();if(edit){edit=null;}if(youtubeFull)youtubeFullscreen(false);if(videoFull)fullscreenVideo(false);
+      sidebarIndex=Math.max(0,navViews.indexOf(view));go(view);return;
+    }
+    if(action==="fullscreen"){
+      if(youtubeLoaded)youtubeFullscreen(!youtubeFull);
+      else if(AlmaPlayer.snapshot().kind==="video"&&AlmaPlayer.snapshot().index>=0)fullscreenVideo(!videoFull);
+      else throw new Error("No hay un vídeo abierto para ampliar");return;
+    }
     if(action==="home"||action==="media"||action==="saver"){go(action);return;}
     if(action==="volume-up"||action==="volume-down"||action==="mute"){
       setAppAudio(action==="volume-up"?10:action==="volume-down"?-10:0,action==="mute");return;
@@ -2694,6 +2709,11 @@ var Alma = (function () {
     if(action==="stop"){hubAutoplay=false;closeYoutube();AlmaPlayer.stop();return;}
     if(youtubeLoaded){if(action==="seek")AlmaYouTube.send(seconds<0?"back":"forward",Math.abs(seconds));else AlmaYouTube.send(action);}
     else if(action==="play")AlmaPlayer.play();else if(action==="pause")AlmaPlayer.pause();else if(action==="toggle")AlmaPlayer.toggle();else if(action==="seek")AlmaPlayer.seek(seconds);
+  };
+  A.hubRemoteStatus=function(){
+    var id=focusedId(),node=id&&el(id),parts=[],children=node?node.children:[],i;
+    for(i=0;i<children.length;i++)if(/^(STRONG|SMALL|H2|H3)$/.test(children[i].tagName))parts.push(children[i].textContent);
+    return {view:state.view,focus:node?String(parts.length?parts.join(" · "):node.textContent||"").replace(/\s+/g," ").slice(0,160):"",focus_id:id||""};
   };
   A.hubStatus = function(){
     if(youtubeLoaded){var value=AlmaYouTube.snapshot();return {title:value.title||(youtubeSelection&&youtubeSelection.name)||"Vídeo",kind:(youtubeSelection&&youtubeSelection.provider)||"youtube",state:value.failed?"Error":(value.state===1?"Reproduciendo":(value.state===2?"En pausa":"Preparado")),seconds:value.seconds||0,duration:value.duration||0,volume:value.volume,muted:value.muted,finished:value.state===0,error:value.failed?value.status:""};}

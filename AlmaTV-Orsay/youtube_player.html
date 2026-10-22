@@ -97,6 +97,7 @@
     } catch (e) { clearTimeout(watchdog); tell("error", "YT-ORDEN: el navegador no pudo iniciar el v\u00eddeo.", -1); report("error", "YT-ORDEN: el navegador no pudo iniciar el v\u00eddeo."); }
   }
   function pause() {
+    config.autoplay=false;
     clearTimeout(watchdog);
     try { if (ready && player) player.pauseVideo(); } catch (e) {}
   }
@@ -129,7 +130,7 @@
     try {
       player = new YT.Player("player", {
         width: "100%", height: "100%", videoId: config.video,
-        playerVars: { controls: 1, autoplay: 0, playsinline: 1, fs: 1, origin: window.location.protocol + "//" + window.location.host },
+        playerVars: { controls: 1, autoplay: config.autoplay===true ? 1 : 0, playsinline: 1, fs: 1, origin: window.location.protocol + "//" + window.location.host },
         events: {
           onReady: function () { ready = true; fittedWidth = 0; fittedHeight = 0; fit(); tell("ready", "YouTube est\u00e1 listo (API). Pulsa Reproducir.", details().state); report("ready", "La API est\u00e1 lista; a\u00fan no se ha confirmado reproducci\u00f3n."); },
           onStateChange: function (e) {
@@ -208,17 +209,20 @@
       if (dmStarted || typeof DM === "undefined" || typeof DM.player !== "function") return;
       dmStarted = true;
       try {
-        var dm = DM.player(document.getElementById("player"), {video:config.video,width:"100%",height:"100%",params:{autoplay:false,controls:true,mute:false}});
+        var dm = DM.player(document.getElementById("player"), {video:config.video,width:"100%",height:"100%",params:{autoplay:config.autoplay===true,controls:true,mute:false}});
         player = {
           getPlayerState:function(){return dmState;}, getCurrentTime:function(){return dmTime;},
           getVolume:function(){return typeof dm.volume==="number"?dm.volume*100:null;},isMuted:function(){return typeof dm.muted==="boolean"?dm.muted:null;},setVolume:function(v){dm.setVolume(v/100);},mute:function(){dm.setMuted(true);},unMute:function(){dm.setMuted(false);},
           getDuration:function(){return Number(dm.duration)||0;},getVideoData:function(){return {title:dm.title||"Dailymotion"};},
-          playVideo:function(){dm.play();},loadVideoById:function(){dm.play();},pauseVideo:function(){dm.pause();},
+          playVideo:function(){dm.play();},loadVideoById:function(){
+            if(typeof dm.load==="function")dm.load(config.video,{autoplay:true});else dm.play();
+          },pauseVideo:function(){dm.pause();},
           seekTo:function(seconds){dm.seek(seconds);},setSize:function(w,h){dm.width=w;dm.height=h;dm.style.width=w+"px";dm.style.height=h+"px";}
         };
         dm.addEventListener("apiready",function(){ready=true;fittedWidth=0;fittedHeight=0;fit();tell("ready","Dailymotion está listo. Pulsa Reproducir.",-1);});
         dm.addEventListener("timeupdate",function(event){dmTime=Number(event.time)||Number(dm.currentTime)||0;});
-        dm.addEventListener("playing",function(){dmState=1;tell("state","Reproduciendo en Dailymotion",1);});
+        dm.addEventListener("loadedmetadata",function(){if(config.autoplay===true&&dmState!==1){config.autoplay=false;try{dm.play();}catch(e){tell("error","Dailymotion bloqueó el inicio automático. Prueba otro vídeo o Reproducir.",-1);}}});
+        dm.addEventListener("playing",function(){config.autoplay=false;dmState=1;tell("state","Reproduciendo en Dailymotion",1);});
         dm.addEventListener("pause",function(){dmState=2;clearTimeout(watchdog);tell("state","Dailymotion en pausa",2);});
         dm.addEventListener("waiting",function(){dmState=3;tell("state","Cargando Dailymotion…",3);});
         function ended(){dmState=0;tell("state","Finalizado",0);}

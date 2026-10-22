@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="9.0.0"'))
+      if (!html.includes('name="alma-build" content="9.1.0"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -122,7 +122,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /9\.0\.0/);
+  assert.match(await page.locator(".brand").innerText(), /9\.1\.0/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -943,7 +943,7 @@ async function officialYouTubeFixture(code = 0, behavior = "normal") {
   const referers = [];
   await page.route("http://192.168.1.30:8088/youtube/player?**", async r => {
     const url = new URL(r.request().url());
-    const config = {video:url.searchParams.get("video"),token:url.searchParams.get("token"),parent:url.searchParams.get("parent")};
+    const config = {video:url.searchParams.get("video"),token:url.searchParams.get("token"),parent:url.searchParams.get("parent"),autoplay:url.searchParams.get("autoplay")==="1"};
     const html = fs.readFileSync(path.join(ROOT,"youtube_player.html"),"utf8").replace("__ALMA_YT_CONFIG__", JSON.stringify(config));
     await r.fulfill({status:200,contentType:"text/html; charset=utf-8",headers:{"Referrer-Policy":"origin"},body:html});
   });
@@ -1601,6 +1601,7 @@ for(const mode of ["video","audio"]) test("Panel de Mac envía Reproducir ahora 
   assert.equal(await page.locator("#safe").getAttribute("data-youtube-mode"),mode);
   const child=page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
   assert.equal(await child.evaluate(()=>testYoutube.play),1);
+  assert.equal(await child.evaluate(()=>testYoutube.options.playerVars.autoplay),1);
   await page.waitForTimeout(100);assert.ok(acks.some(a=>a.status==="received"));assert.ok(acks.some(a=>a.status==="playing"));
   if(mode==="audio")assert.equal(await page.locator("#youtube-host").evaluate(n=>getComputedStyle(n).display),"none");
   else assert.equal(await page.locator("#youtube-host").evaluate(n=>getComputedStyle(n).visibility),"visible");
