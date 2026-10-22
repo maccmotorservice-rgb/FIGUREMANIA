@@ -37,7 +37,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="10.0.4"'))
+      if (!html.includes('name="alma-build" content="10.0.5"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -122,7 +122,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /10\.0\.4/);
+  assert.match(await page.locator(".brand").innerText(), /10\.0\.5/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   await shot("01-inicio");
   await key(29461);
@@ -947,7 +947,7 @@ async function officialYouTubeFixture(code = 0, behavior = "normal") {
       this.setVolume=function(v){if(state!==1)testYoutube.earlyAudio=true;testYoutube.volume=v;};this.getVolume=function(){return testYoutube.volume;};this.mute=function(){testYoutube.muted=true;};this.unMute=function(){testYoutube.unmuteCount=(testYoutube.unmuteCount||0)+1;if(state!==1)testYoutube.earlyAudio=true;testYoutube.muted=false;};this.isMuted=function(){return testYoutube.muted;};
       this.getVideoData=function(){return {title:'Vídeo de prueba · API simulada'};};
       this.setSize=function(w,h){window.testYoutube.sizeCount++;window.testYoutube.size=[w,h];};
-      this.playVideo=function(){window.testYoutube.play++;window.testYoutube.activation=navigator.userActivation ? navigator.userActivation.isActive : null;${code ? `options.events.onError({data:${code}});` : behavior === "stalled" ? "" : behavior === "blocked" ? "options.events.onAutoplayBlocked();" : "state=1;options.events.onStateChange({data:1});"}};
+      this.playVideo=function(){window.testYoutube.play++;window.testYoutube.activation=navigator.userActivation ? navigator.userActivation.isActive : null;${code ? `options.events.onError({data:${code}});` : behavior === "stalled" ? "" : behavior === "ignore-first" ? "if(testYoutube.play>1){state=1;options.events.onStateChange({data:1});}" : behavior === "blocked" ? "options.events.onAutoplayBlocked();" : "state=1;options.events.onStateChange({data:1});"}};
       ${behavior === "explicit" ? 'this.loadVideoById=function(id){window.testYoutube.load++;window.testYoutube.loadedId=id;state=1;options.events.onStateChange({data:1});};' : ''}
       this.pauseVideo=function(){window.testYoutube.pause++;state=2;options.events.onStateChange({data:2});};
       this.seekTo=function(value){window.testYoutube.seek++;window.testYoutube.lastSeek=value;time=value;};
@@ -1733,4 +1733,34 @@ test("Sesión prolongada: volumen, menús, visibilidad transitoria y salvapantal
  assert.equal(await page.locator('#youtube-frame').getAttribute('src'),src);
  assert.equal(await frame.evaluate(()=>testYoutube.pause),0);assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);
  await page.evaluate(()=>surfaceObserver.disconnect());assert.deepEqual(errors,[]);
+});
+
+test("Reproducir ahora inicia al volver de Xbox sin pulsar en TV, aunque se pierda la orden del menú (API simulada)",async()=>{
+ await officialYouTubeFixture(0,'explicit');
+ await page.evaluate(()=>{window.webapis={tv:{window:{getAvailableSources:ok=>ok([{type:'HDMI',number:2,id:'HDMI2'}]),setSource:(source,ok)=>ok()}}};});
+ for(let i=0;i<3;i++){
+   const id=i===1?'dQw4w9WgXcQ':'M7lc1UVf-VE';
+   await page.evaluate(id=>Alma.hubPlay({kind:'youtube',provider:'youtube',video:id,name:id,mode:'video'}),id);
+   await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
+   assert.equal(await page.locator('#stage').getAttribute('data-home-video'),'true');
+   assert.match(await page.locator('#youtube-frame').getAttribute('src'),/autoplay=1/);
+   const frame=page.frame({url:/youtube\/player/});assert.equal(await frame.evaluate(()=>testYoutube.options.playerVars.autoplay),0);
+   assert.equal(await frame.evaluate(()=>testYoutube.load),1);
+   await click('app-6');assert.equal(await page.locator('#youtube-frame').count(),0);
+   await go('home');
+   if(i===0)await page.evaluate(()=>{const old=AlmaYouTube.send;AlmaYouTube.send=function(command){if(command!=='play')return old.apply(AlmaYouTube,arguments);};});
+ }
+ assert.deepEqual(errors,[]);
+});
+
+test("Inicio automático recupera una primera orden ignorada una sola vez y conserva pausa explícita (API simulada)",async()=>{
+ await officialYouTubeFixture(0,'ignore-first');
+ await page.evaluate(()=>Alma.hubPlay({kind:'youtube',provider:'youtube',video:'M7lc1UVf-VE',name:'Arranque diferido',mode:'video'}));
+ await page.waitForFunction(()=>AlmaYouTube.snapshot().ready);
+ const frame=page.frame({url:/youtube\/player/});assert.equal(await frame.evaluate(()=>testYoutube.play),1);
+ await page.clock.runFor(1600);await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
+ assert.equal(await frame.evaluate(()=>testYoutube.play),2);
+ await page.evaluate(()=>Alma.hubControl('pause'));await page.waitForFunction(()=>AlmaYouTube.snapshot().state===2);
+ await page.clock.runFor(20000);assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),2);assert.equal(await frame.evaluate(()=>testYoutube.play),2);
+ assert.deepEqual(errors,[]);
 });

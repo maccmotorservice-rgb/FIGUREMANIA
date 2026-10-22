@@ -13,7 +13,7 @@
 <script>
 (function () {
   "use strict";
-  var config = __ALMA_YT_CONFIG__, player = null, ready = false, watchdog = null, initialTime = null, layoutWidth = 0, layoutHeight = 0, fittedWidth = 0, fittedHeight = 0, seekTimer = null, seekTarget = null, loadRequested=false;
+  var config = __ALMA_YT_CONFIG__, player = null, ready = false, watchdog = null, initialTime = null, layoutWidth = 0, layoutHeight = 0, fittedWidth = 0, fittedHeight = 0, seekTimer = null, seekTarget = null, loadRequested=false,automaticTimer=null,automaticWanted=config.autoplay===true;
   var codecProbe=document.createElement("video"),codecSupport="";
   try{codecSupport=codecProbe.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"');}catch(ignore){}
   codecProbe=null;
@@ -42,7 +42,7 @@
     }
     document.getElementById("status").textContent = status;
     if (config.standalone) fit();
-    if (window.parent !== window) window.parent.postMessage(JSON.stringify({ channel: "alma-youtube", token: config.token, type: type, status: status, state: state, title: title,video:config.video }), config.parent === "null" ? "*" : config.parent);
+    if (window.parent !== window) window.parent.postMessage(JSON.stringify({ channel: "alma-youtube", token: config.token, type: type, status: status, state: state, title: title,video:config.video,automatic:config.autoplay===true }), config.parent === "null" ? "*" : config.parent);
   }
   function fit() {
     var width = layoutWidth || document.documentElement.clientWidth || window.innerWidth;
@@ -64,6 +64,7 @@
     try { if (ready && player && typeof player.setSize === "function") player.setSize(width, height); } catch (e) {}
   }
   function failure(code) {
+    automaticWanted=false;clearTimeout(automaticTimer);
     clearTimeout(watchdog);
     var reasons = {
       2: "El enlace no identifica un v\u00eddeo v\u00e1lido.",
@@ -102,7 +103,15 @@
       else player.playVideo();
     } catch (e) { clearTimeout(watchdog); tell("error", "YT-ORDEN: el navegador no pudo iniciar el v\u00eddeo.", -1); report("error", "YT-ORDEN: el navegador no pudo iniciar el v\u00eddeo."); }
   }
+  function startAutomatic(){
+    clearTimeout(automaticTimer);automaticWanted=true;start();
+    automaticTimer=setTimeout(function(){
+      var state=details().state;
+      if(automaticWanted&&(state===-1||state===0||state===2||state===5)){loadRequested=true;start();}
+    },1500);
+  }
   function pause() {
+    automaticWanted=false;clearTimeout(automaticTimer);
     clearTimeout(watchdog);
     try { if (ready && player) player.pauseVideo(); } catch (e) {}
   }
@@ -137,15 +146,22 @@
         width: "100%", height: "100%", videoId: config.video,
         playerVars: { controls: 1, autoplay: 0, playsinline: 1, fs: 1, origin: window.location.protocol + "//" + window.location.host },
         events: {
-          onReady: function () { ready = true; fittedWidth = 0; fittedHeight = 0; fit(); tell("ready", "YouTube est\u00e1 listo (API). Pulsa Reproducir.", details().state); report("ready", "La API est\u00e1 lista; a\u00fan no se ha confirmado reproducci\u00f3n."); },
+          onReady: function () { ready = true; fittedWidth = 0; fittedHeight = 0; fit();
+            if(config.autoplay===true){
+              // One bounded recovery if the legacy decoder ignored its first order.
+              startAutomatic();
+              tell("ready","Inicio automático solicitado a YouTube.",details().state);
+            }else{tell("ready", "YouTube está listo (API). Pulsa Reproducir.", details().state);}
+            report("ready","La API está lista; inicio automático: "+(config.autoplay===true?"sí":"no")); },
           onStateChange: function (e) {
+            if(e.data===1){automaticWanted=false;clearTimeout(automaticTimer);}
             var labels = { "-1": "V\u00eddeo sin iniciar. Pulsa Reproducir.", 0: "Finalizado", 1: "Reproduciendo en YouTube", 2: "En pausa", 3: "Cargando v\u00eddeo de YouTube\u2026", 5: "V\u00eddeo preparado" };
-            tell("state", labels[e.data] || "YouTube", e.data);
+            tell("state",automaticWanted&&(e.data===-1||e.data===5)?"Iniciando automáticamente el vídeo…":(labels[e.data] || "YouTube"),e.data);
             if (e.data === 0 || e.data === 2) clearTimeout(watchdog);
             report("state", labels[e.data] || "YouTube");
           },
           onError: function (e) { failure(e.data); },
-          onAutoplayBlocked: function () { clearTimeout(watchdog); var text = "YT-ACTIVACION: YouTube bloque\u00f3 el inicio autom\u00e1tico y requiere una interacci\u00f3n directa con su reproductor."; tell("status", text, -1); report("blocked", text); }
+          onAutoplayBlocked: function () { automaticWanted=false;clearTimeout(automaticTimer);clearTimeout(watchdog); var text = "YT-ACTIVACION: YouTube bloque\u00f3 el inicio autom\u00e1tico y requiere una interacci\u00f3n directa con su reproductor."; tell("status", text, -1); report("blocked", text); }
         }
       });
     } catch (e) { tell("error", "El navegador no pudo iniciar el reproductor oficial de YouTube.", -1); report("error", "El navegador no pudo iniciar el reproductor oficial de YouTube."); }
@@ -191,7 +207,7 @@
     }
     if(data.command==="load"){
       if(!ready || typeof data.video!=="string" || !/^[A-Za-z0-9_-]{11}$/.test(data.video))return;
-      config.video=data.video;loadRequested=true;command("play");return;
+      config.video=data.video;loadRequested=true;startAutomatic();return;
     }
     command(data.command, data.seconds);
   }, false);

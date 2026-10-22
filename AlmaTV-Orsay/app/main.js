@@ -1196,11 +1196,11 @@ var Alma = (function () {
   function updateYoutube() {
     var value = AlmaYouTube.snapshot(), host = el("youtube-host");
     attributeIfChanged(el("safe"),"data-youtube-mode",youtubeAudioOnly ? "audio" : "video");
-    if (hubAutoplay && value.ready) {hubAutoplay=false;if(value.state!==1)AlmaYouTube.send("play");}
+    if (hubAutoplay && value.ready) {hubAutoplay=false;if(value.state!==1&&!value.automatic)AlmaYouTube.send("play");}
     if (livePending && !livePending.confirmed) {
       if (value.state === 1) { livePending.confirmed = true; liveAck(livePending, "playing"); }
       else if (value.failed) { livePending.confirmed = true; liveAck(livePending, /ACTIVACION/.test(value.status) ? "blocked" : "error"); }
-      else if (value.ready && !livePending.sent) { livePending.sent = true; AlmaYouTube.send("play"); }
+      else if (value.ready && !livePending.sent) { livePending.sent = true; if(!value.automatic)AlmaYouTube.send("play"); }
     }
     if (youtubeAudioOnly) {
       htmlIfChanged(el("home-media-title"), "");
@@ -1476,7 +1476,7 @@ var Alma = (function () {
     else{h =
       head(
         "MÚSICA Y VÍDEOS",
-        "Tu reproductor · Alma TV 10.0.4",
+        "Tu reproductor · Alma TV 10.0.5",
         "Archivos propios, enlaces directos y YouTube integrado experimental mediante el puente de la Mac."
       ) +
       pill("media-fullscreen","Pantalla completa",function(){fullscreenVideo(true);})+'<div class="media-stage"><div class="media-symbol"><span class="media-eq"><b></b><b></b><b></b></span></div><h2 id="media-title">' +

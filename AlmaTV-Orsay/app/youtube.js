@@ -2,7 +2,7 @@
 var AlmaYouTube = (function () {
   "use strict";
   var frame = null, host = null, base = "", token = "", timer = null, lastWidth = 0, lastHeight = 0, presented = null, audioApplied = true, activeProvider="", selectedVideo="", pendingVideo="";
-  var chosenLevel=70, chosenMuted=false, endReports=0;
+  var chosenLevel=70, chosenMuted=false, endReports=0,playbackStarted=false;
   function level(amount, muted, passive) {
     chosenLevel=Math.max(0,Math.min(100,Number(amount)||0));chosenMuted=muted===true;
     if(passive===true)return;
@@ -32,7 +32,7 @@ var AlmaYouTube = (function () {
     id=host==="dai.ly" ? parts[0] : (/^(www\.|m\.)?dailymotion\.com$/.test(host) && parts[0]==="video" ? parts[1] : "");
     id=String(id||"").split("_")[0];return /^[A-Za-z0-9]{5,12}$/.test(id) ? {id:id,provider:"dailymotion"} : null;
   }
-  function snapshot() { return { status: value.status, ready: value.ready, state: value.state, title: value.title, failed: value.failed, seconds:value.seconds||0, duration:value.duration||0,finished:value.finished===true,volume:value.volume,muted:value.muted }; }
+  function snapshot() { return { status: value.status, ready: value.ready, state: value.state, title: value.title, failed: value.failed, seconds:value.seconds||0, duration:value.duration||0,finished:value.finished===true,automatic:value.automatic===true,volume:value.volume,muted:value.muted }; }
   function present(visible, remove) {
     remove = remove === true;
     var presentationKey = visible + ":" + remove;
@@ -62,6 +62,7 @@ var AlmaYouTube = (function () {
     try { data = typeof event.data === "string" ? JSON.parse(event.data) : event.data; } catch (e) { return; }
     if(data && typeof data.video==="string" && data.video!==selectedVideo)return;
     if (!data || data.channel !== "alma-youtube" || data.token !== token) return;
+    if(typeof data.automatic==="boolean")value.automatic=data.automatic;
     if (data.type === "ready") { lastWidth = 0; lastHeight = 0; presented = null; value.ready = true; clearTimeout(timer); }
     if (data.type === "error") { value.failed = true; value.ready = false; clearTimeout(timer); }
     if(typeof data.volume==="number" && isFinite(data.volume)) value.volume=Math.max(0,Math.min(100,data.volume));
@@ -72,9 +73,9 @@ var AlmaYouTube = (function () {
       value.state = data.state;
       if(data.state===0){
         if(data.type==="progress")endReports++;
-        value.finished=endReports>=2||(value.duration>0&&value.seconds>=Math.max(value.duration-2,value.duration*0.9));
+        value.finished=playbackStarted&&(endReports>=2||(value.duration>0&&value.seconds>=Math.max(value.duration-2,value.duration*0.9)));
       }else{endReports=0;value.finished=false;}
-      if(data.state===1){value.failed=false;}
+      if(data.state===1){playbackStarted=true;value.failed=false;}
     }
     if (typeof data.title === "string") value.title = data.title.slice(0, 160);
     if (typeof data.status === "string") value.status = data.status.slice(0, 300);
@@ -85,7 +86,7 @@ var AlmaYouTube = (function () {
   function close() {
     clearTimeout(timer);
     if (frame) { send("pause"); frame.src = "about:blank"; host.innerHTML = ""; }
-    frame = null; activeProvider="";selectedVideo="";pendingVideo="";audioApplied=true; endReports=0; lastWidth = 0; lastHeight = 0; presented = null;
+    frame = null; activeProvider="";selectedVideo="";pendingVideo="";audioApplied=true; endReports=0; playbackStarted=false; lastWidth = 0; lastHeight = 0; presented = null;
     if (host) host.style.display = "none";
     value = { status: "Sin vídeo", ready: false, state: -1, title: "", failed: false };
   }
@@ -94,7 +95,7 @@ var AlmaYouTube = (function () {
     if (!(provider === "dailymotion" ? /^[A-Za-z0-9]{5,12}$/ : /^[A-Za-z0-9_-]{11}$/).test(id)) return;
     if(reusable(mac,provider)){
       if(autoplay!==true)send("pause");
-      changed=callback;selectedVideo=id;pendingVideo=id;endReports=0;
+      changed=callback;selectedVideo=id;pendingVideo=id;endReports=0;playbackStarted=false;
       value={status:"Vídeo preparado. Pulsa Reproducir.",ready:true,state:-1,title:"",failed:false,seconds:0,duration:0};
       changed();return;
     }
@@ -110,7 +111,7 @@ var AlmaYouTube = (function () {
     frame.setAttribute("referrerpolicy", "origin");
     frame.setAttribute("frameborder", "0");
     value.status = "Conectando con el puente y el reproductor oficial de "+(provider==="dailymotion"?"Dailymotion":"YouTube")+"…";
-    frame.src = base + (provider==="dailymotion"?"/dailymotion/player?video=":"/youtube/player?video=") + id + "&provider=" + provider + "&autoplay="+(provider==="dailymotion" && autoplay===true?"1":"0")+"&token=" + token + "&parent=" + encodeURIComponent(origin);
+    frame.src = base + (provider==="dailymotion"?"/dailymotion/player?video=":"/youtube/player?video=") + id + "&provider=" + provider + "&autoplay="+(autoplay===true?"1":"0")+"&token=" + token + "&parent=" + encodeURIComponent(origin);
     host.style.display = "block"; host.appendChild(frame);
     timer = setTimeout(function () {
       value.failed = true;
