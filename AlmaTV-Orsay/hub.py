@@ -22,24 +22,30 @@ VIEWS={'home','search','apps','media','hub','clock','weather','calendar','timer'
 EXTENSIONS = {'.mp3':'audio','.m4a':'audio','.wav':'audio','.mp4':'video','.m4v':'video','.jpg':'photo','.jpeg':'photo','.png':'photo','.mov':'convert','.mkv':'convert'}
 
 class PublicConnection(http.client.HTTPSConnection):
-    def __init__(self, host, address):
-        super().__init__(host, timeout=12, context=ssl.create_default_context())
+    def __init__(self, host, address, port=443):
+        super().__init__(host, port=port, timeout=12, context=ssl.create_default_context())
         self.address = address
     def connect(self):
-        self.sock = self._context.wrap_socket(socket.create_connection((self.address,443),12),server_hostname=self.host)
+        self.sock = self._context.wrap_socket(socket.create_connection((self.address,self.port),12),server_hostname=self.host)
 
-def public_open(url, headers=None, allow_redirect=False):
-    """Pin public DNS; redirects require explicit opt-in and hop validation by caller."""
+def public_open(url, headers=None, allow_redirect=False, allow_custom_port=False):
+    """Pin public DNS; custom ports and redirects are opt-in for playlist downloads."""
     parsed=urlsplit(url)
-    if parsed.scheme not in ('http','https') or not parsed.hostname or parsed.username or parsed.password or parsed.port not in (None,443 if parsed.scheme=='https' else 80):
+    if parsed.scheme not in ('http','https') or not parsed.hostname or parsed.username or parsed.password:
         raise ValueError('Usa una dirección pública HTTP o HTTPS sin credenciales.')
+    default_port=443 if parsed.scheme=='https' else 80
+    port=parsed.port if parsed.port is not None else default_port
+    if not 1<=port<=65535:raise ValueError('El puerto debe estar entre 1 y 65535.')
+    if not allow_custom_port and port!=default_port:raise ValueError('Esta fuente requiere un puerto HTTP o HTTPS estándar.')
     addresses=list(dict.fromkeys(item[4][0] for item in socket.getaddrinfo(parsed.hostname,None,type=socket.SOCK_STREAM)))
     if not addresses or any(not ipaddress.ip_address(address).is_global for address in addresses):
         raise ValueError('Las fuentes externas deben usar direcciones públicas.')
-    if parsed.scheme=='https': connection=PublicConnection(parsed.hostname,addresses[0])
+    if parsed.scheme=='https': connection=PublicConnection(parsed.hostname,addresses[0],port)
     else:
-        connection=http.client.HTTPConnection(addresses[0],80,timeout=12)
-    safe_headers={'Host':parsed.hostname,'User-Agent':'AlmaTV/9 local media player'}
+        connection=http.client.HTTPConnection(addresses[0],port,timeout=12)
+    host=('['+parsed.hostname+']') if ':' in parsed.hostname else parsed.hostname
+    if port!=default_port:host+=':'+str(port)
+    safe_headers={'Host':host,'User-Agent':'AlmaTV/9 local media player'}
     safe_headers.update(headers or {})
     connection.request('GET',(parsed.path or '/')+('?' + parsed.query if parsed.query else ''),headers=safe_headers)
     response=connection.getresponse()

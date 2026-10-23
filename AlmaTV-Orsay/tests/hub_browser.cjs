@@ -13,8 +13,8 @@ from hub import Hub
 import hub_http,io
 # Import fixture: only this public test URL is intercepted, no LAN or external calls.
 _original_open=hub_http.public_open
-def playlist_open(url,headers=None,allow_redirect=False):
- if url not in ('https://lists.example.org/test.m3u','https://lists.example.org/segunda.m3u'): return _original_open(url,headers,allow_redirect)
+def playlist_open(url,headers=None,allow_redirect=False,allow_custom_port=False):
+ if url not in ('https://lists.example.org/test.m3u','https://lists.example.org/segunda.m3u'): return _original_open(url,headers,allow_redirect,allow_custom_port)
  data=('#EXTM3U\\n'+''.join('#EXTINF:-1 tvg-id="Fixture%d.mx",Canal importado %d\\nhttps://streams.example.org/%d.m3u8\\n'%(i,i,i) for i in range(40))).encode()
  if url.endswith('segunda.m3u'): data=b'#EXTM3U\\n#EXTINF:-1 tvg-country="US",Segunda lista uno\\nhttps://streams.example.org/second-one.m3u8\\n#EXTINF:-1 tvg-country="US",Segunda lista dos\\nhttps://streams.example.org/second-two.m3u8\\n'
  response=io.BytesIO(data);response.status=200;response.getheader=lambda n,d=None:d
@@ -103,6 +103,7 @@ async function dailymotionFixture(p){await p.route('https://api.dmcdn.net/all.js
 
 test('El panel manda un canal público y la TV recibe el vídeo sin usar el puente como transporte',{timeout:20000},async t=>{
  const p=await tv(t),url='https://video.cdmx.gob.mx/alma-prueba.mp4';
+ await p.waitForFunction(()=>!!localStorage.getItem('alma.live.catalog'));
  await p.evaluate(url=>{AlmaLiveTV[0].url=url;},url);
  await p.route(url,r=>r.fulfill({contentType:'video/mp4',body:fs.readFileSync(path.join(ROOT,'tests/fixtures/video-prueba.mp4'))}));
  const c=await browser.newContext();t.after(()=>c.close());const panel=await c.newPage();await panel.goto(base+'/control');

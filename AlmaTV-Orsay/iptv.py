@@ -14,7 +14,7 @@ def stream_url(url):
     if not isinstance(url,str) or len(url)>2048 or any(ord(c)<33 for c in url) or '|' in url:return False
     try:
         p=urlsplit(url)
-        if p.scheme not in ('http','https') or not p.hostname or p.username or p.password:return False
+        if p.scheme not in ('http','https') or not p.hostname or p.username or p.password or p.port==0:return False
         if p.hostname.lower() in ('localhost','localhost.localdomain') or p.hostname.lower().endswith('.local'):return False
         try:return ipaddress.ip_address(p.hostname).is_global
         except ValueError:return '.' in p.hostname
@@ -185,7 +185,7 @@ class IPTV:
             if not stream_url(url):raise ValueError('Usa una URL pública HTTP o HTTPS de una lista M3U.')
             final_url=url
             for redirect in range(5):
-                connection,response=opener(final_url,allow_redirect=True)
+                connection,response=opener(final_url,allow_redirect=True,allow_custom_port=True)
                 if response.status not in (301,302,303,307,308):break
                 location=response.getheader('Location','');response.close();connection.close()
                 final_url=urljoin(final_url,location)
