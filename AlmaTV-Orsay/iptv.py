@@ -8,7 +8,9 @@ import time
 from urllib.parse import urljoin, urlsplit
 
 LIMIT = 500
-MAX_BYTES = 16 * 1024 * 1024
+MAX_BYTES = 64 * 1024 * 1024
+MAX_CHANNELS = 200000
+DOWNLOAD_TIMEOUT = 180
 
 def stream_url(url):
     if not isinstance(url,str) or len(url)>2048 or any(ord(c)<33 for c in url) or '|' in url:return False
@@ -21,7 +23,7 @@ def stream_url(url):
     except ValueError:return False
 
 def parse_m3u(raw, base):
-    if len(raw)>MAX_BYTES:raise ValueError('La lista supera 16 MB.')
+    if len(raw)>MAX_BYTES:raise ValueError('La lista supera el límite de 64 MB. Pide al proveedor una lista más pequeña o dividida.')
     try:text=raw.decode('utf-8-sig')
     except UnicodeDecodeError:text=raw.decode('cp1252',errors='replace')
     if re.search(r'^\s*#EXT-X-(?:TARGETDURATION|STREAM-INF|MEDIA-SEQUENCE|PLAYLIST-TYPE|ENDLIST)(?::|\s*$)',text,re.MULTILINE):raise ValueError('Usa una lista M3U de canales, no el enlace de una sola señal HLS.')
@@ -45,7 +47,7 @@ def parse_m3u(raw, base):
             url=urljoin(base,line)
             if meta and stream_url(url) and url not in seen:
                 seen.add(url);channels.append(dict(meta,id='iptv-'+hashlib.sha256(url.encode()).hexdigest()[:20],url=url,region=meta['country'].upper() or meta['group'] or 'Internet',note='Señal importada; disponibilidad según el proveedor.'))
-                if len(channels)>50000:raise ValueError('La lista supera 50 000 canales.')
+                if len(channels)>MAX_CHANNELS:raise ValueError('La lista supera el límite de 200 000 entradas. Pide al proveedor una lista dividida.')
             else:skipped+=1
             meta=None
     if not channels:raise ValueError('No se encontraron canales HTTP/HTTPS compatibles en la lista.')
@@ -183,7 +185,7 @@ class IPTV:
         if action in ('import','refresh'):
             url=str(data.get('url','')).strip()
             if not stream_url(url):raise ValueError('Usa una URL pública HTTP o HTTPS de una lista M3U.')
-            final_url=url
+            final_url=url;start=time.monotonic()
             for redirect in range(5):
                 connection,response=opener(final_url,allow_redirect=True,allow_custom_port=True)
                 if response.status not in (301,302,303,307,308):break
@@ -191,15 +193,18 @@ class IPTV:
                 final_url=urljoin(final_url,location)
                 if not location or not stream_url(final_url) or redirect==4:raise ValueError('Demasiadas redirecciones o destino no válido.')
             try:
-                if int(response.getheader('Content-Length','0'))>MAX_BYTES:raise ValueError('La lista supera 16 MB.')
-                chunks=[];size=0;start=time.monotonic()
+                if int(response.getheader('Content-Length','0'))>MAX_BYTES:raise ValueError('La lista supera el límite de 64 MB. Pide al proveedor una lista más pequeña o dividida.')
+                chunks=[];size=0
                 while True:
-                    chunk=response.read(65536)
+                    if time.monotonic()-start>DOWNLOAD_TIMEOUT:raise ValueError("La descarga de la lista superó los 3 minutos. El proveedor está enviando los datos demasiado despacio.")
+                    chunk=(response.read1 if hasattr(response,"read1") else response.read)(65536)
                     if not chunk:break
                     size+=len(chunk)
-                    if size>MAX_BYTES or time.monotonic()-start>60:raise ValueError('La lista es demasiado grande o tarda más de un minuto.')
+                    if size>MAX_BYTES:raise ValueError('La lista supera el límite de 64 MB. Pide al proveedor una lista más pequeña o dividida.')
+                    if time.monotonic()-start>DOWNLOAD_TIMEOUT:raise ValueError('La descarga de la lista superó los 3 minutos. El proveedor está enviando los datos demasiado despacio.')
                     chunks.append(chunk)
                 channels,skipped=parse_m3u(b''.join(chunks),final_url)
+            except TimeoutError:raise ValueError("El proveedor dejó de enviar datos y se agotó la espera de red. Vuelve a intentarlo más tarde.")
             finally:response.close();connection.close()
             with self.lock:
                 sources=self.data['sources'];existing=next((s for s in sources if s['url']==url),None)

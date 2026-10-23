@@ -124,3 +124,31 @@ class IPTVTests(unittest.TestCase):
         self.assertEqual([c['name'] for c in channels],['Uno','Dos']);self.assertEqual(skipped,0)
         for manifest in (b'#EXTINF:6.0,\nhttps://example.org/segment.ts',b'#EXTINF:-1,Uno\nhttps://example.org/a.ts\n#EXT-X-MEDIA-SEQUENCE:1',b'<html>Una lista #EXTINF:-1</html>'):
             with self.assertRaises(ValueError):parse_m3u(manifest,'https://example.org/list')
+
+    def test_larger_download_budget_and_separate_limits_preserve_previous_list(self):
+        from unittest.mock import patch
+        import iptv
+        self.assertEqual(iptv.MAX_BYTES,64*1024*1024);self.assertEqual(iptv.DOWNLOAD_TIMEOUT,180);self.assertEqual(iptv.MAX_CHANNELS,200000)
+        with tempfile.TemporaryDirectory() as tmp:
+            lib=IPTV(Path(tmp)/'iptv.json',[]);url='https://example.org/list'
+            lib.mutate({'action':'import','url':url},lambda *a,**k:response());previous=lib.path.read_bytes();revision=lib.revision
+            for reason in ('size','time'):
+                conn,res=response();opener=lambda *a,**k:(conn,res)
+                if reason=='size':
+                    with patch('iptv.MAX_BYTES',16):
+                        with self.assertRaisesRegex(ValueError,'64 MB'):lib.mutate({'action':'refresh','url':url},opener)
+                else:
+                    with patch('iptv.time.monotonic',side_effect=[0,181]):
+                        with self.assertRaisesRegex(ValueError,'3 minutos'):lib.mutate({'action':'refresh','url':url},opener)
+                self.assertEqual(lib.path.read_bytes(),previous);self.assertEqual(lib.revision,revision);self.assertTrue(res.closed);conn.close.assert_called_once()
+            # More than the previous one-minute deadline still succeeds.
+            with patch('iptv.time.monotonic',side_effect=[0,70,80,90]):lib.mutate({'action':'refresh','url':url},lambda *a,**k:response())
+    def test_content_length_and_entry_limit_have_specific_errors(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as tmp:
+            conn,res=response();res.getheader=lambda name,default=None:str(65*1024*1024) if name=='Content-Length' else default
+            with self.assertRaisesRegex(ValueError,'64 MB'):IPTV(Path(tmp)/'iptv.json',[]).mutate({'action':'import','url':'https://example.org/list'},lambda *a,**k:(conn,res))
+            self.assertTrue(res.closed);conn.close.assert_called_once()
+        raw=b'#EXTM3U\n#EXTINF:-1,Uno\nhttps://example.org/1.m3u8\n#EXTINF:-1,Dos\nhttps://example.org/2.m3u8\n'
+        with patch('iptv.MAX_CHANNELS',1):
+            with self.assertRaisesRegex(ValueError,'200 000 entradas'):parse_m3u(raw,'https://example.org/list')

@@ -1,4 +1,6 @@
-# Alma TV · Control 10.3.5: listas con puertos personalizados
+# Alma TV · Control 10.3.6: listas grandes y lentas
+
+La importación admite hasta **64 MB y 200 000 entradas por lista**, con **tres minutos de descarga**; el panel espera hasta cuatro minutos para recibir el resultado. Tamaño, tiempo total y falta de datos del proveedor muestran errores separados. Una importación fallida mantiene la lista anterior. Se comprueba que una descarga de más de un minuto aún puede completarse. La corrección pasó 61 pruebas Python y tres pruebas de importación/guía con puente HTTP real; no se descargó la cuenta del usuario. Estos límites son de la Mac: no cambian el catálogo máximo de 504 entradas del widget ni su espera de 60 segundos por señal.
 
 La descarga de listas M3U admite puertos personalizados HTTP/HTTPS (1–65535), incluidos 8880 y 25461, y conserva los parámetros del enlace `get.php`. El puerto se aplica tanto a la conexión como a la cabecera Host; HTTPS mantiene SNI y validación del certificado del proveedor. Cada salto de redirección vuelve a validar el destino público. Se siguen rechazando direcciones privadas, puertos inválidos y credenciales insertadas antes del dominio. La opción se activa solo para importar/actualizar listas; otras fuentes del puente mantienen su validación anterior. Las pruebas usan credenciales ficticias; no se contactaron las cuentas facilitadas por el usuario. Pasaron 59 pruebas Python. En el panel pasaron 11 pruebas y se repitió correctamente la prueba de transporte MP4 tras corregir la espera del catálogo inicial en su fixture.
 
@@ -10,7 +12,7 @@ La guía consulta en la Mac los canales de todas las listas guardadas, incluso s
 
 **No hace falta sincronizar la TV:** el widget sigue en 10.3.0. Esta actualización copia el panel y tres módulos del puente en la Mac y reinicia únicamente su LaunchAgent. Conserva `iptv.json`, `hub.json`, favoritos, categorías, sesiones, medios y configuración. Los archivos anteriores se respaldan y un fallo al reemplazar módulos restaura los ya reemplazados.
 
-Descomprime `instaladores/AlmaTV-Control-10.3.5.zip` y ejecuta `python3 actualizar_control_mac.py` sin sudo. Tras el reinicio del puente espera unos segundos y recarga `http://192.168.1.30:8088/control`. Puedes cerrar Terminal. Requiere tener el puente 10.3.0 instalado con inicio automático. `python3 crear_actualizacion_control.py` genera el paquete para el control y los módulos necesarios.
+Descomprime `instaladores/AlmaTV-Control-10.3.6.zip` y ejecuta `python3 actualizar_control_mac.py` sin sudo. Tras el reinicio del puente espera unos segundos y recarga `http://192.168.1.30:8088/control`. Puedes cerrar Terminal. Requiere tener el puente 10.3.0 instalado con inicio automático. `python3 crear_actualizacion_control.py` genera el paquete para el control y los módulos necesarios.
 
 Las categorías siguen siendo manuales y se pueden asignar desde la propia guía. Se mantiene la separación de **Importar canales** para gestionar listas, búsqueda, eliminación y restauración. No se inventan horarios de programas: las M3U no incluyen una guía XMLTV. Capturas locales de prueba: [selector de lista en celular](docs/capturas/49-guia-selector-listas-celular-prueba.png) y [lista y categoría en laptop](docs/capturas/50-guia-selector-listas-laptop-prueba.png).
 
