@@ -7,7 +7,7 @@ import subprocess
 import sys
 import tempfile
 
-VERSION = '10.3.6'
+VERSION = '11.0.2'
 FILES = ('hub_panel.html','hub.py','hub_http.py','iptv.py')
 
 def install(source, directory):

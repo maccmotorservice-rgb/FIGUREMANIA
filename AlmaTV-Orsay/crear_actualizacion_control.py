@@ -9,7 +9,7 @@ def build():
     folder='AlmaTV-Control-'+VERSION
     target=ROOT/'instaladores'/(folder+'.zip')
     files={name:(ROOT/name).read_bytes() for name in FILES+('actualizar_control_mac.py',)}
-    files['LEEME.txt']=('Alma TV · Control web '+VERSION+'\nRequiere el puente de Alma TV 10.3.0 instalado.\nEjecuta python3 actualizar_control_mac.py sin sudo y recarga /control.\nReinicia solo el puente de la Mac; no modifica el widget Samsung, listas, favoritos ni archivos multimedia.\nGuía de TV: selector de listas, todas por defecto, categorías y favoritos.\nImportar canales: listas, búsqueda, favoritos, categorías y eliminación.\nSe conserva hub_panel.antes-guia.html como respaldo de la página anterior.\n').encode('utf-8')
+    files['LEEME.txt']=('Alma TV · Control web '+VERSION+'\nRequiere el puente de Alma TV 10.3 o 11 instalado.\nEjecuta python3 actualizar_control_mac.py sin sudo y recarga /control.\nReinicia solo el puente de la Mac; no modifica el widget Samsung, listas, favoritos ni archivos multimedia.\nMis listas M3U: Activar lista / Desactivar lista, conservando favoritos y categorías. Guía de TV: solo listas activas y favoritos independientes.\nImportar canales: listas, búsqueda, favoritos, categorías y eliminación.\nSe conserva hub_panel.antes-guia.html como respaldo de la página anterior.\n').encode('utf-8')
     with ZipFile(target,'w',ZIP_DEFLATED) as archive:
         for name,content in sorted(files.items()):
             entry=ZipInfo(folder+'/'+name,(2026,1,1,0,0,0));entry.compress_type=ZIP_DEFLATED;entry.external_attr=0o100644<<16;archive.writestr(entry,content)

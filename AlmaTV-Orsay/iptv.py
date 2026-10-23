@@ -60,6 +60,7 @@ class IPTV:
         if path.exists():self.data=json.loads(path.read_text(encoding='utf-8'))
         self.data.setdefault('edit_receipts',[]);self.data.setdefault('favorites',{});self.data.setdefault('deleted',{});self.data.setdefault('categories',['Deportes','Entretenimiento','Películas','Series','Documentales','Noticias','Streaming'])
         self.data.setdefault('recent_channels',[])
+        for source in self.data['sources']:source.setdefault('enabled',True)
         self.reindex();self.rebuild()
     def reindex(self):
         self.channel_index={c['id']:c for c in self.builtins};self.memberships={};self.list_info=[]
@@ -67,8 +68,9 @@ class IPTV:
         for source in self.data['sources']:
             ident='list-'+hashlib.sha256(source['url'].encode()).hexdigest()[:20]
             parsed=urlsplit(source['url']);path='/'.join(parsed.path.rstrip('/').split('/')[-2:]).lstrip('/');name=((path+' · ' if path else '')+parsed.hostname)[:150]
+            digest.update((source['url']+str(source.get('enabled',True))).encode())
+            if source.get('enabled',True) is False:continue
             self.list_info.append({'id':ident,'name':name})
-            digest.update(source['url'].encode())
             for channel in source['channels']:
                 key=channel['id'];self.channel_index[key]=channel;self.memberships.setdefault(key,[]).append(ident)
                 digest.update(json.dumps(channel,sort_keys=True).encode())
@@ -99,6 +101,7 @@ class IPTV:
     def publish(self,country,search):
         country=str(country).lower()[:8];search=str(search)[:100];found=[];seen=set()
         for source in self.data['sources']:
+            if source.get('enabled',True) is False:continue
             for c in source['channels']:
                 if c['id'] in self.data['favorites']:self.data['favorites'][c['id']]['channel']=c
                 if country and c['country']!=country:continue
@@ -152,7 +155,7 @@ class IPTV:
     def edit(self,data):
         with self.lock:
             action=data.get('action');ident=data.get('id');op=data.get('op')
-            if isinstance(op,str) and op in self.data['edit_receipts']:return {'matched':self.data.get('matched',0),'published':self.published_count(),'available':sum(s['count'] for s in self.data['sources'])}
+            if isinstance(op,str) and op in self.data['edit_receipts']:return {'matched':self.data.get('matched',0),'published':self.published_count(),'available':sum(s['count'] for s in self.data['sources'] if s.get('enabled',True))}
             if action=='category':
                 name=str(data.get('name','')).strip()[:40]
                 if not name or name=='__none' or any(ord(c)<32 for c in name):raise ValueError('Escribe un nombre de categoría válido.')
@@ -178,7 +181,7 @@ class IPTV:
                 else:raise ValueError('Acción de canal no válida.')
             if isinstance(op,str) and len(op)<=80:self.data['edit_receipts']=(self.data['edit_receipts']+[op])[-200:]
             self.save()
-            return {'matched':self.data.get('matched',len(self.data['published'])),'published':self.published_count(),'available':sum(s['count'] for s in self.data['sources'])}
+            return {'matched':self.data.get('matched',len(self.data['published'])),'published':self.published_count(),'available':sum(s['count'] for s in self.data['sources'] if s.get('enabled',True))}
     def mutate(self,data,opener):
         action=data.get('action')
         if action in ('favorite','delete-channel','restore','category'):return self.edit(data)
@@ -187,7 +190,10 @@ class IPTV:
             if not stream_url(url):raise ValueError('Usa una URL pública HTTP o HTTPS de una lista M3U.')
             final_url=url;start=time.monotonic()
             for redirect in range(5):
-                connection,response=opener(final_url,allow_redirect=True,allow_custom_port=True)
+                remaining=DOWNLOAD_TIMEOUT-(time.monotonic()-start)
+                if remaining<=0:raise ValueError('La descarga de la lista superó los 3 minutos. La lista anterior se conserva.')
+                try:connection,response=opener(final_url,allow_redirect=True,allow_custom_port=True,timeout=min(60,remaining))
+                except TimeoutError:raise ValueError('El proveedor no respondió al abrir la conexión o enviar las cabeceras. Se agotó la espera de red; la lista anterior se conserva.')
                 if response.status not in (301,302,303,307,308):break
                 location=response.getheader('Location','');response.close();connection.close()
                 final_url=urljoin(final_url,location)
@@ -209,9 +215,16 @@ class IPTV:
             with self.lock:
                 sources=self.data['sources'];existing=next((s for s in sources if s['url']==url),None)
                 if not existing and len(sources)>=8:raise ValueError('Puedes guardar hasta ocho listas; elimina una antes de añadir otra.')
-                new={'url':url,'name':urlsplit(url).hostname,'count':len(channels),'skipped':skipped,'updated':int(time.time()),'channels':channels}
+                new={'url':url,'name':urlsplit(url).hostname,'count':len(channels),'skipped':skipped,'updated':int(time.time()),'channels':channels,'enabled':existing.get('enabled',True) if existing else True}
                 if existing:sources[sources.index(existing)]=new
                 else:sources.append(new)
+                matched=self.publish(self.data['country'],self.data['search'])
+        elif action=='set-enabled':
+            with self.lock:
+                if type(data.get('enabled')) is not bool:raise ValueError('Indica si la lista está activa o desactivada.')
+                source=next((s for s in self.data['sources'] if s['url']==data.get('url')),None)
+                if source is None:raise ValueError('Lista no disponible.')
+                source['enabled']=data['enabled']
                 matched=self.publish(self.data['country'],self.data['search'])
         elif action=='publish':
             with self.lock:matched=self.publish(data.get('country','mx'),data.get('search',''))
@@ -220,4 +233,4 @@ class IPTV:
                 self.data['sources']=[s for s in self.data['sources'] if s['url']!=data.get('url')]
                 matched=self.publish(self.data['country'],self.data['search'])
         else:raise ValueError('Acción de lista no válida.')
-        return {'matched':matched,'published':self.published_count(),'available':sum(s['count'] for s in self.data['sources'])}
+        return {'matched':matched,'published':self.published_count(),'available':sum(s['count'] for s in self.data['sources'] if s.get('enabled',True))}

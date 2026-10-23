@@ -21,7 +21,7 @@ class IPTVPortTests(unittest.TestCase):
         response=Mock(status=200);connection=Mock();connection.getresponse.return_value=response
         with patch('hub.socket.getaddrinfo',return_value=PUBLIC),patch('hub.PublicConnection',return_value=connection) as factory:
             public_open('https://provider.example:8880/get.php?username=@example@only&password=not-real&type=m3u_plus',allow_custom_port=True)
-            factory.assert_called_once_with('provider.example','93.184.216.34',8880)
+            factory.assert_called_once_with('provider.example','93.184.216.34',8880,timeout=12)
             self.assertEqual(connection.request.call_args[1]['headers']['Host'],'provider.example:8880')
         context=Mock();sock=Mock()
         with patch('hub.ssl.create_default_context',return_value=context),patch('hub.socket.create_connection',return_value=sock) as connect:
@@ -40,5 +40,5 @@ class IPTVPortTests(unittest.TestCase):
             content=io.BytesIO(b'#EXTM3U\n#EXTINF:-1,Prueba\nhttp://cdn.example:25461/live/example.m3u8\n');content.status=200;content.getheader=lambda n,d=None:d
             opener=Mock(side_effect=[(Mock(),redirect),(Mock(),content)])
             library=IPTV(Path(tmp)/'iptv.json',[]);library.mutate({'action':'import','url':'http://provider.example:25461/get.php?username=example&password=not-real&type=m3u_plus'},opener)
-            for call in opener.call_args_list:self.assertEqual(call.kwargs,{'allow_redirect':True,'allow_custom_port':True})
+            for call in opener.call_args_list:self.assertEqual(call.kwargs,{'allow_redirect':True,'allow_custom_port':True,'timeout':60})
             self.assertEqual(library.guide()['total'],1)

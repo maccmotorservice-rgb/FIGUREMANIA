@@ -13,8 +13,8 @@ from hub import Hub
 import hub_http,io
 # Import fixture: only this public test URL is intercepted, no LAN or external calls.
 _original_open=hub_http.public_open
-def playlist_open(url,headers=None,allow_redirect=False,allow_custom_port=False):
- if url not in ('https://lists.example.org/test.m3u','https://lists.example.org/segunda.m3u'): return _original_open(url,headers,allow_redirect,allow_custom_port)
+def playlist_open(url,headers=None,allow_redirect=False,allow_custom_port=False,timeout=12):
+ if url not in ('https://lists.example.org/test.m3u','https://lists.example.org/segunda.m3u'): return _original_open(url,headers,allow_redirect,allow_custom_port,timeout)
  data=('#EXTM3U\\n'+''.join('#EXTINF:-1 tvg-id="Fixture%d.mx",Canal importado %d\\nhttps://streams.example.org/%d.m3u8\\n'%(i,i,i) for i in range(40))).encode()
  if url.endswith('segunda.m3u'): data=b'#EXTM3U\\n#EXTINF:-1 tvg-country="US",Segunda lista uno\\nhttps://streams.example.org/second-one.m3u8\\n#EXTINF:-1 tvg-country="US",Segunda lista dos\\nhttps://streams.example.org/second-two.m3u8\\n'
  response=io.BytesIO(data);response.status=200;response.getheader=lambda n,d=None:d
@@ -177,4 +177,27 @@ test('Selector de listas muestra todas por defecto, filtra sin publicar ni parar
  await panel.locator('#guide-list').selectOption(secondList);await panel.waitForFunction(()=>document.getElementById('guide-count').textContent==='2 canales');await panel.locator('#guide-channels .guide-channel').first().getByRole('combobox').selectOption('Streaming');await panel.locator('#guide-categories [data-category="category:Streaming"]').click();await panel.waitForFunction(()=>document.getElementById('guide-count').textContent==='1 canal');
  await panel.waitForFunction(()=>document.getElementById('guide-now').textContent.includes('Segunda lista')&&document.getElementById('guide-now').textContent.includes('Reproduciendo'));await panel.screenshot({path:'/tmp/alma-guide-listas-celular.png',fullPage:true});assert.equal(await panel.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);assert.equal(await p.evaluate(()=>guideStarts),1);
  await panel.setViewportSize({width:1280,height:900});await panel.screenshot({path:'/tmp/alma-guide-listas-laptop.png',fullPage:true});await panel.reload();await panel.locator('#tabs [data-tab="tv-guide"]').click();await panel.locator('[data-guide-channel]').first().waitFor();assert.equal(await panel.locator('#guide-list').inputValue(),'all');assert.deepEqual(errors,[]);
+});
+
+test('Desactivar una lista oculta sus canales normales y conserva favorito, categoría y reproducción',{timeout:25000},async t=>{
+ const p=await tv(t),context=await browser.newContext({viewport:{width:390,height:844}});t.after(()=>context.close());
+ for(const data of [{action:'import',url:'https://lists.example.org/test.m3u'},{action:'publish',country:'',search:''}]){
+  const r=await context.request.post(base+'/hub/iptv',{headers:{Origin:base,'X-Alma-Token':'owner'},data});assert.equal(r.status(),200);
+ }
+ await p.waitForFunction(()=>AlmaLiveTV.some(c=>c.name==='Canal importado 39'));
+ const ident=await p.evaluate(()=>AlmaLiveTV.find(c=>c.name==='Canal importado 39').id);
+ const favorite=await context.request.post(base+'/hub/iptv',{headers:{Origin:base,'X-Alma-Token':'owner'},data:{action:'favorite',id:ident,enabled:true,category:'Noticias'}});assert.equal(favorite.status(),200);
+ await p.evaluate(()=>{HTMLObjectElement.prototype.Open=function(){return 1;};HTMLObjectElement.prototype.Close=function(){return 1;};HTMLObjectElement.prototype.Execute=function(command){if(command==='GetSource')return 18;if(command==='StartPlayback')this.OnEvent(7,0);return 1;};});
+ await p.evaluate(id=>Alma.hubControl('live-channel',0,id),ident);await p.waitForFunction(()=>AlmaPlayer.snapshot().playing);
+ const panel=await context.newPage();await panel.goto(base+'/control');await panel.locator('#tabs [data-tab="live-tv"]').click();
+ const source=panel.locator('#iptv-sources .item').filter({hasText:'lists.example.org/test.m3u'});
+ await source.getByRole('button',{name:'Desactivar lista',exact:true}).click();await source.getByRole('button',{name:'Activar lista',exact:true}).waitFor();
+ await p.waitForFunction(id=>AlmaLiveTV.some(c=>c.id===id&&c.favorite&&c.category==='Noticias')&&!AlmaLiveTV.some(c=>c.name==='Canal importado 0'),ident);
+ assert.equal(await p.evaluate(()=>AlmaPlayer.snapshot().playing),true);
+ await panel.locator('#tabs [data-tab="tv-guide"]').click();await panel.locator('#guide-search').fill('Canal importado');
+ await panel.waitForFunction(()=>document.querySelectorAll('#guide-channels .guide-channel').length===1);
+ assert.match(await panel.locator('#guide-channels').innerText(),/Canal importado 39/);
+ await panel.locator('#tabs [data-tab="live-tv"]').click();await source.getByRole('button',{name:'Activar lista',exact:true}).click();await source.getByRole('button',{name:'Desactivar lista',exact:true}).waitFor();
+ await p.waitForFunction(()=>AlmaLiveTV.some(c=>c.name==='Canal importado 0'));
+ assert.equal(await p.evaluate(()=>AlmaPlayer.snapshot().playing),true);
 });

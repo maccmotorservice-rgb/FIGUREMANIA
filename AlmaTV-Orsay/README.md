@@ -1,3 +1,15 @@
+# Control 11.0.2 · Listas activas y favoritos independientes
+
+En Importar y organizar canales → Mis listas M3U, cada lista tiene Activar lista / Desactivar lista. Desactivar excluye sus canales normales de la guía y del catálogo enviado a la TV; conserva la lista descargada, favoritos y categorías. Los favoritos siguen disponibles aunque todas sus listas de origen estén desactivadas. Reactivar no descarga de nuevo. Actualizar una lista desactivada conserva ese estado. No se detiene la reproducción actual. Las listas anteriores se migran como activas.
+
+La primera importación aún descarga la lista completa del proveedor. Para conexiones lentas se amplía la espera de conexión/cabeceras de 12 a 60 segundos solo en las importaciones, dentro del presupuesto de tres minutos. Se conservan la comprobación TLS, el bloqueo de destinos privados, los puertos personalizados y la lista anterior ante fallos. Esto no garantiza la respuesta ni la disponibilidad del proveedor.
+
+Instalador ligero: `instaladores/AlmaTV-Control-11.0.2.zip`; ejecutar `python3 actualizar_control_mac.py` en la Mac, sin sudo, y recargar /control. Actualiza exclusivamente los módulos del puente y el panel, con respaldo y restauración ante fallo. No modifica datos ni el widget 11.0.1 y no requiere sincronizar aplicaciones en la TV.
+
+Validación: 66 pruebas Python y 13 pruebas web con puente HTTP real pasaron; las API Samsung y las señales se simulan. Incluye desactivar/reactivar, favorito y categoría independientes, continuidad del reproductor, actualización de lista inactiva, persistencia y timeout sin pérdida de datos.
+
+---
+
 # Alma TV 11.0.1 · Navegación y arranque
 
 Inicio con una sola fila inferior de apps y un máximo de seis visibles completas, logotipos sin títulos y selector con colores de marca conservados. Abajo abre la biblioteca completa; Volver regresa al dock. Las utilidades siguen disponibles en la biblioteca y en la barra superior. Arriba desde el dock sube a la barra superior; izquierda/derecha se mantienen en la fila actual. Pantalla completa se abre desde su botón en la barra o el reproductor; Volver la reduce.

@@ -22,13 +22,13 @@ VIEWS={'home','search','apps','media','hub','clock','weather','calendar','timer'
 EXTENSIONS = {'.mp3':'audio','.m4a':'audio','.wav':'audio','.mp4':'video','.m4v':'video','.jpg':'photo','.jpeg':'photo','.png':'photo','.mov':'convert','.mkv':'convert'}
 
 class PublicConnection(http.client.HTTPSConnection):
-    def __init__(self, host, address, port=443):
-        super().__init__(host, port=port, timeout=12, context=ssl.create_default_context())
+    def __init__(self, host, address, port=443, timeout=12):
+        super().__init__(host, port=port, timeout=timeout, context=ssl.create_default_context())
         self.address = address
     def connect(self):
-        self.sock = self._context.wrap_socket(socket.create_connection((self.address,self.port),12),server_hostname=self.host)
+        self.sock = self._context.wrap_socket(socket.create_connection((self.address,self.port),self.timeout),server_hostname=self.host)
 
-def public_open(url, headers=None, allow_redirect=False, allow_custom_port=False):
+def public_open(url, headers=None, allow_redirect=False, allow_custom_port=False, timeout=12):
     """Pin public DNS; custom ports and redirects are opt-in for playlist downloads."""
     parsed=urlsplit(url)
     if parsed.scheme not in ('http','https') or not parsed.hostname or parsed.username or parsed.password:
@@ -40,15 +40,19 @@ def public_open(url, headers=None, allow_redirect=False, allow_custom_port=False
     addresses=list(dict.fromkeys(item[4][0] for item in socket.getaddrinfo(parsed.hostname,None,type=socket.SOCK_STREAM)))
     if not addresses or any(not ipaddress.ip_address(address).is_global for address in addresses):
         raise ValueError('Las fuentes externas deben usar direcciones públicas.')
-    if parsed.scheme=='https': connection=PublicConnection(parsed.hostname,addresses[0],port)
+    if parsed.scheme=='https': connection=PublicConnection(parsed.hostname,addresses[0],port,timeout=timeout)
     else:
-        connection=http.client.HTTPConnection(addresses[0],port,timeout=12)
+        connection=http.client.HTTPConnection(addresses[0],port,timeout=timeout)
     host=('['+parsed.hostname+']') if ':' in parsed.hostname else parsed.hostname
     if port!=default_port:host+=':'+str(port)
     safe_headers={'Host':host,'User-Agent':'AlmaTV/9 local media player'}
     safe_headers.update(headers or {})
-    connection.request('GET',(parsed.path or '/')+('?' + parsed.query if parsed.query else ''),headers=safe_headers)
-    response=connection.getresponse()
+    try:
+        connection.request('GET',(parsed.path or '/')+('?' + parsed.query if parsed.query else ''),headers=safe_headers)
+        response=connection.getresponse()
+    except Exception:
+        connection.close()
+        raise
     if response.status not in (200,206) and not (allow_redirect and response.status in (301,302,303,307,308)):
         response.close();connection.close()
         raise ValueError('La fuente devolvió HTTP %s. Usa su enlace directo, sin redirecciones.' % response.status)

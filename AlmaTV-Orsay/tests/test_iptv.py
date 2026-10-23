@@ -138,11 +138,11 @@ class IPTVTests(unittest.TestCase):
                     with patch('iptv.MAX_BYTES',16):
                         with self.assertRaisesRegex(ValueError,'64 MB'):lib.mutate({'action':'refresh','url':url},opener)
                 else:
-                    with patch('iptv.time.monotonic',side_effect=[0,181]):
+                    with patch('iptv.time.monotonic',side_effect=[0,0,181]):
                         with self.assertRaisesRegex(ValueError,'3 minutos'):lib.mutate({'action':'refresh','url':url},opener)
                 self.assertEqual(lib.path.read_bytes(),previous);self.assertEqual(lib.revision,revision);self.assertTrue(res.closed);conn.close.assert_called_once()
             # More than the previous one-minute deadline still succeeds.
-            with patch('iptv.time.monotonic',side_effect=[0,70,80,90]):lib.mutate({'action':'refresh','url':url},lambda *a,**k:response())
+            with patch('iptv.time.monotonic',side_effect=[0,0,70,80,90]):lib.mutate({'action':'refresh','url':url},lambda *a,**k:response())
     def test_content_length_and_entry_limit_have_specific_errors(self):
         from unittest.mock import patch
         with tempfile.TemporaryDirectory() as tmp:
@@ -152,3 +152,48 @@ class IPTVTests(unittest.TestCase):
         raw=b'#EXTM3U\n#EXTINF:-1,Uno\nhttps://example.org/1.m3u8\n#EXTINF:-1,Dos\nhttps://example.org/2.m3u8\n'
         with patch('iptv.MAX_CHANNELS',1):
             with self.assertRaisesRegex(ValueError,'200 000 entradas'):parse_m3u(raw,'https://example.org/list')
+
+
+class DisabledListTests(unittest.TestCase):
+    def test_disable_retains_favorite_category_and_reenable_needs_no_download(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'iptv.json';lib=IPTV(path,[]);url='https://example.org/list.m3u'
+            lib.mutate({'action':'import','url':url},lambda *a,**k:response())
+            lib.mutate({'action':'publish','country':'','search':''},None)
+            favorite,other=lib.data['sources'][0]['channels']
+            lib.edit({'action':'favorite','id':favorite['id'],'enabled':True,'category':'Noticias'})
+            lib.ensure_channel(other['id'])
+            result=lib.mutate({'action':'set-enabled','url':url,'enabled':False},None)
+            self.assertEqual(result['matched'],0)
+            self.assertEqual([c['id'] for c in lib.catalog],[favorite['id']])
+            self.assertTrue(lib.catalog[0]['favorite']);self.assertEqual(lib.catalog[0]['category'],'Noticias')
+            self.assertEqual(lib.guide()['total'],1);self.assertEqual(lib.guide()['lists'],[])
+            self.assertEqual(lib.resolve_channel(favorite['id'])['id'],favorite['id'])
+            self.assertEqual(IPTV(path,[]).catalog,lib.catalog)
+            lib.mutate({'action':'set-enabled','url':url,'enabled':True},None)
+            self.assertEqual(len(lib.catalog),2);self.assertEqual(lib.data['favorites'][favorite['id']]['category'],'Noticias')
+            lib.mutate({'action':'set-enabled','url':url,'enabled':False},None)
+            lib.edit({'action':'favorite','id':favorite['id'],'enabled':False})
+            self.assertEqual(lib.catalog,[]);self.assertEqual(lib.guide()['total'],0)
+
+    def test_refresh_does_not_reactivate_and_shared_active_channel_survives(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            lib=IPTV(Path(tmp)/'iptv.json',[]);first='https://example.org/one';second='https://example.org/two'
+            for url in (first,second):lib.mutate({'action':'import','url':url},lambda *a,**k:response())
+            lib.mutate({'action':'publish','country':'','search':''},None)
+            lib.mutate({'action':'set-enabled','url':first,'enabled':False},None)
+            self.assertEqual(len(lib.catalog),2)
+            lib.mutate({'action':'refresh','url':first},lambda *a,**k:response())
+            self.assertFalse(lib.info()['sources'][0]['enabled']);self.assertEqual(len(lib.guide()['lists']),1)
+            lib.mutate({'action':'set-enabled','url':second,'enabled':False},None)
+            self.assertEqual(lib.catalog,[])
+            with self.assertRaises(ValueError):lib.mutate({'action':'set-enabled','url':first,'enabled':'false'},None)
+
+    def test_connection_timeout_preserves_prior_list_and_uses_playlist_budget(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'iptv.json';lib=IPTV(path,[]);url='https://example.org/list'
+            lib.mutate({'action':'import','url':url},lambda *a,**k:response());before=path.read_bytes()
+            opener=Mock(side_effect=TimeoutError('timed out'))
+            with self.assertRaisesRegex(ValueError,'cabeceras'):
+                lib.mutate({'action':'refresh','url':url},opener)
+            self.assertEqual(path.read_bytes(),before);self.assertEqual(opener.call_args.kwargs['timeout'],60)
