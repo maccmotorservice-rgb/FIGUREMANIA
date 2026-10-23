@@ -1,4 +1,6 @@
-# Alma TV · Control 10.3.3: selector de listas
+# Alma TV · Control 10.3.4: listas sin cabecera
+
+El lector acepta listas de canales que comienzan directamente con `#EXTINF:-1` o `#EXTINF:0`, aunque no tengan cabecera inicial `#EXTM3U`. Se conserva el rechazo de manifiestos HLS y documentos HTML. El archivo público TELEVISION2 de PABLOPOM/m3u se procesó como referencia: 270 canales aceptados y 14 entradas omitidas al consultar el archivo, sin probar las señales. El mensaje de filtro sin coincidencias aclara que la guía completa sigue disponible. Pasaron las diez pruebas de IPTV y cuatro del actualizador para esta corrección.
 
 En **Guía de TV → Lista de canales**, **Todas las listas** es la opción inicial. El selector también permite elegir una lista importada o los cuatro canales incluidos; se combinan lista, categoría, favoritos y búsqueda sin cambiar los filtros de importación ni interrumpir la reproducción. Una señal presente en dos listas aparece en ambas y comparte su favorito/categoría. Los eliminados siguen ocultos.
 
@@ -6,7 +8,7 @@ La guía consulta en la Mac los canales de todas las listas guardadas, incluso s
 
 **No hace falta sincronizar la TV:** el widget sigue en 10.3.0. Esta actualización copia el panel y tres módulos del puente en la Mac y reinicia únicamente su LaunchAgent. Conserva `iptv.json`, `hub.json`, favoritos, categorías, sesiones, medios y configuración. Los archivos anteriores se respaldan y un fallo al reemplazar módulos restaura los ya reemplazados.
 
-Descomprime `instaladores/AlmaTV-Control-10.3.3.zip` y ejecuta `python3 actualizar_control_mac.py` sin sudo. Tras el reinicio del puente espera unos segundos y recarga `http://192.168.1.30:8088/control`. Puedes cerrar Terminal. Requiere tener el puente 10.3.0 instalado con inicio automático. `python3 crear_actualizacion_control.py` genera el paquete para el control y los módulos necesarios.
+Descomprime `instaladores/AlmaTV-Control-10.3.4.zip` y ejecuta `python3 actualizar_control_mac.py` sin sudo. Tras el reinicio del puente espera unos segundos y recarga `http://192.168.1.30:8088/control`. Puedes cerrar Terminal. Requiere tener el puente 10.3.0 instalado con inicio automático. `python3 crear_actualizacion_control.py` genera el paquete para el control y los módulos necesarios.
 
 Las categorías siguen siendo manuales y se pueden asignar desde la propia guía. Se mantiene la separación de **Importar canales** para gestionar listas, búsqueda, eliminación y restauración. No se inventan horarios de programas: las M3U no incluyen una guía XMLTV. Capturas locales de prueba: [selector de lista en celular](docs/capturas/49-guia-selector-listas-celular-prueba.png) y [lista y categoría en laptop](docs/capturas/50-guia-selector-listas-laptop-prueba.png).
 

@@ -117,3 +117,10 @@ class IPTVTests(unittest.TestCase):
             commands=hub.tv('127.0.0.3')['commands'];self.assertEqual(len(commands),1);selected=commands[0]['view'];self.assertTrue(any(c['id']==selected for c in lib.catalog))
             lib.mutate({'action':'refresh','url':'https://example.org/list'},lambda *a,**k:response(raw.replace(b'Canal 11',b'Nuevo nombre')))
             self.assertEqual(next(c for c in lib.catalog if c['id']==selected)['name'],'Nuevo nombre')
+
+    def test_headerless_channel_entries_import_and_embedded_headers_do_not_break_list(self):
+        raw=b'#EXTINF:-1 tvg-name="Uno" group-title="Noticias",Uno\nhttps://example.org/one.m3u8\n#EXTM3U\n#EXTINF:0,Dos\nhttps://example.org/two.m3u8\n'
+        channels,skipped=parse_m3u(raw,'https://example.org/TELEVISION2')
+        self.assertEqual([c['name'] for c in channels],['Uno','Dos']);self.assertEqual(skipped,0)
+        for manifest in (b'#EXTINF:6.0,\nhttps://example.org/segment.ts',b'#EXTINF:-1,Uno\nhttps://example.org/a.ts\n#EXT-X-MEDIA-SEQUENCE:1',b'<html>Una lista #EXTINF:-1</html>'):
+            with self.assertRaises(ValueError):parse_m3u(manifest,'https://example.org/list')
