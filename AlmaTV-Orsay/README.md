@@ -1,3 +1,15 @@
+# Alma TV 11.0.3 · Apps y navegación simplificadas
+
+La cuadrícula se abre sin título ni subtítulo. Reloj, Temporizador, Calendario, Clima y Salvapantallas son tarjetas de apps con iconos originales inspirados en la estética de Apple; Conexión y Multimedia también conservan acceso como apps. Alma Live tiene un icono propio de TV, sin usar el logo de Apple ni lanzar la TV nativa.
+
+El dock muestra cinco apps completas por ventana. Desde la primera fila de la cuadrícula, Arriba vuelve al dock; desde las filas inferiores, Arriba primero recorre las filas. Atrás también permite volver. La barra superior contiene solo Inicio, Buscar, Apps, Pantalla completa, Salvapantallas y Configuración. Navegar entre las utilidades no cierra la sesión de reproducción.
+
+Se conservan el halo azul tenue, la imagen original, el perfil local y las listas activas/favoritos independientes del control 11.0.2. El instalador permite mantener la foto anterior cancelando la selección. Validación: 99 pruebas de interfaz y 66 Python pasaron; ES5, build e integridad del instalador correctos. Las API Samsung/YouTube se simulan; el firmware físico queda por comprobar.
+
+Instalador: `instaladores/AlmaTV-11.0.3-instalador.zip`. Capturas locales: `docs/capturas/alma11-03-apps.png` y `docs/capturas/alma11-03-inicio.png`. Tras instalar en la Mac, sincronizar aplicaciones de usuario en la TV.
+
+---
+
 # Control 11.0.2 · Listas activas y favoritos independientes
 
 En Importar y organizar canales → Mis listas M3U, cada lista tiene Activar lista / Desactivar lista. Desactivar excluye sus canales normales de la guía y del catálogo enviado a la TV; conserva la lista descargada, favoritos y categorías. Los favoritos siguen disponibles aunque todas sus listas de origen estén desactivadas. Reactivar no descarga de nuevo. Actualizar una lista desactivada conserva ese estado. No se detiene la reproducción actual. Las listas anteriores se migran como activas.

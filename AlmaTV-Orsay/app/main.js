@@ -404,43 +404,10 @@ var Alma = (function () {
       "</p></div>"
     );
   }
-  var navViews = [
-    "home",
-    "search",
-    "apps",
-    "media",
-    "fullscreen",
-    "clock",
-    "weather",
-    "calendar",
-    "timer",
-    "settings", "livetv"
-  ];
+  var navViews = ["home","search","apps","fullscreen","saver","settings"];
   function nav() {
-    var names = [
-        "Inicio",
-        "Buscar",
-        "Aplicaciones",
-        "Multimedia",
-        "Pantalla completa",
-        "Reloj",
-        "Clima",
-        "Calendario",
-        "Temporizador",
-        "Ajustes", "TV en vivo"
-      ],
-      icons = [
-        "home",
-        "search",
-        "apps",
-        "media",
-        "fullscreen",
-        "clock",
-        "weather",
-        "calendar",
-        "timer",
-        "settings", "livetv"
-      ],
+    var names = ["Inicio","Buscar","Apps","Pantalla completa","Salvapantallas","Configuración"],
+      icons = ["home","search","apps","fullscreen","saver","settings"],
       h = "",
       ids = [];
     for (var i = 0; i < names.length; i++) {
@@ -484,7 +451,7 @@ var Alma = (function () {
       '" data-focus="' +
       id +
       '" aria-label="' + esc(a.name) + '" title="' + esc(detail) + '" class="card app ' +
-      a.id +
+      (a.view?"utility-"+a.id:a.id) +
       '">' +
       (/^(prime|disney|apple|max)$/.test(a.id)
         ? '<span class="app-note">' +
@@ -506,7 +473,10 @@ var Alma = (function () {
   }
   function updateHero(index) { heroIndex=index; }
   function homeApps() {
-    return apps.concat([{id:"livetv",name:"Alma TV en vivo",detail:"Tus listas, canales y favoritos dentro de Alma TV",logo:"assets/logos/livetv.png"}]);
+    var list=apps.concat([{id:"livetv",name:"Alma TV en vivo",detail:"Tus listas, canales y favoritos dentro de Alma TV",logo:"assets/logos/livetv.png"}]);
+    tools.forEach(function(t){list.push({id:t.id,name:t.name,detail:t.detail,view:t.id,logo:"assets/logos/"+t.id+".png"});});
+    list.push({id:"media",name:"Multimedia",detail:"Tu música y tus videos",view:"media",logo:"assets/logos/media.png"});
+    return list;
   }
   function home() {
     var list=homeApps(),h='<section class="home-apps" aria-label="Aplicaciones"><div class="app-carousel"><div class="row app-track">',ids=[];
@@ -516,14 +486,7 @@ var Alma = (function () {
   }
   function catalog(kind) {
     var list = kind === "apps" ? homeApps() : tools,
-      h =
-        head(
-          kind === "apps" ? "ENTRETENIMIENTO" : "A TU RITMO",
-          kind === "apps" ? "Tus aplicaciones" : "Herramientas",
-          kind === "apps"
-            ? "Elige una aplicación. Algunos servicios requieren un dispositivo compatible."
-            : "Funciones locales, sin cuentas ni catálogos simulados."
-        ) + (kind==="apps"?'<div class="apps-grid app-track">':'<div class="grid">'),
+      h = (kind==="apps"?"":head("A TU RITMO","Herramientas","Funciones locales, sin cuentas ni catálogos simulados.")) + (kind==="apps"?'<div class="apps-grid app-track">':'<div class="grid">'),
       ids = [],
       i;
     for (i = 0; i < list.length; i++) {
@@ -543,13 +506,6 @@ var Alma = (function () {
       }
     }
     if (ids.length) row(ids);
-    if(kind==="apps"){
-      h+='</div><div class="library-tools">';ids=[];
-      tools.concat([{id:"media",name:"Multimedia"},{id:"settings",name:"Ajustes"},{id:"search",name:"Buscar"}]).forEach(function(t,i){
-        h+=button("library-"+t.id,t.name,"",function(){go(t.id);},"card tool tool-"+t.id);ids.push("library-"+t.id);
-        if(ids.length===4){row(ids);ids=[];}
-      });if(ids.length)row(ids);
-    }
     return h + "</div>";
   }
   function playLive(id){
@@ -714,7 +670,7 @@ var Alma = (function () {
           "PREFERENCIAS",
           "A tu medida",
           "Los ajustes no cambian Smart Hub, las aplicaciones de Samsung ni el firmware."
-        ) + '<div class="settings-brand">alma<span>tv 11.0.1</span></div><div class="grid settings">',
+        ) + '<div class="settings-brand">alma<span>tv 11.0.3</span></div><div class="grid settings">',
       ids = [];
     for (var i = 0; i < items.length; i++) {
       h += button(items[i][0], items[i][1], items[i][2], items[i][3]);
@@ -1689,8 +1645,8 @@ var Alma = (function () {
           if(state.view==="home"&&/^app-\d+$/.test(target.id)){
             var itemIndex=Number(target.id.slice(4)),step=178,start=Math.round(parent.scrollLeft/step);
             if(itemIndex<start)start=itemIndex;
-            else if(itemIndex>=start+6)start=itemIndex-5;
-            parent.scrollLeft=clamp(start,0,Math.max(0,homeApps().length-6))*step;
+            else if(itemIndex>=start+5)start=itemIndex-4;
+            parent.scrollLeft=clamp(start,0,Math.max(0,homeApps().length-5))*step;
             parent=parent.parentNode;continue;
           }
           var left = target.offsetLeft;
@@ -2115,6 +2071,7 @@ var Alma = (function () {
     updateNetwork();
   }
   function launch(a) {
+    if(a.view){go(a.view);return;}
     if(a.id==="livetv"){go("livetv");return;}
     closeYoutube();
     if (a.dial) {
@@ -2542,6 +2499,7 @@ var Alma = (function () {
       updateCal();
       return true;
     }
+    if(!modal&&state.view==="apps"&&state.row===1&&k==="up"){go("home");return true;}
     if(!modal&&state.view==="home"&&state.row>0&&k==="down"){go("apps");return true;}
     if(!modal&&state.row===0){
       if(k==="left"){state.col--;focus();return true;}

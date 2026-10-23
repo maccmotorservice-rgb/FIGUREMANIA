@@ -21,3 +21,9 @@ Ajustes finales del tema: dock más bajo, sin texto de instrucciones; selector d
 Validación final de 11.0.1: 97 pruebas de interfaz y 63 de Python pasaron. Incluyen el arranque antes de cargar imágenes, flechas, seis tarjetas completas, halo, perfil local, reproducción y salvapantallas. ES5, build, CRC de paquetes y SHA-256 correctos. Apariencia y tiempo real de arranque quedan por comprobar en el Samsung físico.
 
 El dock tiene seis tarjetas completas por ventana visible; el desplazamiento se alinea a tarjetas enteras y evita mostrar una séptima parcialmente. La cuadrícula conserva sus cuatro columnas (dentro del máximo de seis solicitado). Los elementos restantes siguen disponibles lateralmente y en la biblioteca.
+
+## Revisión 11.0.3
+
+Dock de cinco apps completas; cuadrícula sin título ni subtítulo. Reloj, Temporizador, Calendario, Clima, Salvapantallas, Conexión y Multimedia se integran como apps dentro de la cuadrícula, con PNG y fuentes SVG locales originales. Alma Live usa una pantalla y las letras tv, con estilo visual inspirado en Apple; no usa su marca ni abre la TV nativa. La barra superior se reduce a las seis acciones solicitadas. Subir desde la primera fila cierra la cuadrícula y vuelve al dock; el resto de filas se recorre normalmente. Las utilidades conservan la reproducción activa.
+
+Pasaron 99 pruebas de interfaz y 66 Python. Instalador `AlmaTV-11.0.3-instalador.zip` comprobado con CRC y SHA-256; conserva exactamente el fondo original e incluye el control 11.0.2 con listas activas. No se ha instalado en el televisor físico desde este entorno.

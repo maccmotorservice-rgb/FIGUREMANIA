@@ -26,7 +26,7 @@ class InstallerTests(unittest.TestCase):
         self.files={str(p.relative_to(ROOT/'app')):p.read_bytes() for p in (ROOT/'app').rglob('*') if p.is_file()}
     def test_manifest_identity_plain_info_and_relative_resources(self):
         ident,version,_=preparar.validate(self.files)
-        self.assertEqual((ident,version),('AlmaTV86','11.0.1'))
+        self.assertEqual((ident,version),('AlmaTV86','11.0.3'))
         self.assertNotIn(b'<',self.files['widget.info'])
         self.assertIn(b'1280x720',self.files['widget.info'])
         with tempfile.TemporaryDirectory() as directory:

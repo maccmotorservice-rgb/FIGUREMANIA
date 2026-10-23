@@ -1975,3 +1975,22 @@ html.native-live #live-status,html.native-live .live-preview-actions{background:
 .home-apps .app-carousel{width:1056px;padding:8px 0 12px}
 .home-apps .card.app{width:166px;margin-right:12px}
 .home-apps .card.app:last-child{margin-right:0}
+/* 11.0.3: five cards in the collapsed dock; utilities are real app tiles. */
+#safe[data-view="home"] .home-apps{width:912px;margin-left:-456px}
+.home-apps .app-carousel{width:878px}
+#nav{width:360px}
+.card.app.utility-clock,.card.app.utility-timer,.card.app.utility-calendar,.card.app.utility-weather,.card.app.utility-saver,.card.app.utility-network,.card.app.utility-media{background:transparent!important;padding:0!important}
+.app-track .card.app.utility-clock .brand-logo,.app-track .card.app.utility-timer .brand-logo,.app-track .card.app.utility-calendar .brand-logo,.app-track .card.app.utility-weather .brand-logo,.app-track .card.app.utility-saver .brand-logo,.app-track .card.app.utility-network .brand-logo,.app-track .card.app.utility-media .brand-logo{width:100%;height:100%;object-fit:contain}
+.app-track .card.app.utility-clock .app-mark,.app-track .card.app.utility-timer .app-mark,.app-track .card.app.utility-calendar .app-mark,.app-track .card.app.utility-weather .app-mark,.app-track .card.app.utility-saver .app-mark,.app-track .card.app.utility-network .app-mark,.app-track .card.app.utility-media .app-mark{height:100%;line-height:normal}
+#safe[data-view="apps"] #view{padding-top:12px!important}
+/* A single filled tile per utility, rather than an icon inside another card. */
+.card.app.utility-clock{background:#11151c!important}
+.card.app.utility-timer{background:#ff921f!important}
+.card.app.utility-calendar{background:#f5f7fb!important}
+.card.app.utility-weather{background:#259de5!important}
+.card.app.utility-saver{background:#4954a8!important}
+.card.app.utility-network{background:#3560d6!important}
+.card.app.utility-media{background:#de468f!important}
+.apps-grid .card.app.livetv,.home-apps .card.app.livetv{background:#101216!important;padding:0!important}
+.app-track .card.app.livetv .app-mark{height:100%;line-height:normal}
+.app-track .card.app.livetv .brand-logo{width:100%;height:100%;object-fit:contain}

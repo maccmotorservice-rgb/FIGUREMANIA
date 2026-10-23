@@ -11,7 +11,7 @@ const go = async (view) => {
   if(view === "livetv" && await page.locator("#live-section-0").count()) await page.locator("#live-section-0").click();
 };
 const click = async (id) => {
-  if(id === "home-fullscreen") { await key(29460); return page.locator("#nav-4").click(); }
+  if(id === "home-fullscreen") { await key(29460); return page.locator("#nav-3").click(); }
   if(id === "home-media-open") return go("media");
   if(id === "home-youtube") return go("youtube-list");
   return page.locator("#" + id).click();
@@ -45,7 +45,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="11.0.1"'))
+      if (!html.includes('name="alma-build" content="11.0.3"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -130,9 +130,9 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio 11: dock de logos, abajo abre biblioteca y Atrás restaura Inicio", async () => {
-  assert.equal(await page.locator('meta[name="alma-build"]').getAttribute("content"),"11.0.1");
+  assert.equal(await page.locator('meta[name="alma-build"]').getAttribute("content"),"11.0.3");
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
-  assert.equal(await page.locator(".home-apps .app").count(),10);
+  assert.equal(await page.locator(".home-apps .app").count(),17);
   assert.equal(await page.locator(".focus").getAttribute("id"),"app-0");
   const wallpaper=await page.locator("#wallpaper").evaluate(n=>getComputedStyle(n).backgroundImage);
   assert.match(wallpaper,/salvapantallas/);
@@ -142,7 +142,7 @@ test("Inicio 11: dock de logos, abajo abre biblioteca y Atrás restaura Inicio",
   await key(29460);await key(29443);assert.ok(await page.locator("#live-clock").isVisible());
   await key(21);assert.match(await page.locator("#view").innerText(),/A tu medida/);
   await key(20);assert.ok(await page.locator(".home-apps").isVisible());
-  await shot("alma11-01-inicio");await key(45);assert.ok((await page.evaluate(()=>platformCalls)).includes("exit"));
+  await shot("alma11-03-inicio");await key(45);assert.ok((await page.evaluate(()=>platformCalls)).includes("exit"));
   assert.deepEqual(errors,[]);
 });
 test("Una pulsación inicia cada DIAL; doble pulsación en curso no duplica POST", async () => {
@@ -875,7 +875,7 @@ test("Iconos locales en navegación, herramientas y ajustes; logos originales en
   for (const view of ["home", "tools", "settings", "apps"]) {
     await go(view);
     const images = await page.locator(".nav-icon:not(.icon-fullscreen)").evaluateAll(nodes => nodes.map(n => getComputedStyle(n).backgroundImage));
-    assert.ok(images.length >= 10);
+    assert.ok(images.length >= 5);
     assert.ok(images.every(src => /assets\/(?:icons|logos)\/.*\.png/.test(src)));
     const loaded = await page.evaluate(async urls => Promise.all(urls.map(src => new Promise(resolve => {
       const img = new Image(); img.onload = () => resolve(img.naturalWidth > 0); img.onerror = () => resolve(false);
@@ -885,7 +885,7 @@ test("Iconos locales en navegación, herramientas y ajustes; logos originales en
     if (view === "tools") assert.equal(await page.locator("#view .card-icon").count(), 6);
     if (view === "settings") assert.ok(await page.locator("#view .card-icon").count() >= 10);
     if (view === "apps") {
-      assert.equal(await page.locator("#view .brand-logo").count(), 10);
+      assert.equal(await page.locator("#view .brand-logo").count(), 17);
       assert.ok(await page.locator("#view .brand-logo").evaluateAll(nodes => nodes.every(n => n.complete && n.naturalWidth > 0)));
     }
   }
@@ -1633,7 +1633,7 @@ test("Inicio abre biblioteca y pantalla completa sin reiniciar YouTube (API simu
   const src=await page.locator("#youtube-frame").getAttribute("src");
   await go("home");
   await key(29461);assert.equal(await page.locator("#safe").getAttribute("data-view"),"apps");
-  assert.equal(await page.locator("#library-saver").count(),1);
+  assert.equal(await page.getByRole("button",{name:"Salvapantallas",exact:true}).filter({has:page.locator("img")}).count(),1);
   await key(88);assert.equal(await page.locator("#safe").getAttribute("data-view"),"home");
   await click("home-fullscreen");
   assert.deepEqual(await page.locator("#youtube-host").evaluate(n=>{const b=n.getBoundingClientRect();return [b.x,b.y,b.width,b.height,getComputedStyle(n).zIndex];}),[0,0,1280,720,"110"]);
@@ -1733,7 +1733,7 @@ test("TV en vivo recibe la señal directamente sin puente y conserva fondo, cont
  assert.equal(await page.evaluate(()=>AlmaPlayer.snapshot().live),true);
  await page.evaluate(()=>AlmaPlayer.seek(30));assert.match(await page.locator('#live-status').innerText(),/no admite saltos/);
  await go('home');assert.equal(await page.locator('.home-now').count(),0);assert.equal(await page.locator('#stage').getAttribute('data-home-video'),'true');
- assert.equal(await page.locator('.home-apps .app').count(),10);
+ assert.equal(await page.locator('.home-apps .app').count(),17);
  assert.equal(await page.locator('#view').evaluate(n=>n.scrollTop),0);
  await click('home-fullscreen');assert.equal(await page.locator('#media-video').evaluate(n=>n.getBoundingClientRect().width),1280);await key(88);
  await go('media');assert.equal(await page.evaluate(()=>AlmaPlayer.snapshot().playing),true);
@@ -1742,8 +1742,8 @@ test("TV en vivo recibe la señal directamente sin puente y conserva fondo, cont
 });
 
 test("Aplicaciones tiene filas de hasta cuatro marcas alineadas y TV en vivo; el carrusel de Inicio se conserva",async()=>{
- await go('home');assert.equal(await page.locator('.home-tools h2').count(),0);assert.equal(await page.locator('.home-apps .app').count(),10);
- await go('apps');const colors=await page.locator('.app').evaluateAll(nodes=>nodes.map(n=>getComputedStyle(n).backgroundColor));assert.equal(colors.length,10);
+ await go('home');assert.equal(await page.locator('.home-tools h2').count(),0);assert.equal(await page.locator('.home-apps .app').count(),17);
+ await go('apps');const colors=await page.locator('.app').evaluateAll(nodes=>nodes.map(n=>getComputedStyle(n).backgroundColor));assert.equal(colors.length,17);
  const boxes=await page.locator('.apps-grid .app').evaluateAll(nodes=>nodes.map(n=>{const b=n.getBoundingClientRect();return {x:b.x,y:b.y,width:b.width};}));
  assert.equal(new Set(boxes.slice(0,4).map(b=>b.y)).size,1);assert.ok(boxes[4].y>boxes[0].y);assert.ok(boxes[8].y>boxes[4].y);
  for(let row=0;row<3;row++){
@@ -1851,7 +1851,7 @@ test('Alma 11: vista previa real, categorías y Reproducir en el inicio conserva
  await page.evaluate(url=>{AlmaLiveTV[0].url=url;Alma.go('livetv');},stream);
  assert.ok(await page.locator('#live-preview').isVisible());
  assert.equal(await page.locator('.live-category-grid .card').count()>1,true);
- await shot('alma11-01-tv-categorias');
+ await shot('alma11-03-tv-categorias');
  await click('live-home');assert.equal(await page.locator('#safe').getAttribute('data-view'),'livetv');
  await click('live-section-0');await click('live-capital21');
  await page.locator('#media-video').evaluate(n=>n.loop=true);
@@ -1861,7 +1861,7 @@ test('Alma 11: vista previa real, categorías y Reproducir en el inicio conserva
  assert.ok(Math.abs(video.x-slot.x)<2&&Math.abs(video.width-slot.width)<2,JSON.stringify({video,slot}));
  assert.ok(Math.abs(video.width/video.height-16/9)<.02);
  await page.locator('#toast').waitFor({state:'hidden'});
- await shot('alma11-01-tv-preview');
+ await shot('alma11-03-tv-preview');
  await click('live-home');assert.equal(await page.locator('#safe').getAttribute('data-view'),'home');
  assert.equal(await page.locator('#stage').getAttribute('data-home-video'),'true');
  assert.ok(await page.locator('#status').isVisible());
@@ -1876,7 +1876,7 @@ test('Alma 11: vista previa real, categorías y Reproducir en el inicio conserva
  assert.deepEqual(errors,[]);
 });
 
-test('11.0.1: flecha arriba sube, izquierda permanece en la fila y TV propia tiene logo',async()=>{
+test('11.0.3: flecha arriba sube, izquierda permanece en la fila y TV propia tiene logo',async()=>{
  assert.equal(await page.locator('.focus').getAttribute('id'),'app-0');
  await key(37);assert.equal(await page.locator('.focus').getAttribute('id'),'app-0');
  await key(38);assert.equal(await page.locator('.focus').getAttribute('id'),'nav-0');
@@ -1884,7 +1884,7 @@ test('11.0.1: flecha arriba sube, izquierda permanece en la fila y TV propia tie
  await key(39);assert.equal(await page.locator('.focus').getAttribute('id'),'nav-1');
  await key(40);assert.equal(await page.locator('.focus').getAttribute('id'),'app-0');
  assert.equal(await page.getByRole('button',{name:'Smart Hub',exact:true}).count(),0);
- assert.equal(await page.locator('#nav-4').getAttribute('aria-label'),'Pantalla completa');
+ assert.equal(await page.locator('#nav-3').getAttribute('aria-label'),'Pantalla completa');
  await key(40);assert.equal(await page.locator('#safe').getAttribute('data-view'),'apps');
  for(const id of ['app-7','app-8','app-9']){
   assert.equal(await page.locator('#'+id+' img.brand-logo').count(),1);
@@ -1894,10 +1894,10 @@ test('11.0.1: flecha arriba sube, izquierda permanece en la fila y TV propia tie
  const exits=await page.evaluate(()=>platformCalls.filter(c=>c==='exit').length);
  await click('app-9');assert.equal(await page.locator('#safe').getAttribute('data-view'),'livetv');
  assert.equal(await page.evaluate(()=>platformCalls.filter(c=>c==='exit').length),exits);
- await shot('alma11-01-tv');assert.deepEqual(errors,[]);
+ await shot('alma11-03-tv');assert.deepEqual(errors,[]);
 });
 
-test('11.0.1: inicia antes de terminar las imágenes y no inicializa dos veces',async(t)=>{
+test('11.0.3: inicia antes de terminar las imágenes y no inicializa dos veces',async(t)=>{
  let release;const delayed=new Promise(resolve=>release=resolve);t.after(()=>release());
  await page.route('**/assets/logos/browser.png',async r=>{await delayed;await r.continue();});
  await page.reload({waitUntil:'domcontentloaded'});
@@ -1906,10 +1906,10 @@ test('11.0.1: inicia antes de terminar las imágenes y no inicializa dos veces',
  assert.equal(await page.evaluate(()=>platformCalls.filter(c=>c==='ready').length),1);
  await page.evaluate(()=>Alma.init());
  assert.equal(await page.evaluate(()=>platformCalls.filter(c=>c==='ready').length),1);
- release();await page.waitForLoadState('load');await shot('alma11-01-inicio');assert.deepEqual(errors,[]);
+ release();await page.waitForLoadState('load');await shot('alma11-03-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.0.1: dock más bajo, sin instrucciones y perfil circular con foto local',async()=>{
+test('11.0.3: dock más bajo, sin instrucciones y perfil circular con foto local',async()=>{
  const dock=await page.locator('.home-apps').boundingBox();
  assert.ok(dock.y+dock.height>620&&dock.y+dock.height<700,JSON.stringify(dock));
  assert.equal(await page.locator('#footer').isVisible(),false);
@@ -1924,24 +1924,40 @@ test('11.0.1: dock más bajo, sin instrucciones y perfil circular con foto local
  assert.deepEqual(errors,[]);
 });
 
-test('11.0.1: selector azul tenue sin marco blanco y marca solo en Ajustes',async()=>{
+test('11.0.3: selector azul tenue sin marco blanco y marca solo en Ajustes',async()=>{
  assert.equal(await page.locator('#header .brand').count(),0);
  const focus=await page.locator('.focus').evaluate(n=>{const s=getComputedStyle(n);return {outline:s.outlineStyle,shadow:s.boxShadow,color:s.backgroundColor};});
  assert.equal(focus.outline,'none');assert.match(focus.shadow,/38, 62, 190/);assert.match(focus.shadow,/0\.28/);
  await key(38);assert.equal(await page.locator('.focus').evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(28, 35, 45, 0.68)');
- await go('settings');assert.match(await page.locator('.settings-brand').innerText(),/alma.*tv 11\.0\.1/);
- await go('home');await shot('alma11-01-inicio');assert.deepEqual(errors,[]);
+ await go('settings');assert.match(await page.locator('.settings-brand').innerText(),/alma.*tv 11\.0\.3/);
+ await go('home');await shot('alma11-03-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.0.1: seis apps completas por ventana sin una séptima cortada',async()=>{
+test('11.0.3: cinco apps completas por ventana sin una sexta cortada',async()=>{
  for(let i=0;i<10;i++){
   const visible=await page.locator('.home-apps .app').evaluateAll(nodes=>{const clip=document.querySelector('.app-carousel').getBoundingClientRect();return nodes.map(n=>{const b=n.getBoundingClientRect();return {left:b.left,right:b.right};}).filter(b=>b.right>clip.left+.5&&b.left<clip.right-.5).map(b=>({full:b.left>=clip.left-.5&&b.right<=clip.right+.5}));});
-  assert.equal(visible.length,6,JSON.stringify(visible));assert.ok(visible.every(b=>b.full));
+  assert.equal(visible.length,5,JSON.stringify(visible));assert.ok(visible.every(b=>b.full));
   if(i<9)await key(39);
  }
  assert.equal(await page.locator('.focus').getAttribute('id'),'app-9');
- await shot('alma11-01-dock-seis');
+ await shot('alma11-03-dock-seis');
  for(let i=0;i<9;i++)await key(37);
  assert.equal(await page.locator('.focus').getAttribute('id'),'app-0');
- await shot('alma11-01-inicio');assert.deepEqual(errors,[]);
+ await shot('alma11-03-inicio');assert.deepEqual(errors,[]);
+});
+
+test('11.0.3: cuadrícula sin encabezados, utilidades como apps y arriba vuelve al dock',async()=>{
+ assert.deepEqual(await page.locator('#nav button').evaluateAll(ns=>ns.map(n=>n.getAttribute('aria-label'))),['Inicio','Buscar','Apps','Pantalla completa','Salvapantallas','Configuración']);
+ await key(40);assert.equal(await page.locator('#safe').getAttribute('data-view'),'apps');
+ assert.equal(await page.locator('#view .page-head,#view h1,#view h2,.library-tools').count(),0);
+ assert.equal(await page.locator('.apps-grid .app').count(),17);
+ await key(40);assert.equal(await page.locator('.focus').getAttribute('id'),'app-4');
+ await key(38);assert.equal(await page.locator('.focus').getAttribute('id'),'app-0');
+ await key(38);assert.equal(await page.locator('#safe').getAttribute('data-view'),'home');
+ for(const [name,view] of [['Reloj','clock'],['Temporizador','timer'],['Calendario','calendar'],['Clima','weather'],['Salvapantallas','saver'],['Multimedia','media']]){
+  await go('apps');const app=page.locator('.apps-grid').getByRole('button',{name,exact:true});
+  assert.equal(await app.locator('img').count(),1);assert.equal(await app.locator('strong').isVisible(),false);
+  await app.click();assert.equal(await page.locator('#safe').getAttribute('data-view'),view);
+ }
+ await go('apps');await shot('alma11-03-apps');await key(38);await shot('alma11-03-inicio');assert.deepEqual(errors,[]);
 });
