@@ -483,7 +483,7 @@ var Alma = (function () {
       id +
       '" data-focus="' +
       id +
-      '" class="card app ' +
+      '" aria-label="' + esc(a.name) + '" title="' + esc(detail) + '" class="card app ' +
       a.id +
       '">' +
       (/^(prime|disney|apple|max)$/.test(a.id)
@@ -504,131 +504,18 @@ var Alma = (function () {
       "</small></button>"
     );
   }
-  function updateHero(index) {
-    var own=AlmaPlayer.snapshot(),online=AlmaYouTube.snapshot();
-    if(state.view==="home"&&((youtubeLoaded&&!youtubeAudioOnly)||(!youtubeLoaded&&own.index>=0&&own.kind==="video"&&own.status!=="Detenido"&&own.status!=="Finalizado"&&own.status!=="No disponible"&&(!own.native||AlmaNativeLive.isOpen())))){
-      htmlIfChanged(el("hero-label"),"");htmlIfChanged(el("hero-title"),"Disfruta tu contenido");
-      htmlIfChanged(el("hero-copy"),"El vídeo continúa mientras eliges qué hacer.");htmlIfChanged(el("hero-cta"),"Pantalla completa");actions["hero-cta"]=fullscreenCurrent;return;
-    }
-
-    heroIndex = index;
-    var messages = [
-        [
-          "NETFLIX",
-          "Ve WWE Raw on Netflix",
-          "Disfruta de WWE Raw desde la aplicación de Netflix.",
-          "Abrir Netflix"
-        ],
-        [
-          "YOUTUBE",
-          "¡Bienvenido, IWC!",
-          "Continúa viendo tus videos favoritos.",
-          "Abrir YouTube"
-        ],
-        [
-          "PRIME VIDEO",
-          "La Última Palabra",
-          "Disfrútalo solo por Fox con tu suscripción.",
-          "Ver opciones de Prime Video"
-        ],
-        [
-          "DISNEY+",
-          "Un mundo de historias",
-          "Descubre aventuras, personajes y mundos en Disney+.",
-          "Ver opciones de Disney+"
-        ],
-        [
-          "APPLE TV",
-          "Historias que te acompañan",
-          "Consulta las opciones de Apple TV en un dispositivo compatible.",
-          "Ver opciones de Apple TV"
-        ],
-        [
-          "MAX",
-          "Grandes historias, a tu manera",
-          "Descubre las opciones de Max en un dispositivo compatible.",
-          "Ver opciones de Max"
-        ],
-        [
-          "XBOX · HDMI 2",
-          "Tu próxima partida empieza aquí",
-          "Enciende tu consola y elige tu próxima aventura.",
-          "Cambiar a HDMI 2"
-        ],
-        [
-          "NAVEGADOR",
-          "Tus sitios favoritos, más cerca",
-          "Abre el navegador del televisor.",
-          "Abrir el navegador"
-        ],
-        [
-          "APLICACIONES",
-          "Más formas de disfrutar",
-          "Revisa los accesos y la compatibilidad de tus aplicaciones.",
-          "Ver aplicaciones"
-        ]
-      ],
-      message = messages[index] || messages[0];
-    htmlIfChanged(el("hero-label"), esc(message[0]));
-    htmlIfChanged(el("hero-title"), esc(message[1]));
-    htmlIfChanged(el("hero-copy"), esc(message[2]));
-    htmlIfChanged(el("hero-cta"), esc(message[3]));
-    actions["hero-cta"] = function () {
-      launch(apps[heroIndex]);
-    };
+  function updateHero(index) { heroIndex=index; }
+  function homeApps() {
+    return apps.concat([{id:"livetv",name:"TV en vivo",detail:"Tus canales y favoritos"}]);
   }
   function home() {
-    var h =
-      '<section class="hero"><div class="eyebrow" id="hero-label"></div><h1 id="hero-title"></h1><p id="hero-copy"></p>' +
-      pill("hero-cta", "Abrir Netflix", function () {
-        launch(apps[heroIndex]);
-      }) +
-      '<span class="hero-credit">Mensajes personalizados · disponibilidad según el servicio</span></section>';
-    row(["hero-cta"]);
-    h +=
-      '<section class="home-apps"><h2 class="section-title">Aplicaciones <span>Pulsa Aceptar para abrir</span></h2><div class="app-carousel"><div class="row app-track">';
-    var ids = [],
-      i;
-    for (i = 0; i < apps.length; i++) {
-      h += appCard(apps[i], i);
-      ids.push("app-" + i);
-    }
+    var list=homeApps(),h='<section class="home-apps" aria-label="Aplicaciones"><div class="app-carousel"><div class="row app-track">',ids=[];
+    for(var i=0;i<list.length;i++){h+=appCard(list[i],i);ids.push("app-"+i);}
     row(ids);
-    h+='</div></div></section><div id="home-player" class="home-photo-mount"></div>';
-    h+='<div class="home-playback-actions">'+pill("home-fullscreen","Pantalla completa",fullscreenCurrent)+pill("home-media-open","Multimedia",function(){go("media");})+pill("home-live","TV en vivo",function(){go("livetv");})+pill("home-youtube","YouTube",function(){go("youtube-list");})+'</div>';
-    row(["home-fullscreen","home-media-open","home-live","home-youtube"]);
-    h+='<section class="home-tools" aria-label="Utilidades"><div class="row">';
-    ids = [];
-    var order = [0, 5, 2, 4, 1, 3],
-      symbols = ["◷", "◴", "▤", "▧", "⌁", "☁"];
-    for (i = 0; i < order.length; i++) {
-      (function (index) {
-        var t = tools[index],
-          v = [
-            time(),
-            timerText(),
-            date().split(",")[0],
-            "Abrir",
-            AlmaHub.connection() ? "Conectado" : "Sin conexión",
-            weather.text
-          ][index];
-        h += button(
-          "tool-" + index,
-          t.name,
-          v,
-          function () {
-            go(t.id);
-          },
-          "card tool tool-" + t.id
-        );
-        ids.push("tool-" + index);
-      })(order[i]);
-    }
-    row(ids);
-    return h + "</div></section>";
+    return h+'</div></div></section><div id="home-player" class="home-photo-mount"></div>';
   }
   function catalog(kind) {
-    var list = kind === "apps" ? apps.concat([{id:"livetv",name:"TV en vivo",detail:"Tus canales y favoritos"}]) : tools,
+    var list = kind === "apps" ? homeApps() : tools,
       h =
         head(
           kind === "apps" ? "ENTRETENIMIENTO" : "A TU RITMO",
@@ -656,6 +543,13 @@ var Alma = (function () {
       }
     }
     if (ids.length) row(ids);
+    if(kind==="apps"){
+      h+='</div><div class="library-tools">';ids=[];
+      tools.concat([{id:"media",name:"Multimedia"},{id:"settings",name:"Ajustes"},{id:"search",name:"Buscar"}]).forEach(function(t,i){
+        h+=button("library-"+t.id,t.name,"",function(){go(t.id);},"card tool tool-"+t.id);ids.push("library-"+t.id);
+        if(ids.length===4){row(ids);ids=[];}
+      });if(ids.length)row(ids);
+    }
     return h + "</div>";
   }
   function playLive(id){
@@ -664,9 +558,9 @@ var Alma = (function () {
     closeYoutube();
     AlmaPlayer.pause();
     var channel=AlmaLiveTV[index];AlmaPlayer.setTracks([{name:channel.name,url:channel.url,kind:"video",live:true}]);
-    AlmaPlayer.play(0);go("livetv");
+    AlmaPlayer.play(0);liveBrowse=false;go("livetv");
   }
-  var livePage=0,liveFavoritesOnly=false,liveCategory="";
+  var livePage=0,liveFavoritesOnly=false,liveCategory="",liveBrowse=false;
   function liveDialog(title,buttons){showDialog(title,"Tú decides cómo organizar tus canales.",buttons);el("dialog").className="live-organizer";rows=[];for(var i=0;i<buttons.length;i+=3){var ids=[];for(var j=i;j<Math.min(i+3,buttons.length);j++)ids.push("dialog-"+j);row(ids);}focus();}
   function chooseLiveCategory(channel){
     var buttons=[{label:"Sin categoría",action:function(){closeDialog();AlmaHub.editLive("favorite",channel.id,true,"");}}];
@@ -675,10 +569,28 @@ var Alma = (function () {
     buttons.push({label:"Cancelar",action:closeDialog});liveDialog(channel.name,buttons);
   }
   function liveTVView(){
+    if(liveBrowse)return liveChannelList();
+    var current=AlmaPlayer.snapshot(),h=head("ALMA TV","TV en vivo","");
+    h+='<div class="live-lobby"><section class="live-preview-panel"><div id="live-preview" aria-label="Vista previa del canal"><span>Selecciona un canal para comenzar</span></div><p id="live-status" role="status">'+esc(current.live?current.title+" · "+(current.error||current.status):"Selecciona una categoría.")+'</p><div class="live-preview-actions">';
+    h+=pill("live-full","Pantalla completa",fullscreenCurrent)+pill("live-home","Reproducir en el inicio",liveAtHome)+pill("live-media","Ver reproductor",function(){go("media");})+'</div></section><section class="live-category-grid" aria-label="Categorías">';
+    row(["live-full","live-home","live-media"]);
+    var categories=[{name:"Todos los canales",symbol:"▦",favorite:false,value:""},{name:"Favoritos",symbol:"★",favorite:true,value:""}];
+    AlmaHub.liveCategories().forEach(function(c){categories.push({name:c,symbol:"◈",favorite:true,value:c});});
+    categories.push({name:"Sin categoría",symbol:"◇",favorite:true,value:"__none"});
+    var ids=[];categories.forEach(function(c,i){h+=button("live-section-"+i,c.name,c.symbol,function(){liveFavoritesOnly=c.favorite;liveCategory=c.value;livePage=0;liveBrowse=true;state.row=1;state.col=0;render();},"card live-category-tile");ids.push("live-section-"+i);if(ids.length===2){row(ids);ids=[];}});if(ids.length)row(ids);
+    return h+'</section></div>';
+  }
+  function liveAtHome(){
+    var current=AlmaPlayer.snapshot();
+    if(!current.live||current.index<0||current.status==="Detenido"||current.status==="No disponible"){notice("Selecciona y reproduce un canal primero.");return;}
+    if(current.status==="Finalizado"){notice("La señal ha finalizado. Reintenta el canal.");return;}
+    go("home");
+  }
+  function liveChannelList(){
     var list=AlmaLiveTV.filter(function(c){return !liveFavoritesOnly||(c.favorite===true&&(!liveCategory||(liveCategory==="__none"?!c.category:c.category===liveCategory)));});
     livePage=Math.min(livePage,Math.max(0,Math.ceil(list.length/12)-1));
     var current=AlmaPlayer.snapshot(),h=head("CANALES · TV EN VIVO",liveFavoritesOnly?"Favoritos"+(liveCategory?" · "+(liveCategory==="__none"?"Sin categoría":liveCategory):""):"TV en vivo","Tus categorías se asignan manualmente. Las señales se reproducen directamente desde internet.");
-    h+='<div class="live-controls">'+pill("live-full","Pantalla completa",fullscreenCurrent)+pill("live-media","Ver reproductor",function(){go("media");})+pill("live-retry","Reintentar canal",function(){if(current.live)AlmaPlayer.play(current.index);else notice("Elige primero un canal.");})+'</div>';row(["live-full","live-media","live-retry"]);
+    h+='<div class="live-controls">'+pill("live-full","Pantalla completa",fullscreenCurrent)+pill("live-home","Reproducir en el inicio",liveAtHome)+pill("live-media","Ver reproductor",function(){go("media");})+pill("live-retry","Reintentar canal",function(){if(current.live)AlmaPlayer.play(current.index);else notice("Elige primero un canal.");})+'</div>';row(["live-full","live-home","live-media","live-retry"]);
     h+='<div class="live-filter">'+pill("live-all","Todos",function(){liveFavoritesOnly=false;liveCategory="";livePage=0;render();})+pill("live-favorites","★ Favoritos",function(){liveFavoritesOnly=true;liveCategory="";livePage=0;render();})+pill("live-category","Categorías",function(){
       var categories=["", "__none"].concat(AlmaHub.liveCategories()),buttons=[];categories.forEach(function(category){buttons.push({label:category==="__none"?"Sin categoría":category||"Todos los favoritos",action:function(){closeDialog();liveFavoritesOnly=true;liveCategory=category;livePage=0;render();}});});buttons.push({label:"Cancelar",action:closeDialog});liveDialog("Categorías de favoritos",buttons);
     })+'</div>';row(["live-all","live-favorites","live-category"]);
@@ -1217,8 +1129,9 @@ var Alma = (function () {
     youtubeLayoutKey = "";
     el("safe").setAttribute("data-youtube", "hidden");
   }
-  function backdropView(){return state.view!=="media"&&state.view!=="youtube"&&state.view!=="saver";}
+  function backdropView(){return state.view!=="media"&&state.view!=="youtube"&&state.view!=="saver"&&!(state.view==="livetv"&&!liveBrowse);}
   function fitPlayerSlot(slot){
+    if(slot.id==="live-preview"){var previewWidth=slot.parentNode.clientWidth;slot.style.width=previewWidth+"px";slot.style.height=(previewWidth*9/16)+"px";return;}
     var width=Math.max(240,Math.floor(Math.min(el("view").clientWidth-44,(el("view").clientHeight-210)*16/9)));
     var w=width+"px",h=(width*9/16)+"px";if(slot.style.width!==w)slot.style.width=w;if(slot.style.height!==h)slot.style.height=h;
   }
@@ -1241,7 +1154,7 @@ var Alma = (function () {
       htmlIfChanged(el("home-media-state"), "Solo audio · " + esc(value.status));
     }
     if(!youtubeAudioOnly){htmlIfChanged(el("home-media-title"),"");htmlIfChanged(el("home-media-state"),esc(value.status));}
-    var slot = el("youtube-slot");
+    var slot = el("youtube-slot")||el("live-preview");
     htmlIfChanged(el("youtube-state"), esc(value.status));
     if (value.title) htmlIfChanged(el("youtube-title"), esc(value.title));
     if (!youtubeLoaded) return;
@@ -1394,7 +1307,7 @@ var Alma = (function () {
       player.kind === "video" && player.index >= 0 ? "block" : "none";
     var active = player.index >= 0;
     el("safe").setAttribute("data-media-kind",active?player.kind:"none");
-    var mediaPane=state.view==="media"&&el("view").querySelector(".media-stage");
+    var mediaPane=(state.view==="media"&&el("view").querySelector(".media-stage"))||el("live-preview");
     if(mediaPane&&!youtubeLoaded){if(active&&player.kind==="video")fitPlayerSlot(mediaPane);else{mediaPane.style.width="";mediaPane.style.height="";}}
     if (youtubeLoaded) {
       el("media-video").style.visibility = "hidden";
@@ -1413,15 +1326,15 @@ var Alma = (function () {
       var placementKey=[state.view,videoFull,backdrop,window.innerWidth,window.innerHeight,el("view").scrollTop,prefs.scale,prefs.x,prefs.y].join(":");
       if(placementKey!==ownVideoGeometryKey){
       var width=window.innerWidth||1280,height=window.innerHeight||720,left=0,top=0,clipTop=0,clipBottom=height;
-      if(!backdrop&&!videoFull&&state.view==="media"){
-        var mediaSlot=el("view").querySelector(".media-stage"),box=mediaSlot.getBoundingClientRect(),viewport=el("view").getBoundingClientRect();
+      if(!backdrop&&!videoFull&&(state.view==="media"||el("live-preview"))){
+        var mediaSlot=el("live-preview")||el("view").querySelector(".media-stage"),box=mediaSlot.getBoundingClientRect(),viewport=el("view").getBoundingClientRect();
         left=box.left;top=box.top;width=box.width;height=box.height;clipTop=Math.max(0,viewport.top-top);clipBottom=Math.min(height,viewport.bottom-top);
       }
       var geometry={left:Math.round(left)+"px",top:Math.round(top)+"px",width:Math.round(width)+"px",height:Math.round(height)+"px",clip:"rect("+Math.ceil(clipTop)+"px,"+Math.round(width)+"px,"+Math.max(0,Math.floor(clipBottom))+"px,0px)"};
       for(var property in geometry)if(Object.prototype.hasOwnProperty.call(geometry,property)&&video.style[property]!==geometry[property])video.style[property]=geometry[property];
         ownVideoGeometryKey=placementKey;
       }
-      styleIfChanged(video,"visibility",!player.native&&(backdrop||videoFull||state.view==="media")&&(!modal||backdrop)?"visible":"hidden");
+      styleIfChanged(video,"visibility",!player.native&&(backdrop||videoFull||state.view==="media"||!!el("live-preview"))&&(!modal||backdrop)?"visible":"hidden");
       if(player.native){
         var nativeRect={left:parseFloat(video.style.left)||0,top:parseFloat(video.style.top)||0,width:parseFloat(video.style.width)||1280,height:parseFloat(video.style.height)||720};
         var nativeVisible=state.view!=="saver"&&!modal;
@@ -1746,6 +1659,8 @@ var Alma = (function () {
       for (var homeRow = 0; homeRow < rows.length; homeRow++) if (rows[homeRow][0] === "home-player") { state.row = homeRow; state.col = 0; break; }
     }
     if (!modal) focus();
+    if(state.view==="home")el("footer").innerHTML="◀ / ▶: elegir app · ▼: todas las apps · ▲: pantalla completa · Amarillo: Ajustes";
+    else el("footer").innerHTML="Flechas: mover · Aceptar: abrir · Volver: regresar · Verde: Inicio · Amarillo: Ajustes";
     rendering = false;
     if (youtubeLoaded) updateYoutube();
     if (typeof AlmaHub !== "undefined") AlmaHub.onRender();
@@ -1816,6 +1731,7 @@ var Alma = (function () {
     }
   }
   function go(view) {
+    if(view==="livetv"&&state.view!=="livetv")liveBrowse=false;
     if(view!==state.view){if(youtubeFull)youtubeFullscreen(false);if(videoFull)fullscreenVideo(false);}
     if (state.view === view) {
       state.row = 1;
@@ -1841,6 +1757,8 @@ var Alma = (function () {
       cal = null;
       apply();
     }
+    if(state.view==="livetv"&&liveBrowse){liveBrowse=false;state.row=1;state.col=0;render();return;}
+    if(state.view==="apps"){state={view:"home",row:1,col:0};render();return;}
     state = stack.length ? stack.pop() : { view: "home", row: 0, col: 0 };
     render();
   }
@@ -2618,6 +2536,13 @@ var Alma = (function () {
       updateCal();
       return true;
     }
+    if(!modal&&state.view==="home"&&state.row>0&&k==="down"){go("apps");return true;}
+    if(!modal&&state.view==="home"&&state.row>0&&k==="up"){fullscreenCurrent();return true;}
+    if(!modal&&state.row===0){
+      if(k==="left"){state.col--;focus();return true;}
+      if(k==="right"){state.col++;focus();return true;}
+      if(k==="down"){state.row=1;state.col=0;focus();return true;}
+    }
     if (k === "ok") {
       var fn = actions[focusedId()];
       if (fn) confirmAction(fn);
@@ -2729,6 +2654,7 @@ var Alma = (function () {
     ) {
       el("wallpaper").style.backgroundImage = "url(" + AlmaMedia.saver + ")";
     }
+    state.row=1;
     render();
     interval = setInterval(tick, 1000);
     if(prefs.liveFavorites.length){prefs.liveFavorites=prefs.liveFavorites.filter(function(id){return !AlmaHub.editLive("favorite",id,true,"");});save();}

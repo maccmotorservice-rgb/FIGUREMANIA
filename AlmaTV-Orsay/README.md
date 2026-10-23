@@ -1,3 +1,17 @@
+# Alma TV 11.0 · Nuevo tema
+
+Inicio con una sola fila inferior de apps, logotipos sin títulos y selector con colores de marca conservados. Abajo abre la biblioteca completa; Volver regresa al dock. Las utilidades siguen disponibles en la biblioteca y en la barra superior. Arriba desde el dock abre el contenido actual a pantalla completa; Volver lo reduce.
+
+TV en vivo tiene una vista previa 16:9 a la izquierda y categorías en dos columnas a la derecha, sin anuncios. Todos los canales y favoritos conservan sus filtros, organización y paginación. Elegir un canal lo reproduce en la vista previa. «Reproducir en el inicio» vuelve al dock usando la misma sesión como fondo; no inicia una segunda reproducción. La barra superior sigue visible al navegar con contenido. El salvapantallas conserva su comportamiento anterior.
+
+La imagen local existente (`app/assets/salvapantallas.png`) se conserva byte por byte y vuelve al detener el video. No se cambian las preferencias ni las claves del almacenamiento local. No se añaden controles rápidos.
+
+Respaldo anterior: rama local `backup/alma-tv-pre-11`, commit `ac36516e74f9869ed27e6ef927302de9d57462c6` (widget 10.3.0 y control 10.3.6). Los instaladores previos se conservan. Desarrollo 11.0 en `alma-tv/11.0`; sin instalar en la TV.
+
+Validación local: `npm ci`, `npm run check`, `npm run build`, `npm run test:package`, `npm run test:ui`. Las pruebas Samsung/YouTube simulan sus API; el transporte real local usa MP4 de prueba. Es necesario verificar decodificación HLS, capas del reproductor y navegación en el Samsung físico antes de dar por validada la instalación en TV.
+
+---
+
 # Alma TV · Control 10.3.6: listas grandes y lentas
 
 La importación admite hasta **64 MB y 200 000 entradas por lista**, con **tres minutos de descarga**; el panel espera hasta cuatro minutos para recibir el resultado. Tamaño, tiempo total y falta de datos del proveedor muestran errores separados. Una importación fallida mantiene la lista anterior. Se comprueba que una descarga de más de un minuto aún puede completarse. La corrección pasó 61 pruebas Python y tres pruebas de importación/guía con puente HTTP real; no se descargó la cuenta del usuario. Estos límites son de la Mac: no cambian el catálogo máximo de 504 entradas del widget ni su espera de 60 segundos por señal.

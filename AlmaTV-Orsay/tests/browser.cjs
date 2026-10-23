@@ -6,8 +6,16 @@ const { chromium } = require("@playwright/test");
 const ROOT = path.resolve(__dirname, "..");
 let browser, context, page, commands, errors, previewProcess;
 const key = (code) => page.evaluate((c) => Alma.key(c), code);
-const go = (view) => page.evaluate((v) => Alma.go(v), view);
-const click = (id) => page.locator("#" + id).click();
+const go = async (view) => {
+  await page.evaluate((v) => Alma.go(v), view);
+  if(view === "livetv" && await page.locator("#live-section-0").count()) await page.locator("#live-section-0").click();
+};
+const click = async (id) => {
+  if(id === "home-fullscreen") return key(29460);
+  if(id === "home-media-open") return go("media");
+  if(id === "home-youtube") return go("youtube-list");
+  return page.locator("#" + id).click();
+};
 const shot = async (name) => {
   await page.waitForLoadState("networkidle");
   await page.evaluate(async () => {
@@ -16,7 +24,7 @@ const shot = async (name) => {
     );
   });
   return page.screenshot({
-    path: path.join(ROOT, "docs/capturas", name + ".png"),
+    path: path.join(name.startsWith("alma11-") ? path.join(ROOT,"docs/capturas") : "/tmp", name + ".png"),
     animations: "disabled"
   });
 };
@@ -37,7 +45,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="10.3.0"'))
+      if (!html.includes('name="alma-build" content="11.0.0"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -121,37 +129,21 @@ beforeEach(async (t) => {
   await page.route("http://192.168.1.30:8088/youtube/live",r=>r.fulfill({status:200,contentType:"application/json",headers:{"Access-Control-Allow-Origin":"*"},body:JSON.stringify({command:null,status:"idle"})}));
   await page.goto("http://127.0.0.1:8765");
 });
-test("Inicio compacto, vistas distintas y navegación real por códigos Samsung", async () => {
-  assert.match(await page.locator(".brand").innerText(), /10\.3\.0/);
+test("Inicio 11: dock de logos, abajo abre biblioteca y Atrás restaura Inicio", async () => {
+  assert.match(await page.locator(".brand").innerText(), /11\.0\.0/);
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
-  await shot("01-inicio");
-  await key(29461);
-  await key(29461);
-  await key(29443);
-  assert.match(await page.locator("#view").innerText(), /Tus aplicaciones/);
-  await shot("02-apps");
-  await key(88);
-  assert.ok(await page.locator(".hero").isVisible());
-  await go("tools");
-  await shot("03-herramientas");
-  assert.equal(await page.locator(".grid .card").count(), 6);
-  await key(29461);
-  assert.equal(await page.locator(".focus").getAttribute("id"), "tool-3");
-  await key(29460);
-  assert.equal(await page.locator(".focus").getAttribute("id"), "tool-0");
-  await key(29443);
-  assert.ok(await page.locator("#live-clock").isVisible());
-  await shot("06-reloj");
-  await key(88);
-  assert.equal(await page.locator(".focus").getAttribute("id"), "tool-0");
-  await key(21);
-  await shot("05-ajustes");
-  assert.match(await page.locator("#view").innerText(), /A tu medida/);
-  await key(20);
-  assert.ok(await page.locator(".hero").isVisible());
-  await key(45);
-  assert.ok((await page.evaluate(() => platformCalls)).includes("exit"));
-  assert.deepEqual(errors, []);
+  assert.equal(await page.locator(".home-apps .app").count(),10);
+  assert.equal(await page.locator(".focus").getAttribute("id"),"app-0");
+  const wallpaper=await page.locator("#wallpaper").evaluate(n=>getComputedStyle(n).backgroundImage);
+  assert.match(wallpaper,/salvapantallas/);
+  await key(29461);assert.equal(await page.locator("#safe").getAttribute("data-view"),"apps");
+  await key(88);assert.equal(await page.locator("#safe").getAttribute("data-view"),"home");
+  await go("tools");await key(29461);assert.equal(await page.locator(".focus").getAttribute("id"),"tool-3");
+  await key(29460);await key(29443);assert.ok(await page.locator("#live-clock").isVisible());
+  await key(21);assert.match(await page.locator("#view").innerText(),/A tu medida/);
+  await key(20);assert.ok(await page.locator(".home-apps").isVisible());
+  await shot("alma11-inicio");await key(45);assert.ok((await page.evaluate(()=>platformCalls)).includes("exit"));
+  assert.deepEqual(errors,[]);
 });
 test("Una pulsación inicia cada DIAL; doble pulsación en curso no duplica POST", async () => {
   await page.route("http://192.168.1.249:8080/**", async (r) => {
@@ -535,7 +527,6 @@ test("Reposo no repinta textos sin cambios y el foco no reconstruye las tarjetas
   await page.clock.runFor(3000);
   assert.equal(await page.evaluate(() => mutations), 0);
   await key(39);
-  await key(40);
   for (let i = 0; i < 30; i++) await key(i % 2 ? 37 : 39);
   assert.equal(await page.evaluate(() => viewReplacements), 0);
   assert.equal(await page.locator(".focus").count(), 1);
@@ -669,36 +660,16 @@ test("Español con tildes y ñ, incluso al escribir desde el teclado", async () 
   await key(88);
   await go("home");
   await page.evaluate(() => Alma.key(39));
-  await key(40);
   await key(39);
-  assert.match(
-    await page.locator("#hero-copy").innerText(),
-    /Continúa viendo tus videos favoritos/
-  );
+  assert.ok(await page.locator(".home-apps").isVisible());
   assert.doesNotMatch(await page.locator("body").innerText(), /Ã|Â|�/);
   assert.deepEqual(errors, []);
 });
-test("Carrusel grande, encabezados personalizados y colores de marca en todas las vistas", async () => {
-  await key(39);
-  await key(40);
-  assert.match(
-    await page.locator("#hero-title").innerText(),
-    /WWE Raw on Netflix/
-  );
-  await key(39);
-  assert.match(
-    await page.locator("#hero-title").innerText(),
-    /Bienvenido, IWC/
-  );
-  await key(39);
-  assert.equal(
-    await page.locator("#hero-title").innerText(),
-    "La Última Palabra"
-  );
-  assert.match(
-    await page.locator("#hero-copy").innerText(),
-    /Disfrútalo solo por Fox con tu suscripción/
-  );
+test("Dock sin títulos conserva logos, foco y colores de marca", async () => {
+  assert.equal(await page.locator(".app strong:visible").count(),0);
+  assert.equal(await page.locator(".app small:visible").count(),0);
+  assert.equal(await page.locator("#app-0").getAttribute("aria-label"),"Netflix");
+  await key(39);await key(39);await key(39);
   for (let i = 0; i < 6; i++) await key(39);
   await page.waitForTimeout(300);
   assert.ok(
@@ -764,10 +735,8 @@ test("El reproductor decodifica audio real, permite pausa, salto y reproducción
   assert.equal(await page.locator("#home-player button").count(), 0);
   assert.equal(await page.locator("#home-media-title").count(),0);
   assert.equal(await page.locator(".home-links").count(), 0);
-  assert.equal(await page.locator("#hero-title").isVisible(), true);
-  await key(29461);
-  await key(29461);
-  assert.equal(await page.evaluate(() => document.querySelector(".focus").id), "home-fullscreen");
+  assert.equal(await page.locator(".home-apps").isVisible(), true);
+  assert.equal(await page.locator(".focus").getAttribute("id"),"app-0");
   assert.equal(await page.locator("#view").evaluate(n => n.scrollTop),0);
   await shot("25-alma8-musica-en-inicio");
   await go("media");
@@ -840,9 +809,7 @@ test("El reproductor reproduce video MP4 real con sus controles", async () => {
     assert.ok(await page.locator("#media-video").evaluate(n => n.currentTime) > time);
     assert.equal(await page.locator("#media-video").isVisible(), true);
     if (view === "home") {
-      await key(29461);
-      await key(29461);
-      assert.equal(await page.evaluate(() => document.querySelector(".focus").id), "home-fullscreen");
+      assert.equal(await page.locator(".focus").getAttribute("id"),"app-0");
       assert.equal(await page.locator("#view").evaluate(n => n.scrollTop),0);
       assert.equal(await page.locator("#home-player button").count(), 0);
       assert.ok(await page.locator("#media-video").evaluate(n => n.getBoundingClientRect().width) > 800);
@@ -850,8 +817,8 @@ test("El reproductor reproduce video MP4 real con sus controles", async () => {
       assert.equal(await page.locator("#stage").getAttribute("data-home-video"),"true");
       assert.equal(await page.locator("#wallpaper").evaluate(n=>getComputedStyle(n).visibility),"hidden");
       assert.equal(await page.locator("#nav-0").evaluate(n=>{var b=n.getBoundingClientRect();return document.elementFromPoint(b.x+b.width/2,b.y+b.height/2).closest("button").id;}),"nav-0");
-      assert.equal(await page.locator(".focus").getAttribute("id"),"home-fullscreen");
-      await key(29443);
+      assert.equal(await page.locator(".focus").getAttribute("id"),"app-0");
+      await key(29460);
       assert.equal(await page.locator("#media-video").evaluate(n=>getComputedStyle(n).zIndex),"110");
       await key(88);
       assert.equal(await page.locator("#media-video").evaluate(n=>n.paused),false);
@@ -900,7 +867,7 @@ test("Un firmware sin reproducción HTML5 muestra una alternativa sin bloquear l
     /firmware no ofrece/
   );
   await go("home");
-  assert.ok(await page.locator("#hero-title").isVisible());
+  assert.ok(await page.locator(".home-apps").isVisible());
   assert.deepEqual(errors, []);
 });
 
@@ -1007,7 +974,7 @@ test("YouTube integrado: enlace guardado, controles y pantalla completa sin reca
   await page.waitForFunction(() => AlmaYouTube.snapshot().state === 1);
   await go("home");
   assert.equal(await page.locator("#youtube-frame").getAttribute("data-test-identity"),"same-frame");
-  await page.locator("#home-fullscreen").scrollIntoViewIfNeeded();
+  await page.locator(".home-apps").scrollIntoViewIfNeeded();
   await page.waitForFunction(() => AlmaYouTube.snapshot().state === 1);
   const box = await page.locator("#youtube-host").boundingBox();
   assert.ok(Math.abs(box.width / box.height - 16 / 9) < 0.02);
@@ -1135,7 +1102,7 @@ server.serve_forever()
   await page.locator("#mac-youtube-0").waitFor();
   assert.match(await page.locator("#mac-youtube-0").innerText(),/Mi concierto en línea/);
   assert.equal(JSON.parse(fs.readFileSync(filename,"utf8")).items[0].name,"Mi concierto en línea");
-  await panel.screenshot({path:path.join(ROOT,"docs/capturas/27-panel-enlaces-mac.png"),fullPage:true});
+  await panel.screenshot({path:"/tmp/27-panel-enlaces-mac.png",fullPage:true});
   await click("media-mac-links");
   await page.waitForFunction(() => document.getElementById("mac-youtube-0").className.indexOf("focus") >= 0);
   await shot("28-lista-mac-sin-reinstalar");
@@ -1274,7 +1241,7 @@ test("YouTube conserva una sola área y continúa al navegar, sin ventana flotan
   assert.match(crop.clip,/^rect\(/);
   assert.equal(Number(crop.clip.match(/[\d.]+/g)[2]),crop.height);
   await page.waitForFunction(() => AlmaYouTube.snapshot().state===1);
-  await page.locator("#home-fullscreen").scrollIntoViewIfNeeded();
+  await page.locator(".home-apps").scrollIntoViewIfNeeded();
   await page.locator("#view").evaluate(n => n.dispatchEvent(new Event("scroll")));
   assert.equal(await page.locator("#safe").getAttribute("data-youtube"),"large");
   assert.equal(await frame.evaluate(() => testYoutube.pause),0);
@@ -1316,11 +1283,11 @@ test("YouTube ocupa el fondo completo sin escalar el iframe y conserva el menú,
     await page.setViewportSize(resolution);
     await go("home");
     await page.locator(".page-surface").evaluate(n => n.classList.remove("page-enter"));
-    await page.locator("#home-fullscreen").scrollIntoViewIfNeeded();
+    await page.locator(".home-apps").scrollIntoViewIfNeeded();
     await page.locator("#view").evaluate(n => n.dispatchEvent(new Event("scroll")));
     await page.waitForFunction(() => document.getElementById("safe").getAttribute("data-youtube")==="large");
     const geometry = await page.evaluate(() => {
-      const host=document.getElementById("youtube-host"), slot=document.getElementById("home-fullscreen");
+      const host=document.getElementById("youtube-host"), slot=document.querySelector(".home-apps");
       const ancestors=[];for(let node=host.parentElement;node;node=node.parentElement) ancestors.push(getComputedStyle(node).transform);
       return {host:host.getBoundingClientRect().toJSON(),slot:slot.getBoundingClientRect().toJSON(),parent:host.parentElement.tagName,ancestors};
     });
@@ -1658,27 +1625,16 @@ test("En tiempo real anterior acepta tres órdenes consecutivas sin reconstruir 
  await page.evaluate(()=>AlmaYouTube.send("play"));await frame.waitForFunction(()=>testYoutube.load===2);assert.equal(await frame.evaluate(()=>testYoutube.loadedId),"dQw4w9WgXcQ");
  });
 
-test("Inicio desplaza todos los botones inferiores y abre pantalla completa sin reiniciar YouTube (API simulada)",async()=>{
+test("Inicio abre biblioteca y pantalla completa sin reiniciar YouTube (API simulada)",async()=>{
   await officialYouTubeFixture();await savedYouTube();await click("youtube-play");
   await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
   const child=page.frame({url:/192\.168\.1\.30:8088\/youtube\/player/});
   const pauses=await child.evaluate(()=>testYoutube.pause);
   const src=await page.locator("#youtube-frame").getAttribute("src");
   await go("home");
-  const seen=[];
-  for(let i=0;i<9;i++){
-    const id=await page.evaluate(()=>document.querySelector("#view .focus")?.id);
-    if(id){
-      seen.push(id);
-      const box=await page.locator("#"+id).boundingBox(),view=await page.locator("#view").boundingBox();
-      assert.ok(box.y>=view.y-1 && box.y+box.height<=view.y+view.height+1,id+" fuera del área visible");
-    }
-    await key(29461);
-  }
-  assert.ok(seen.includes("home-fullscreen"),JSON.stringify(seen));
-  assert.equal(await page.locator("#home-youtube").count(),1);
-  assert.ok(seen.some(id=>id.startsWith("tool-")),JSON.stringify(seen));
-  assert.equal(await page.locator("#home-media-title").count(),0);
+  await key(29461);assert.equal(await page.locator("#safe").getAttribute("data-view"),"apps");
+  assert.equal(await page.locator("#library-saver").count(),1);
+  await key(88);assert.equal(await page.locator("#safe").getAttribute("data-view"),"home");
   await click("home-fullscreen");
   assert.deepEqual(await page.locator("#youtube-host").evaluate(n=>{const b=n.getBoundingClientRect();return [b.x,b.y,b.width,b.height,getComputedStyle(n).zIndex];}),[0,0,1280,720,"110"]);
   await key(88);await click("home-media-open");
@@ -1777,7 +1733,7 @@ test("TV en vivo recibe la señal directamente sin puente y conserva fondo, cont
  assert.equal(await page.evaluate(()=>AlmaPlayer.snapshot().live),true);
  await page.evaluate(()=>AlmaPlayer.seek(30));assert.match(await page.locator('#live-status').innerText(),/no admite saltos/);
  await go('home');assert.equal(await page.locator('.home-now').count(),0);assert.equal(await page.locator('#stage').getAttribute('data-home-video'),'true');
- const visible=await page.locator('.home-tools .tool').evaluateAll(nodes=>nodes.map(n=>{const b=n.getBoundingClientRect(),v=document.getElementById('view').getBoundingClientRect();return b.top>=v.top&&b.bottom<=v.bottom&&b.left>=v.left&&b.right<=v.right;}));assert.equal(visible.length,6);assert.ok(visible.every(Boolean),JSON.stringify(visible));
+ assert.equal(await page.locator('.home-apps .app').count(),10);
  assert.equal(await page.locator('#view').evaluate(n=>n.scrollTop),0);
  await click('home-fullscreen');assert.equal(await page.locator('#media-video').evaluate(n=>n.getBoundingClientRect().width),1280);await key(88);
  await go('media');assert.equal(await page.evaluate(()=>AlmaPlayer.snapshot().playing),true);
@@ -1786,7 +1742,7 @@ test("TV en vivo recibe la señal directamente sin puente y conserva fondo, cont
 });
 
 test("Aplicaciones tiene filas de hasta cuatro marcas alineadas y TV en vivo; el carrusel de Inicio se conserva",async()=>{
- await go('home');assert.equal(await page.locator('.home-tools h2').count(),0);assert.match(await page.locator('#tool-4').innerText(),/Conexión/);assert.equal(await page.locator('.home-apps .app').count(),9);
+ await go('home');assert.equal(await page.locator('.home-tools h2').count(),0);assert.equal(await page.locator('.home-apps .app').count(),10);
  await go('apps');const colors=await page.locator('.app').evaluateAll(nodes=>nodes.map(n=>getComputedStyle(n).backgroundColor));assert.equal(colors.length,10);
  const boxes=await page.locator('.apps-grid .app').evaluateAll(nodes=>nodes.map(n=>{const b=n.getBoundingClientRect();return {x:b.x,y:b.y,width:b.width};}));
  assert.equal(new Set(boxes.slice(0,4).map(b=>b.y)).size,1);assert.ok(boxes[4].y>boxes[0].y);assert.ok(boxes[8].y>boxes[4].y);
@@ -1887,4 +1843,35 @@ test('Favoritos de TV se clasifican manualmente y se pueden eliminar sin Mac',as
  await click('live-category');await page.getByRole('button',{name:'Deportes',exact:true}).click();assert.equal(await page.locator('.live-channel').count(),1);await page.screenshot({path:'/tmp/alma103-favorites-tv.png'});
  await click('organize-capital21');await page.getByRole('button',{name:'Eliminar canal',exact:true}).click();await page.getByRole('button',{name:'Eliminar',exact:true}).click();assert.equal(await page.locator('.live-channel').count(),0);
  await page.reload();await go('livetv');assert.equal(await page.locator('#live-capital21').count(),0);assert.ok(await page.evaluate(()=>JSON.parse(localStorage.getItem('alma.live.edits')).length>=3));assert.deepEqual(errors,[]);
+});
+
+test('Alma 11: vista previa real, categorías y Reproducir en el inicio conservan la sesión',async()=>{
+ const stream='https://streams.example.org/alma11.mp4';
+ await page.route(stream,r=>r.fulfill({contentType:'video/mp4',body:fs.readFileSync(path.join(ROOT,'tests/fixtures/video-prueba.mp4'))}));
+ await page.evaluate(url=>{AlmaLiveTV[0].url=url;Alma.go('livetv');},stream);
+ assert.ok(await page.locator('#live-preview').isVisible());
+ assert.equal(await page.locator('.live-category-grid .card').count()>1,true);
+ await shot('alma11-tv-categorias');
+ await click('live-home');assert.equal(await page.locator('#safe').getAttribute('data-view'),'livetv');
+ await click('live-section-0');await click('live-capital21');
+ await page.locator('#media-video').evaluate(n=>n.loop=true);
+ await page.waitForFunction(()=>AlmaPlayer.snapshot().playing&&AlmaPlayer.snapshot().time>.1);
+ const video=await page.locator('#media-video').evaluate(n=>{n.dataset.identity='alma11';const b=n.getBoundingClientRect();return {x:b.x,y:b.y,width:b.width,height:b.height};});
+ const slot=await page.locator('#live-preview').boundingBox();
+ assert.ok(Math.abs(video.x-slot.x)<2&&Math.abs(video.width-slot.width)<2,JSON.stringify({video,slot}));
+ assert.ok(Math.abs(video.width/video.height-16/9)<.02);
+ await page.locator('#toast').waitFor({state:'hidden'});
+ await shot('alma11-tv-preview');
+ await click('live-home');assert.equal(await page.locator('#safe').getAttribute('data-view'),'home');
+ assert.equal(await page.locator('#stage').getAttribute('data-home-video'),'true');
+ assert.ok(await page.locator('#status').isVisible());
+ const before=await page.locator('#media-video').evaluate(n=>n.currentTime);
+ await key(29461);await key(88);await page.waitForTimeout(200);
+ assert.equal(await page.locator('#media-video').getAttribute('data-identity'),'alma11');
+ assert.ok(await page.locator('#media-video').evaluate(n=>n.currentTime)>before);
+ await go('saver');assert.equal(await page.locator('#media-video').evaluate(n=>getComputedStyle(n).visibility),'hidden');
+ await key(88);assert.equal(await page.locator('#media-video').evaluate(n=>n.paused),false);
+ await go('media');await click('media-stop');await go('home');
+ assert.equal(await page.locator('#wallpaper').evaluate(n=>getComputedStyle(n).visibility),'visible');
+ assert.deepEqual(errors,[]);
 });

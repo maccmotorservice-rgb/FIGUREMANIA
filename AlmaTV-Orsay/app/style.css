@@ -1891,3 +1891,51 @@ html.native-live.native-live-full #stage{visibility:hidden}
 #dialog.live-organizer .pill{display:inline-block;width:30%;margin:0 2% 12px 0;white-space:normal;vertical-align:top;min-height:44px}
 
 .apps-grid .app-symbol.nav-icon{background-position:0 0}
+
+/* Alma TV 11: logo dock, persistent scene and a dedicated live-TV lobby.
+   ES5-era Orsay: no blur, CSS grid, flexbox or animated compositing. */
+#wallpaper-shade{background:rgba(8,12,20,.12)}
+#header{left:24px;right:24px;top:14px;bottom:auto;width:auto;height:64px;background:transparent;border:0;border-radius:0;z-index:30}
+.brand{left:8px;top:16px;font-size:22px}.brand span{font-size:13px}
+#nav{left:150px;top:8px;width:710px;height:48px;white-space:nowrap}
+#header #nav .nav{display:inline-block;vertical-align:top;width:51px;height:46px;margin:0 5px 0 0;padding:11px 13px;box-sizing:border-box;font-size:0;line-height:24px;background:rgba(28,35,45,.68);border-radius:15px}
+#header #nav .nav.focus{background:#fff;outline:2px solid #fff}
+#nav .nav-icon{margin:0}
+#status{left:auto;right:8px;top:8px;bottom:auto;width:190px;height:46px;box-sizing:border-box;padding:5px 14px;border-radius:24px;background:rgba(28,35,45,.78);text-align:right}
+#status #network{font-size:9px;line-height:12px}#status #time{display:block;font-size:20px;line-height:23px;margin:0}
+#view{left:28px;right:28px;top:96px;height:600px;padding:22px!important;background:rgba(25,34,43,.86);border-radius:26px;box-sizing:border-box}
+#footer{left:40px;right:40px;bottom:16px;text-align:center;font-size:12px}
+#safe[data-view="home"] #view{top:96px;height:548px;padding:0!important;overflow:hidden}
+#safe[data-view="home"] .page-surface{height:100%;position:relative}
+#safe[data-view="home"] .home-apps{position:absolute;left:12px;right:12px;bottom:14px;padding:10px 14px 4px;border-radius:26px;background:rgba(37,49,59,.8);border:1px solid rgba(255,255,255,.24)}
+.home-apps .app-carousel{padding:8px 5px 12px}
+.app-track .card.app{height:100px;width:166px;padding:13px 10px;box-sizing:border-box;border-radius:18px}
+.app-track .card.app strong,.app-track .card.app small,.app-track .card.app .app-note{display:none}
+.app-track .card.app .app-mark{height:72px;line-height:72px;margin:0}
+.app-track .brand-logo{width:124px;height:70px;object-fit:contain}
+.app-track .card.app.focus{outline:4px solid #fff;outline-offset:3px;box-shadow:0 8px 22px rgba(0,0,0,.5)}
+.app-track .card.app.livetv{background:#235a65;color:#fff}
+.app-symbol.nav-icon{display:inline-block;float:none;width:24px;height:24px;margin:24px auto;background-position:0 0}
+#safe[data-view="apps"] #view{background:rgba(27,42,51,.86)}
+.apps-grid .card.app{width:23%;height:115px;margin:8px 1.5% 16px 0;padding:18px 10px}
+.apps-grid .card.app .app-mark{height:76px;line-height:76px}
+.library-tools .card.tool{display:inline-block;width:23%;height:82px;margin:0 1.5% 12px 0;box-sizing:border-box}
+#safe[data-view="livetv"] #view{background:rgba(17,24,31,.94)}
+#safe[data-view="livetv"] .page-head{margin:0 0 12px}
+#safe[data-view="livetv"] .page-head h1{font-size:25px;margin:0}
+#safe[data-view="livetv"] .page-head p:empty{display:none}
+.live-lobby{position:relative;min-height:420px}
+.live-preview-panel{width:58%;display:inline-block;vertical-align:top}
+#live-preview{width:100%;height:320px;background:#111820;border:1px solid rgba(255,255,255,.2);border-radius:16px;box-sizing:border-box;text-align:center;overflow:hidden}
+#live-preview span{display:block;padding-top:130px;font-size:17px;color:#c5ced6}
+#safe[data-media-kind="video"] #live-preview span{display:none}
+.live-preview-actions .pill{font-size:13px;padding:10px;margin:0 8px 8px 0}
+#live-status{font-size:14px;min-height:20px}
+.live-category-grid{display:inline-block;vertical-align:top;width:39%;margin-left:2%;height:420px;overflow:auto;padding:5px;box-sizing:border-box}
+.live-category-grid .live-category-tile{display:inline-block;width:46%;height:105px;margin:0 3% 12px 0;padding:12px 8px;border-radius:16px;box-sizing:border-box;text-align:center;background:#293640}
+.live-category-tile strong{display:block;font-size:16px}.live-category-tile small{display:block;font-size:27px!important;line-height:36px;margin-top:5px;color:#90d8cf!important}
+.live-category-tile.focus{outline:3px solid white;outline-offset:-3px}
+html.native-live #safe[data-view="livetv"] #view{background:transparent!important}
+html.native-live #live-preview{background:transparent;border-color:rgba(255,255,255,.3)}
+html.native-live #live-status,html.native-live .live-preview-actions{background:rgba(17,24,31,.9)}
+#safe[data-view="saver"] #view{top:0;height:100%;left:0;right:0}
