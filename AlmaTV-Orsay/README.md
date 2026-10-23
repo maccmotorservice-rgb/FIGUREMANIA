@@ -1,10 +1,12 @@
-# Alma TV 11.0 · Nuevo tema
+# Alma TV 11.0.1 · Navegación y arranque
 
-Inicio con una sola fila inferior de apps, logotipos sin títulos y selector con colores de marca conservados. Abajo abre la biblioteca completa; Volver regresa al dock. Las utilidades siguen disponibles en la biblioteca y en la barra superior. Arriba desde el dock abre el contenido actual a pantalla completa; Volver lo reduce.
+Inicio con una sola fila inferior de apps y un máximo de seis visibles completas, logotipos sin títulos y selector con colores de marca conservados. Abajo abre la biblioteca completa; Volver regresa al dock. Las utilidades siguen disponibles en la biblioteca y en la barra superior. Arriba desde el dock sube a la barra superior; izquierda/derecha se mantienen en la fila actual. Pantalla completa se abre desde su botón en la barra o el reproductor; Volver la reduce.
 
 TV en vivo tiene una vista previa 16:9 a la izquierda y categorías en dos columnas a la derecha, sin anuncios. Todos los canales y favoritos conservan sus filtros, organización y paginación. Elegir un canal lo reproduce en la vista previa. «Reproducir en el inicio» vuelve al dock usando la misma sesión como fondo; no inicia una segunda reproducción. La barra superior sigue visible al navegar con contenido. El salvapantallas conserva su comportamiento anterior.
 
-La imagen local existente (`app/assets/salvapantallas.png`) se conserva byte por byte y vuelve al detener el video. No se cambian las preferencias ni las claves del almacenamiento local. No se añaden controles rápidos.
+La fila inferior queda más cerca del borde inferior y se retira la leyenda de teclas. El foco usa un halo azul rey tenue, sin marco blanco. La marca Alma TV se muestra solo en Ajustes. El reloj incorpora un perfil circular: el instalador permite elegir un JPG/PNG local y lo incorpora a la copia del widget en la Mac, sin subir la foto al repositorio. La foto anterior se conserva para futuras actualizaciones.
+
+La imagen local existente (`app/assets/salvapantallas.png`) se conserva byte por byte y vuelve al detener el video. No se cambian las preferencias ni las claves del almacenamiento local. No se añaden controles rápidos. Navegador, biblioteca y TV en vivo usan logotipos propios; «ALMA LIVE» identifica las listas y canales internos. El acceso que salía a Smart Hub se retiró de la barra. Las opciones de la barra muestran su nombre al enfocarlas. El menú se inicializa al terminar su HTML, sin esperar al evento de carga de imágenes, y la inicialización está protegida contra llamadas duplicadas. La mejora de tiempo en firmware físico sigue pendiente de medición.
 
 Respaldo anterior: rama local `backup/alma-tv-pre-11`, commit `ac36516e74f9869ed27e6ef927302de9d57462c6` (widget 10.3.0 y control 10.3.6). Los instaladores previos se conservan. Desarrollo 11.0 en `alma-tv/11.0`; sin instalar en la TV.
 

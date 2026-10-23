@@ -1939,3 +1939,39 @@ html.native-live #safe[data-view="livetv"] #view{background:transparent!importan
 html.native-live #live-preview{background:transparent;border-color:rgba(255,255,255,.3)}
 html.native-live #live-status,html.native-live .live-preview-actions{background:rgba(17,24,31,.9)}
 #safe[data-view="saver"] #view{top:0;height:100%;left:0;right:0}
+/* 11.0.1: recognizable local marks and directional top navigation. */
+#nav .nav{position:relative}
+#nav .nav-label{display:none}
+#nav .focus .nav-label{display:block;position:absolute;top:50px;left:-22px;min-width:95px;padding:5px 10px;border-radius:10px;background:#172330;color:#fff;font-size:13px;line-height:18px;text-align:center;white-space:nowrap}
+#nav .icon-livetv{width:32px;height:24px;margin-left:-4px;background:transparent url(assets/logos/livetv.png) no-repeat center;background-size:contain}
+#nav .icon-fullscreen{box-sizing:border-box;border:2px solid currentColor;border-radius:3px;background:none;position:relative}
+#nav .icon-fullscreen:after{content:"";position:absolute;left:5px;right:5px;top:-3px;bottom:-3px;border-top:4px solid #303a44;border-bottom:4px solid #303a44}
+#nav .nav.focus .icon-fullscreen:after{border-color:#fff}
+/* Personal clock capsule and a lower dock; no on-screen key legend. */
+#footer{display:none!important}
+#safe[data-view="home"] #view{top:96px;height:598px}
+#safe[data-view="home"] .home-apps{bottom:0}
+#status{width:190px;height:50px;padding-right:65px;padding-top:10px}
+#status #network{display:none}
+#status #time{font-size:23px;line-height:30px;white-space:nowrap}
+#profile-photo{position:absolute;right:5px;top:5px;width:40px;height:40px;border-radius:50%;background:#397d85;color:#fff;text-align:center;font-size:23px;line-height:40px;background-size:cover;background-position:center 36%;overflow:hidden;border:1px solid rgba(255,255,255,.3);box-sizing:border-box}
+#profile-photo.has-photo span{display:none}
+/* Focus is a faint royal-blue glow, without a white selection frame. */
+.focus,#view .focus,#nav .focus,.app-track .card.app.focus{outline:none!important;box-shadow:0 0 10px 2px rgba(38,62,190,.28)!important;border-color:rgba(38,62,190,.18)!important}
+#view .card.app.focus{border-color:transparent!important}
+#header #nav .nav.focus{background:rgba(28,35,45,.68)!important;color:#ddd!important}
+#header #nav .nav.focus .nav-icon{background-position:0 0}
+#header #nav .nav.focus .icon-livetv{background-position:center}
+#nav .nav.focus .icon-fullscreen:after{border-color:#303a44}
+.pill,.pill.focus{background:rgba(35,45,60,.88)!important;color:#edf1f7!important}
+.card.focus:not(.app){background:rgba(48,52,63,.92)}
+.live-category-grid .live-category-tile.focus{background:#293640}
+.key.focus{background:#424c5d;color:#fff}
+#nav{left:12px}
+.settings-brand{font-size:32px;font-weight:bold;margin:8px 0 22px;color:#f5f5f7;letter-spacing:-1px}
+.settings-brand span{font-size:18px;font-weight:normal;margin-left:5px;letter-spacing:0;color:#b8c5d5}
+/* Six complete cards per visible dock window, with whole-card scrolling. */
+#safe[data-view="home"] .home-apps{left:50%;right:auto;width:1090px;margin-left:-545px;padding:10px 16px 4px}
+.home-apps .app-carousel{width:1056px;padding:8px 0 12px}
+.home-apps .card.app{width:166px;margin-right:12px}
+.home-apps .card.app:last-child{margin-right:0}

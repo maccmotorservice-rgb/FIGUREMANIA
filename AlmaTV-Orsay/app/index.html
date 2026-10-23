@@ -3,7 +3,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <meta name="viewport" content="width=1280, user-scalable=no" />
-    <meta name="alma-build" content="11.0.0" />
+    <meta name="alma-build" content="11.0.1" />
     <title>Alma TV</title>
     <link rel="stylesheet" href="style.css" />
     <script
@@ -30,9 +30,10 @@
     <script type="text/javascript" charset="UTF-8" src="tv-audio.js"></script>
     <script type="text/javascript" charset="UTF-8" src="assets/qrcode.js"></script>
     <script type="text/javascript" charset="UTF-8" src="hub-client.js"></script>
+    <script type="text/javascript" charset="UTF-8" src="assets/profile.js"></script>
     <script type="text/javascript" charset="UTF-8" src="main.js"></script>
   </head>
-  <body onload="Alma.init()" onunload="Alma.destroy()">
+  <body onunload="Alma.destroy()">
     <object id="pluginObjectNNavi" classid="clsid:SAMSUNG-INFOLINK-NNAVI" style="position:absolute;width:0;height:0;visibility:hidden"></object>
     <div id="stage">
       <div id="wallpaper"></div>
@@ -41,10 +42,9 @@
       <div id="video-help" style="display: none">Aceptar: reproducir o pausar · ◀ / ▶: 10 segundos · Volver: reducir</div>
       <div id="safe">
         <header id="header">
-          <div class="brand">alma<span>tv 11.0.0</span></div>
           <nav id="nav"></nav>
           <div id="status">
-            <span id="network">Conexión sin comprobar</span><b id="time"></b>
+            <span id="network">Conexión sin comprobar</span><b id="time"></b><span id="profile-photo" role="img" aria-label="Tu foto de perfil"><span>A</span></span>
           </div>
         </header>
         <main id="view"></main>
@@ -56,10 +56,7 @@
           playsinline
           style="display: none"
         ></video>
-        <footer id="footer">
-          Flechas: mover · Aceptar: abrir · Volver: regresar · Verde: Inicio ·
-          Amarillo: Ajustes
-        </footer>
+        <footer id="footer" aria-hidden="true"></footer>
         <div
           id="dialog"
           role="dialog"
@@ -69,5 +66,6 @@
         <div id="toast" role="status" style="display: none"></div>
       </div>
     </div>
+    <script type="text/javascript">Alma.init();</script>
   </body>
 </html>

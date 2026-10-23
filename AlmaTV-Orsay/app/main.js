@@ -31,6 +31,7 @@ var Alma = (function () {
     generation = 0,
     pending = false,
     rendering = false,
+    initialized = false,
     focusedNode = null,
     lastRenderedView = null,
     heroIndex = 0,
@@ -123,7 +124,7 @@ var Alma = (function () {
   ];
   for (var brandIndex = 0; brandIndex < apps.length; brandIndex++) {
     if (
-      /^(netflix|youtube|prime|disney|apple|max|xbox)$/.test(
+      /^(netflix|youtube|prime|disney|apple|max|xbox|browser|more)$/.test(
         apps[brandIndex].id
       )
     )
@@ -408,7 +409,7 @@ var Alma = (function () {
     "search",
     "apps",
     "media",
-    "hub",
+    "fullscreen",
     "clock",
     "weather",
     "calendar",
@@ -421,7 +422,7 @@ var Alma = (function () {
         "Buscar",
         "Aplicaciones",
         "Multimedia",
-        "Smart Hub",
+        "Pantalla completa",
         "Reloj",
         "Clima",
         "Calendario",
@@ -433,12 +434,12 @@ var Alma = (function () {
         "search",
         "apps",
         "media",
-        "hub",
+        "fullscreen",
         "clock",
         "weather",
         "calendar",
         "timer",
-        "settings", "hub"
+        "settings", "livetv"
       ],
       h = "",
       ids = [];
@@ -448,8 +449,8 @@ var Alma = (function () {
         ids.push(id);
         actions[id] = function () {
           sidebarIndex = i;
-          if (navViews[i] === "hub") {
-            exit();
+          if (navViews[i] === "fullscreen") {
+            fullscreenCurrent();
             return;
           }
           go(navViews[i]);
@@ -459,13 +460,12 @@ var Alma = (function () {
           id +
           '" data-focus="' +
           id +
-          '" class="nav' +
+          '" aria-label="' + esc(names[i]) + '" class="nav' +
           ((state.view === navViews[i] || (state.view==="youtube"&&navViews[i]==="media")) ? " active" : "") +
           '"><span class="nav-icon icon-' +
           icons[i] +
           '"></span>' +
-          names[i] +
-          "</button>";
+          '<span class="nav-label">' + names[i] + '</span></button>';
       })(i);
     }
     el("nav").innerHTML = h;
@@ -506,7 +506,7 @@ var Alma = (function () {
   }
   function updateHero(index) { heroIndex=index; }
   function homeApps() {
-    return apps.concat([{id:"livetv",name:"TV en vivo",detail:"Tus canales y favoritos"}]);
+    return apps.concat([{id:"livetv",name:"Alma TV en vivo",detail:"Tus listas, canales y favoritos dentro de Alma TV",logo:"assets/logos/livetv.png"}]);
   }
   function home() {
     var list=homeApps(),h='<section class="home-apps" aria-label="Aplicaciones"><div class="app-carousel"><div class="row app-track">',ids=[];
@@ -570,7 +570,7 @@ var Alma = (function () {
   }
   function liveTVView(){
     if(liveBrowse)return liveChannelList();
-    var current=AlmaPlayer.snapshot(),h=head("ALMA TV","TV en vivo","");
+    var current=AlmaPlayer.snapshot(),h=head("TUS LISTAS Y CANALES","Alma TV en vivo","");
     h+='<div class="live-lobby"><section class="live-preview-panel"><div id="live-preview" aria-label="Vista previa del canal"><span>Selecciona un canal para comenzar</span></div><p id="live-status" role="status">'+esc(current.live?current.title+" · "+(current.error||current.status):"Selecciona una categoría.")+'</p><div class="live-preview-actions">';
     h+=pill("live-full","Pantalla completa",fullscreenCurrent)+pill("live-home","Reproducir en el inicio",liveAtHome)+pill("live-media","Ver reproductor",function(){go("media");})+'</div></section><section class="live-category-grid" aria-label="Categorías">';
     row(["live-full","live-home","live-media"]);
@@ -714,7 +714,7 @@ var Alma = (function () {
           "PREFERENCIAS",
           "A tu medida",
           "Los ajustes no cambian Smart Hub, las aplicaciones de Samsung ni el firmware."
-        ) + '<div class="grid settings">',
+        ) + '<div class="settings-brand">alma<span>tv 11.0.1</span></div><div class="grid settings">',
       ids = [];
     for (var i = 0; i < items.length; i++) {
       h += button(items[i][0], items[i][1], items[i][2], items[i][3]);
@@ -1659,8 +1659,7 @@ var Alma = (function () {
       for (var homeRow = 0; homeRow < rows.length; homeRow++) if (rows[homeRow][0] === "home-player") { state.row = homeRow; state.col = 0; break; }
     }
     if (!modal) focus();
-    if(state.view==="home")el("footer").innerHTML="◀ / ▶: elegir app · ▼: todas las apps · ▲: pantalla completa · Amarillo: Ajustes";
-    else el("footer").innerHTML="Flechas: mover · Aceptar: abrir · Volver: regresar · Verde: Inicio · Amarillo: Ajustes";
+    el("footer").innerHTML="";
     rendering = false;
     if (youtubeLoaded) updateYoutube();
     if (typeof AlmaHub !== "undefined") AlmaHub.onRender();
@@ -1687,6 +1686,13 @@ var Alma = (function () {
       var parent = target.parentNode;
       while (parent && parent !== el("view")) {
         if (parent.className && /app-carousel/.test(parent.className)) {
+          if(state.view==="home"&&/^app-\d+$/.test(target.id)){
+            var itemIndex=Number(target.id.slice(4)),step=178,start=Math.round(parent.scrollLeft/step);
+            if(itemIndex<start)start=itemIndex;
+            else if(itemIndex>=start+6)start=itemIndex-5;
+            parent.scrollLeft=clamp(start,0,Math.max(0,homeApps().length-6))*step;
+            parent=parent.parentNode;continue;
+          }
           var left = target.offsetLeft;
           if (left < parent.scrollLeft)
             parent.scrollLeft = Math.max(0, left - 4);
@@ -2537,11 +2543,10 @@ var Alma = (function () {
       return true;
     }
     if(!modal&&state.view==="home"&&state.row>0&&k==="down"){go("apps");return true;}
-    if(!modal&&state.view==="home"&&state.row>0&&k==="up"){fullscreenCurrent();return true;}
     if(!modal&&state.row===0){
       if(k==="left"){state.col--;focus();return true;}
       if(k==="right"){state.col++;focus();return true;}
-      if(k==="down"){state.row=1;state.col=0;focus();return true;}
+      if(k==="down"){sidebarIndex=state.col;state.row=1;state.col=0;focus();return true;}
     }
     if (k === "ok") {
       var fn = actions[focusedId()];
@@ -2549,21 +2554,7 @@ var Alma = (function () {
       return true;
     }
     if (!modal && state.row === 0) {
-      if (k === "up") state.col--;
-      if (k === "down") state.col++;
-      if (k === "right" && rows.length > 1) {
-        sidebarIndex = state.col;
-        state.row = 1;
-        state.col = 0;
-      }
-      focus();
-      return true;
-    }
-    if (!modal && k === "left" && state.col === 0) {
-      state.row = 0;
-      state.col = sidebarIndex;
-      focus();
-      return true;
+      focus();return true;
     }
     if (!modal && k === "up" && state.row === 1) {
       state.row = 0;
@@ -2579,6 +2570,8 @@ var Alma = (function () {
     return true;
   }
   A.init = function () {
+    if(initialized)return;
+    initialized=true;
     load();
     apply();
     try {
@@ -2654,6 +2647,7 @@ var Alma = (function () {
     ) {
       el("wallpaper").style.backgroundImage = "url(" + AlmaMedia.saver + ")";
     }
+    if(typeof AlmaProfile!=="undefined"&&/^assets\/profile-photo\.(jpg|png)$/.test(AlmaProfile.image)){el("profile-photo").style.backgroundImage="url("+AlmaProfile.image+")";el("profile-photo").className="has-photo";}
     state.row=1;
     render();
     interval = setInterval(tick, 1000);

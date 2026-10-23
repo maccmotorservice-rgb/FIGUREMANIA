@@ -14,6 +14,7 @@ from urllib.request import urlopen
 from xml.etree import ElementTree as ET
 from zipfile import ZipFile
 from preparar import private_ipv4
+from perfil_widget import personalize
 ROOT=Path(__file__).resolve().parent
 
 def osa(script,*args):
@@ -40,6 +41,14 @@ def main():
         route.connect((tv,9));mac=private_ipv4(route.getsockname()[0])
     subprocess.run([sys.executable,str(ROOT/'configurar_puente_mac.py'),'--bind',mac,'--tv',tv],check=True)
     saved.parent.mkdir(parents=True,exist_ok=True);saved.write_text(json.dumps({'tv':tv,'mac':mac}))
+    if selection!='Recuperar Alma TV 8.7':
+        try:
+            personalize(ROOT)
+            photo=osa('POSIX path of (choose file with prompt "Elige tu foto de perfil para Alma TV (JPG o PNG). Cancelar conserva la anterior." of type {"public.jpeg", "public.png"})')
+            personalize(ROOT,photo)
+        except subprocess.CalledProcessError as error:
+            if 'User canceled' not in str(error.stderr) and '-128' not in str(error.stderr):
+                raise
     source=ROOT/'servidor'
     if selection=='Recuperar Alma TV 8.7':source=ROOT/'respaldo/8.7.0'
     manifest=json.loads((source/'manifest.json').read_text());archive=source/'Widget'/manifest['archive']
