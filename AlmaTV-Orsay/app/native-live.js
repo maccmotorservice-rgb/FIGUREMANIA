@@ -52,16 +52,16 @@ var AlmaNativeLive = (function(){
       changed();return true;
     }catch(error){fail(String(error.message||error));return false;}
   }
-  function layout(rect,visible,full){
+  function layout(rect,visible,full,format){
     if(!player)return;
     // Native video is below the HTML plane. Opaque screensaver/dialog paint hides
     // it without pausing audio or repeatedly changing the native surface.
     mode(true,full);cover(!visible);if(!visible)return;
-    var height=window.innerHeight||720,key=[rect.left,rect.top,rect.width,rect.height,height,videoRatio].join(":");if(key===rectKey)return;
+    var height=window.innerHeight||720,key=[rect.left,rect.top,rect.width,rect.height,height,videoRatio,format].join(":");if(key===rectKey)return;
     var left=Math.max(0,Math.round(rect.left)),top=Math.max(0,Math.round(rect.top)),width=Math.round(rect.width),h=Math.round(rect.height);
     if(!isFinite(left)||!isFinite(top)||!isFinite(width)||!isFinite(h)||width<1||h<1)return;
-    if(width/h>videoRatio){var fittedWidth=Math.round(h*videoRatio);left+=Math.round((width-fittedWidth)/2);width=fittedWidth;}
-    else{var fittedHeight=Math.round(width/videoRatio);top+=Math.round((h-fittedHeight)/2);h=fittedHeight;}
+    if(format!=="stretch"&&width/h>videoRatio){var fittedWidth=Math.round(h*videoRatio);left+=Math.round((width-fittedWidth)/2);width=fittedWidth;}
+    else if(format!=="stretch"){var fittedHeight=Math.round(width/videoRatio);top+=Math.round((h-fittedHeight)/2);h=fittedHeight;}
     try{rectKey=key;player.style.left=left+"px";player.style.top=top+"px";player.style.width=width+"px";player.style.height=h+"px";player.Execute("SetDisplayArea",left,top,width,h,height);}catch(error){fail("Samsung no pudo colocar la imagen del canal.");}
   }
   function stop(paused){release(true);value={status:paused?"En pausa":"Detenido",error:"",playing:false,time:0};changed();}

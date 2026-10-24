@@ -1,3 +1,13 @@
+## 11.1.10 · Formato de imagen por canal
+
+Validación 11.1.10: 74 pruebas Python aprobadas; de 121 pruebas de navegador, 120 aprobaron inicialmente y la restante aprobó tras actualizar su expectativa del número de versión. Comprobación ES5, compilación e integridad de ambos ZIP verificadas.
+
+En TV en vivo, reproduce un canal y pulsa **Formato de imagen**. **Original** conserva sus proporciones; **Estirar a 16:9** llena el área del video y puede deformar la imagen. Se guarda por identificador del canal en la TV y se aplica sin reiniciar la señal, también en Inicio, Multimedia y pantalla completa. Cada canal conserva una elección independiente después de cerrar la app. Las señales HTML5 ofrecen además **Zoom 16:9**, que recorta sin deformar; Samsung HLS no ofrece Zoom en esta versión.
+
+El mando web permite pulsar este botón en **Vista TV**. Requiere instalar y sincronizar el widget 11.1.10; no cambia las listas M3U ni los favoritos. Este ajuste no elimina barras negras que la emisora haya incorporado dentro del propio video.
+
+Samsung documenta la colocación del video Orsay con `SetDisplayArea` en [TOAST mediaProxy](https://github.com/Samsung/cordova-plugin-toast/blob/master/src/sectv-orsay/mediaProxy.js). El modo Estirar usa el rectángulo 16:9 completo en lugar de reducirlo según la proporción de la fuente. No abre un reproductor adicional ni cambia el audio. La respuesta visual final debe comprobarse en el Samsung físico.
+
 # Alma TV 11.1.9 · TV en vivo rediseñada e iconos adaptados
 
 TV en vivo presenta una previsualización grande a la izquierda y categorías plateadas en dos columnas a la derecha. Los símbolos locales distinguen todos los canales, favoritos y géneros; las categorías adicionales siguen disponibles al desplazarse con las flechas. El selector conserva su brillo azul tenue. La vista de canales usa filas anchas translúcidas con nombre, región/categoría, Favorito y Organizar, sin logos de canales.

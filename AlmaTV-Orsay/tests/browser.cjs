@@ -45,7 +45,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="11.1.9"'))
+      if (!html.includes('name="alma-build" content="11.1.10"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -130,7 +130,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio 11: dock de logos, abajo abre biblioteca y Atrás restaura Inicio", async () => {
-  assert.equal(await page.locator('meta[name="alma-build"]').getAttribute("content"),"11.1.9");
+  assert.equal(await page.locator('meta[name="alma-build"]').getAttribute("content"),"11.1.10");
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   assert.equal(await page.locator(".home-apps .app").count(),17);
   assert.equal(await page.locator(".focus").getAttribute("id"),"app-0");
@@ -1923,7 +1923,7 @@ test('11.1.9: selector azul tenue sin marco blanco y marca solo en Ajustes',asyn
  const focus=await page.locator('.focus').evaluate(n=>{const s=getComputedStyle(n);return {outline:s.outlineStyle,shadow:s.boxShadow,color:s.backgroundColor};});
  assert.equal(focus.outline,'none');assert.match(focus.shadow,/38, 62, 190/);assert.match(focus.shadow,/0\.28/);
  await key(38);assert.equal(await page.locator('.focus').evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(28, 35, 45, 0.68)');
- await go('settings');assert.match(await page.locator('.settings-brand').innerText(),/alma.*tv 11\.1\.9/);
+ await go('settings');assert.match(await page.locator('.settings-brand').innerText(),/alma.*tv 11\.1\.10/);
  await go('home');await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
@@ -2148,4 +2148,30 @@ test('11.1.9: cuatro iconos llenan la tarjeta y las categorías adicionales son 
  }
  await shot('alma11-9-iconos');await page.evaluate(()=>Alma.go('livetv'));for(let i=0;i<6;i++)await key(40);
  assert.ok(await page.locator('.live-category-grid').evaluate(n=>n.scrollTop>0));assert.deepEqual(errors,[]);
+});
+
+test('Formato por canal: Samsung 1:1 pasa a 16:9 sin reiniciar y se conserva en Inicio y al recargar',async()=>{
+ await samsungLiveFixture();await go('livetv');await click('live-capital21');
+ await page.evaluate(()=>{const p=document.getElementById('alma-live-player'),old=p.Execute;p.Execute=function(command,...args){return command==='GetVideoResolution'?'720|720':old.call(this,command,...args);};p.OnEvent(9,0);});
+ await click('live-home');assert.deepEqual(await page.evaluate(()=>liveCalls.filter(c=>c[1]==='SetDisplayArea').at(-1).slice(2)),[280,0,720,720,720]);
+ const starts=await page.evaluate(()=>liveCalls.filter(c=>c[1]==='StartPlayback').length);
+ await page.evaluate(()=>Alma.go('livetv'));await click('live-format');assert.match(await page.locator('#dialog').innerText(),/Zoom no está disponible/);await click('dialog-1');
+ assert.equal(await page.evaluate(()=>AlmaPlayer.liveFormat()),'stretch');await click('live-home');
+ assert.deepEqual(await page.evaluate(()=>liveCalls.filter(c=>c[1]==='SetDisplayArea').at(-1).slice(2)),[0,0,1280,720,720]);
+ assert.equal(await page.evaluate(()=>liveCalls.filter(c=>c[1]==='StartPlayback').length),starts);
+ await go('livetv');await click('live-canalonce');assert.equal(await page.evaluate(()=>AlmaPlayer.liveFormat()),'original');
+ await go('livetv');await click('live-capital21');assert.equal(await page.evaluate(()=>AlmaPlayer.liveFormat()),'stretch');
+ await page.reload();await samsungLiveFixture();await go('livetv');await click('live-capital21');assert.equal(await page.evaluate(()=>AlmaPlayer.liveFormat()),'stretch');
+ await click('live-format');await click('dialog-0');assert.equal(await page.evaluate(()=>AlmaPlayer.liveFormat()),'original');assert.deepEqual(errors,[]);
+});
+
+test('Formato HTML5: Zoom, estirar y original cambian la imagen sin reemplazar el video',async()=>{
+ const stream='https://streams.example.org/aspect.mp4';await page.route(stream,r=>r.fulfill({contentType:'video/mp4',body:fs.readFileSync(path.join(ROOT,'tests/fixtures/video-prueba.mp4'))}));
+ await page.evaluate(url=>{AlmaLiveTV[0].url=url;Alma.go('livetv');},stream);await click('live-section-0');await click('live-capital21');await page.waitForFunction(()=>AlmaPlayer.snapshot().playing);
+ await page.locator('#media-video').evaluate(n=>{n.loop=true;n.dataset.aspect='same';});
+ for(const [button,fit] of [[2,'cover'],[1,'fill'],[0,'contain']]){
+  await click('live-format');await click('dialog-'+button);assert.equal(await page.locator('#media-video').evaluate(n=>getComputedStyle(n).objectFit),fit);
+  await click('live-home');assert.equal(await page.locator('#media-video').getAttribute('data-aspect'),'same');assert.equal(await page.locator('#media-video').evaluate(n=>getComputedStyle(n).objectFit),fit);await page.evaluate(()=>Alma.go('livetv'));
+ }
+ assert.deepEqual(errors,[]);
 });

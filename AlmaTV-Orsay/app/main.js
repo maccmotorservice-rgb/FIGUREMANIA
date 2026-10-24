@@ -514,7 +514,7 @@ var Alma = (function () {
     if(inHome&&videoFull)fullscreenVideo(false);
     closeYoutube();
     AlmaPlayer.pause();
-    var channel=AlmaLiveTV[index];AlmaPlayer.setTracks([{name:channel.name,url:channel.url,kind:"video",live:true}]);
+    var channel=AlmaLiveTV[index];AlmaPlayer.setTracks([{id:channel.id,name:channel.name,url:channel.url,kind:"video",live:true}]);
     AlmaPlayer.play(0);liveBrowse=false;go(inHome?"home":"livetv");
   }
   var livePage=0,liveFavoritesOnly=false,liveCategory="",liveBrowse=false;
@@ -529,14 +529,23 @@ var Alma = (function () {
     var icons={"Deportes":"sports","Entretenimiento":"entertainment","Películas":"movies","Series":"series","Documentales":"documentaries","Noticias":"news","Streaming":"streaming"};
     return icons[name]||"folder";
   }
+  function chooseLiveFormat(){
+    var current=AlmaPlayer.snapshot();if(!current.live||current.index<0){notice("Selecciona un canal primero.");return;}
+    var options=[{value:"original",label:"Original · sin deformar"},{value:"stretch",label:"Estirar a 16:9 · llena la pantalla"}];
+    if(!current.native)options.push({value:"zoom",label:"Zoom 16:9 · recorta arriba y abajo"});
+    var selected=AlmaPlayer.liveFormat(),buttons=[];
+    options.forEach(function(option){buttons.push({label:(option.value===selected?"✓ ":"")+option.label,action:function(){closeDialog();AlmaPlayer.setLiveFormat(option.value);notice("Formato guardado para este canal.");}});});
+    buttons.push({label:"Cancelar",action:closeDialog});
+    showDialog("Formato de imagen",current.native?"Original conserva las proporciones. Estirar llena 16:9 y ensancha la imagen. Se guarda por canal; Zoom no está disponible en Samsung HLS.":"Original conserva las proporciones; Estirar deforma y Zoom recorta. Se guarda por canal.",buttons);
+  }
   function liveToggle(){var current=AlmaPlayer.snapshot();if(!current.live||current.index<0){notice("Selecciona un canal primero.");return;}AlmaPlayer.toggle();}
   function liveStop(){var current=AlmaPlayer.snapshot();if(!current.live||current.index<0){notice("Selecciona un canal primero.");return;}AlmaPlayer.stop();}
   function liveTVView(){
     if(liveBrowse)return liveChannelList();
     var current=AlmaPlayer.snapshot(),h=head("TUS LISTAS Y CANALES","Alma TV en vivo","");
     h+='<div class="live-lobby"><section class="live-preview-panel"><div class="live-preview-frame"><div id="live-preview" aria-label="Vista previa del canal"><span>Selecciona un canal para comenzar</span></div></div><div class="live-preview-meta"><p id="live-status" role="status">'+esc(current.live?current.title+" · "+(current.error||current.status):"Selecciona una categoría.")+'</p><div class="live-preview-actions">';
-    h+=pill("live-full","Pantalla completa",fullscreenCurrent)+pill("live-home","Reproducir en el inicio",liveAtHome)+pill("live-toggle",current.playing?"Pausar":"Reproducir",liveToggle)+pill("live-stop","Detener",liveStop)+pill("live-media","Ver reproductor",function(){go("media");})+'</div></div></section><section class="live-category-grid" aria-label="Categorías">';
-    row(["live-full","live-home","live-toggle","live-stop","live-media"]);
+    h+=pill("live-full","Pantalla completa",fullscreenCurrent)+pill("live-home","Reproducir en el inicio",liveAtHome)+pill("live-toggle",current.playing?"Pausar":"Reproducir",liveToggle)+pill("live-stop","Detener",liveStop)+pill("live-format","Formato de imagen",chooseLiveFormat)+pill("live-media","Ver reproductor",function(){go("media");})+'</div></div></section><section class="live-category-grid" aria-label="Categorías">';
+    row(["live-full","live-home","live-toggle","live-stop","live-format","live-media"]);
     var categories=[{name:"Todos los canales",symbol:"all",favorite:false,value:""},{name:"Favoritos",symbol:"favorites",favorite:true,value:""}];
     AlmaHub.liveCategories().forEach(function(c){categories.push({name:c,symbol:liveCategoryIcon(c),favorite:true,value:c});});
     categories.push({name:"Sin categoría",symbol:"folder",favorite:true,value:"__none"});
@@ -553,7 +562,7 @@ var Alma = (function () {
     var list=AlmaLiveTV.filter(function(c){return !liveFavoritesOnly||(c.favorite===true&&(!liveCategory||(liveCategory==="__none"?!c.category:c.category===liveCategory)));});
     livePage=Math.min(livePage,Math.max(0,Math.ceil(list.length/12)-1));
     var current=AlmaPlayer.snapshot(),h=head("CANALES · TV EN VIVO",liveFavoritesOnly?"Favoritos"+(liveCategory?" · "+(liveCategory==="__none"?"Sin categoría":liveCategory):""):"Todos los canales","");
-    h+='<div class="live-controls">'+pill("live-full","Pantalla completa",fullscreenCurrent)+pill("live-home","Reproducir en el inicio",liveAtHome)+pill("live-media","Ver reproductor",function(){go("media");})+pill("live-retry","Reintentar canal",function(){if(current.live)AlmaPlayer.play(current.index);else notice("Elige primero un canal.");})+pill("live-lobby","Volver a categorías",function(){liveBrowse=false;state.row=1;state.col=0;render();})+'</div>';row(["live-full","live-home","live-media","live-retry","live-lobby"]);
+    h+='<div class="live-controls">'+pill("live-full","Pantalla completa",fullscreenCurrent)+pill("live-home","Reproducir en el inicio",liveAtHome)+pill("live-format","Formato de imagen",chooseLiveFormat)+pill("live-media","Ver reproductor",function(){go("media");})+pill("live-retry","Reintentar canal",function(){if(current.live)AlmaPlayer.play(current.index);else notice("Elige primero un canal.");})+pill("live-lobby","Volver a categorías",function(){liveBrowse=false;state.row=1;state.col=0;render();})+'</div>';row(["live-full","live-home","live-format","live-media","live-retry","live-lobby"]);
     h+='<div class="live-filter">'+pill("live-all","Todos",function(){liveFavoritesOnly=false;liveCategory="";livePage=0;render();})+pill("live-favorites","★ Favoritos",function(){liveFavoritesOnly=true;liveCategory="";livePage=0;render();})+pill("live-category","Categorías",function(){
       var categories=["", "__none"].concat(AlmaHub.liveCategories()),buttons=[];categories.forEach(function(category){buttons.push({label:category==="__none"?"Sin categoría":category||"Todos los favoritos",action:function(){closeDialog();liveFavoritesOnly=true;liveCategory=category;livePage=0;render();}});});buttons.push({label:"Cancelar",action:closeDialog});liveDialog("Categorías de favoritos",buttons);
     })+'</div>';row(["live-all","live-favorites","live-category"]);
@@ -677,7 +686,7 @@ var Alma = (function () {
           "PREFERENCIAS",
           "A tu medida",
           "Los ajustes no cambian Smart Hub, las aplicaciones de Samsung ni el firmware."
-        ) + '<div class="settings-brand">alma<span>tv 11.1.9 experimental</span></div><div class="grid settings">',
+        ) + '<div class="settings-brand">alma<span>tv 11.1.10 experimental</span></div><div class="grid settings">',
       ids = [];
     for (var i = 0; i < items.length; i++) {
       h += button(items[i][0], items[i][1], items[i][2], items[i][3]);
@@ -1333,6 +1342,7 @@ var Alma = (function () {
   function updatePlayer() {
     if (typeof AlmaPlayer === "undefined") return;
     var player = AlmaPlayer.snapshot();
+    styleIfChanged(el("media-video"),"objectFit",player.live?(AlmaPlayer.liveFormat()==="stretch"?"fill":(AlmaPlayer.liveFormat()==="zoom"?"cover":"contain")):"contain");
     if(!player.native||state.view!=="livetv"||liveBrowse||videoFull)liveWallpaperWindow(null);
     htmlIfChanged(el("live-toggle"),player.playing?"Pausar":"Reproducir");
     htmlIfChanged(el("live-status"),player.live?esc(player.title+" · "+(player.error||player.status)):"Selecciona un canal.");
@@ -1396,7 +1406,7 @@ var Alma = (function () {
         var nativeRect={left:parseFloat(video.style.left)||0,top:parseFloat(video.style.top)||0,width:parseFloat(video.style.width)||1280,height:parseFloat(video.style.height)||720};
         var nativeVisible=state.view!=="saver"&&!modal;
         if(state.view==="media"&&!videoFull){var bounds=el("view").getBoundingClientRect();if(nativeRect.top<bounds.top||nativeRect.top+nativeRect.height>bounds.bottom)nativeVisible=false;}
-        AlmaNativeLive.layout(nativeRect,nativeVisible,videoFull);
+        AlmaNativeLive.layout(nativeRect,nativeVisible,videoFull,AlmaPlayer.liveFormat());
         liveWallpaperWindow(state.view==="livetv"&&!liveBrowse&&!videoFull&&AlmaNativeLive.isOpen()?nativeRect:null);
       }
     }

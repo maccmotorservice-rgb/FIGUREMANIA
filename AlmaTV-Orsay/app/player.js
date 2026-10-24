@@ -13,6 +13,17 @@ var AlmaPlayer = (function () {
   var activeUrl = "", positions = [], lastHistoryWrite = 0, pendingResume = null, stopped = false;
   var chosenLevel = 0.7, chosenMuted = false, nativeMode=false, liveDeadline=null;
   var historyKey = "alma.media.positions.v1";
+  var liveFormats={}, formatKey="alma.live.formats.v1";
+  try { liveFormats=JSON.parse(localStorage.getItem(formatKey)||"{}"); if(!liveFormats||typeof liveFormats!=="object"||Object.prototype.toString.call(liveFormats)==="[object Array]")liveFormats={}; } catch(ignoreFormats){liveFormats={};}
+  function liveFormat(){var track=tracks[index],key=track&&(track.id||track.url);return track&&track.live&&/^(stretch|zoom)$/.test(liveFormats[key])&&!(nativeMode&&liveFormats[key]==="zoom")?liveFormats[key]:"original";}
+  function setLiveFormat(value){
+    if(index<0||!tracks[index]||!tracks[index].live||!/^(original|stretch|zoom)$/.test(value))return false;
+    if(nativeMode&&value==="zoom")return false;
+    liveFormats[tracks[index].id||tracks[index].url]=value;
+    try{localStorage.setItem(formatKey,JSON.stringify(liveFormats));}catch(ignoreSaveFormat){}
+    change();return true;
+  }
+
   function identity(url) {
     var match = String(url || "").match(/\/(?:media|hub)\/file\/([a-f0-9]{16,24})(?:[?#]|$)/i);
     return match ? "mac:" + match[1].toLowerCase() : String(url || "");
@@ -289,6 +300,7 @@ var AlmaPlayer = (function () {
   return {
     init: init,
     setTracks: setTracks,
+    liveFormat: liveFormat, setLiveFormat: setLiveFormat,
     snapshot: snapshot,
     play: play,
     toggle: toggle,
