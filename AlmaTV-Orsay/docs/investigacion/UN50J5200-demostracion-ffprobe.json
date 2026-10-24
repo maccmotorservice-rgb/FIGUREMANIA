@@ -1,0 +1,48 @@
+{
+    "programs": [
+
+    ],
+    "stream_groups": [
+
+    ],
+    "streams": [
+        {
+            "index": 0,
+            "codec_name": "h264",
+            "profile": "Constrained Baseline",
+            "codec_type": "video",
+            "width": 1280,
+            "height": 720,
+            "level": 31,
+            "tags": {
+                "handler_name": "VideoHandler"
+            }
+        },
+        {
+            "index": 1,
+            "codec_name": "aac",
+            "profile": "LC",
+            "codec_type": "audio",
+            "sample_rate": "48000",
+            "channels": 2,
+            "tags": {
+                "handler_name": "Audio_original_de_prueba"
+            }
+        },
+        {
+            "index": 2,
+            "codec_name": "aac",
+            "profile": "LC",
+            "codec_type": "audio",
+            "sample_rate": "48000",
+            "channels": 2,
+            "tags": {
+                "handler_name": "Musica_MP3"
+            }
+        }
+    ],
+    "format": {
+        "duration": "4.000000",
+        "size": "577890"
+    }
+}
