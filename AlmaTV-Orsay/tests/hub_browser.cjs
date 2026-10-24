@@ -211,6 +211,27 @@ test('Panel experimental envía audio adicional sin reemplazar el video principa
  await p.waitForFunction(()=>AlmaBackgroundAudio.snapshot().state===1);assert.equal(await p.locator('#youtube-frame').getAttribute('src'),original);
  assert.equal(await p.evaluate(()=>AlmaYouTube.snapshot().muted),true);
  const after=await(await fetch(base+'/hub/state')).json();assert.equal(after.current.play_id,before.current.play_id);
+ await panel.locator('[data-command="background-pause"]').click();await p.waitForFunction(()=>AlmaBackgroundAudio.snapshot().state===2);assert.equal(await p.evaluate(()=>AlmaYouTube.snapshot().state),1);
+ await panel.locator('[data-command="background-play"]').click();await p.waitForFunction(()=>AlmaBackgroundAudio.snapshot().state===1);
  await panel.locator('[data-command="background-stop"]').click();await p.waitForFunction(()=>!document.getElementById('youtube-audio-frame'));await p.waitForFunction(()=>AlmaYouTube.snapshot().muted===false);
  assert.equal(await p.evaluate(()=>AlmaYouTube.snapshot().state),1);
+});
+
+test('Guía web reproduce directamente en Inicio y vuelve al fondo sin reiniciar el canal',{timeout:20000},async t=>{
+ const p=await tv(t),c=await browser.newContext({viewport:{width:390,height:844}});t.after(()=>c.close());
+ await p.evaluate(()=>{HTMLObjectElement.prototype.Open=function(){return 1;};HTMLObjectElement.prototype.Close=function(){return 1;};HTMLObjectElement.prototype.Execute=function(command){if(command==='GetSource')return 18;if(command==='StartPlayback')this.OnEvent(7,0);return 1;};});
+ const panel=await c.newPage();await panel.goto(base+'/control');await panel.locator('#tabs [data-tab="tv-guide"]').click();
+ await panel.locator('[data-guide-channel="capital21"]').getByRole('button',{name:'Reproducir en Inicio',exact:true}).click();
+ await p.waitForFunction(()=>AlmaPlayer.snapshot().playing&&document.getElementById('safe').getAttribute('data-view')==='home');
+ assert.equal(await p.locator('#stage').getAttribute('data-home-video'),'true');
+ const before=await p.evaluate(()=>AlmaPlayer.snapshot().title);
+ await p.evaluate(()=>Alma.hubControl('fullscreen'));assert.equal(await p.locator('#stage').evaluate(n=>getComputedStyle(n).visibility),'hidden');
+ await panel.locator('#tabs [data-tab="control"]').click();await panel.locator('[data-command="play-home"]').click();
+ await p.waitForFunction(()=>getComputedStyle(document.getElementById('stage')).visibility!=='hidden');
+ await p.evaluate(()=>Alma.go('livetv'));
+ await panel.locator('#tabs [data-tab="control"]').click();await panel.locator('[data-command="play-home"]').click();
+ await p.waitForFunction(()=>document.getElementById('safe').getAttribute('data-view')==='home');
+ assert.equal(await p.evaluate(()=>AlmaPlayer.snapshot().title),before);assert.equal(await p.evaluate(()=>AlmaPlayer.snapshot().playing),true);
+ assert.equal(await panel.locator('[data-command="background-play"]').count(),1);assert.equal(await panel.locator('[data-command="background-pause"]').count(),1);
+ assert.equal(await panel.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
 });

@@ -508,13 +508,14 @@ var Alma = (function () {
     if (ids.length) row(ids);
     return h + "</div>";
   }
-  function playLive(id){
+  function playLive(id,inHome){
     var index=-1;for(var i=0;i<AlmaLiveTV.length;i++)if(AlmaLiveTV[i].id===id)index=i;
     if(index<0)throw new Error("Canal no disponible");
+    if(inHome&&videoFull)fullscreenVideo(false);
     closeYoutube();
     AlmaPlayer.pause();
     var channel=AlmaLiveTV[index];AlmaPlayer.setTracks([{name:channel.name,url:channel.url,kind:"video",live:true}]);
-    AlmaPlayer.play(0);liveBrowse=false;go("livetv");
+    AlmaPlayer.play(0);liveBrowse=false;go(inHome?"home":"livetv");
   }
   var livePage=0,liveFavoritesOnly=false,liveCategory="",liveBrowse=false;
   function liveDialog(title,buttons){showDialog(title,"Tú decides cómo organizar tus canales.",buttons);el("dialog").className="live-organizer";rows=[];for(var i=0;i<buttons.length;i+=3){var ids=[];for(var j=i;j<Math.min(i+3,buttons.length);j++)ids.push("dialog-"+j);row(ids);}focus();}
@@ -670,7 +671,7 @@ var Alma = (function () {
           "PREFERENCIAS",
           "A tu medida",
           "Los ajustes no cambian Smart Hub, las aplicaciones de Samsung ni el firmware."
-        ) + '<div class="settings-brand">alma<span>tv 11.1.1 experimental</span></div><div class="grid settings">',
+        ) + '<div class="settings-brand">alma<span>tv 11.1.2 experimental</span></div><div class="grid settings">',
       ids = [];
     for (var i = 0; i < items.length; i++) {
       h += button(items[i][0], items[i][1], items[i][2], items[i][3]);
@@ -1034,7 +1035,7 @@ var Alma = (function () {
     host.style.width = ""; host.style.height = "";
     updateYoutube();
   }
-  var backgroundAudio=null,backgroundAudioTimer=null,backgroundAudioStatus="Desactivado";
+  var backgroundAudio=null,backgroundAudioTimer=null,backgroundAudioStatus="Desactivado",lastBackgroundAudioId="";
   function stopBackgroundAudio(restore,message){
     backgroundAudio=null;clearTimeout(backgroundAudioTimer);backgroundAudioTimer=null;
     AlmaBackgroundAudio.close();
@@ -1050,8 +1051,10 @@ var Alma = (function () {
     htmlIfChanged(el("background-audio-status"),esc(backgroundAudioStatus));
     if(value.failed||value.finished){stopBackgroundAudio(true,value.failed?"La prueba de audio no pudo continuar: "+value.status:"El audio adicional terminó.");return;}
     AlmaBackgroundAudio.resize(384,240);
-    AlmaBackgroundAudio.present(true,false);
-    if(value.ready&&!backgroundAudio.sent){backgroundAudio.sent=true;AlmaBackgroundAudio.send("play");}
+    styleIfChanged(el("youtube-audio-host"),"left",value.ready?"-10000px":"0px");
+    styleIfChanged(el("youtube-audio-host"),"top",value.ready?"-10000px":"0px");
+    AlmaBackgroundAudio.present(!value.ready,false);
+    if(value.ready&&!backgroundAudio.sent&&backgroundAudio.wantPlay){backgroundAudio.sent=true;AlmaBackgroundAudio.send("play");}
     if(value.state===1&&!backgroundAudio.levelApplied){backgroundAudio.levelApplied=true;AlmaBackgroundAudio.level(prefs.appVolume,prefs.appMuted);}
   }
   function startBackgroundAudio(id){
@@ -1059,13 +1062,15 @@ var Alma = (function () {
     if(!/^[A-Za-z0-9_-]{11}$/.test(id))throw new Error("Enlace de YouTube no válido.");
     if(!youtubeLoaded||youtubeAudioOnly||!youtubeSelection||youtubeSelection.provider==="dailymotion"||principal.state!==1||principal.failed)throw new Error("Primero reproduce un video de YouTube como fondo. Esta prueba necesita ese video activo.");
     stopBackgroundAudio(false);
-    backgroundAudio={id:id,deadline:new Date().getTime()+5000,sent:false,levelApplied:false};backgroundAudioStatus="Comprobando silencio del video principal…";
+    lastBackgroundAudioId=id;
+    backgroundAudio={wantPlay:true,id:id,deadline:new Date().getTime()+5000,sent:false,levelApplied:false};backgroundAudioStatus="Comprobando silencio del video principal…";
     go("home");
     AlmaYouTube.level(prefs.appVolume,true);
     function waitForMute(){
       if(!backgroundAudio)return;
       if(AlmaYouTube.snapshot().muted===true){
         backgroundAudioStatus="Conectando el audio adicional…";
+        styleIfChanged(el("youtube-audio-host"),"left","0px");styleIfChanged(el("youtube-audio-host"),"top","0px");
         try{AlmaBackgroundAudio.open(el("youtube-audio-host"),prefs.macIp,id,updateBackgroundAudio,"youtube",false);}
         catch(error){stopBackgroundAudio(true,"No se pudo abrir la sesión adicional: "+String(error.message||error));}return;
       }
@@ -1073,6 +1078,20 @@ var Alma = (function () {
       backgroundAudioTimer=setTimeout(waitForMute,100);
     }
     waitForMute();
+  }
+  function controlBackgroundAudio(play){
+    if(!backgroundAudio){
+      if(play&&lastBackgroundAudioId){startBackgroundAudio(lastBackgroundAudioId);return;}
+      throw new Error("Primero envía un enlace como audio en segundo plano.");
+    }
+    backgroundAudio.wantPlay=play;
+    if(AlmaBackgroundAudio.snapshot().ready){
+      if(play)backgroundAudio.sent=true;
+      AlmaBackgroundAudio.send(play?"play":"pause");
+    }else{
+      backgroundAudioStatus=play?"Esperando a que el audio esté listo…":"Audio pausado mientras termina de cargar.";
+      htmlIfChanged(el("background-audio-status"),esc(backgroundAudioStatus));
+    }
   }
   function closeYoutube() {
     stopBackgroundAudio(false);
@@ -1250,8 +1269,8 @@ var Alma = (function () {
     var isDM=youtubeSelection && youtubeSelection.provider==="dailymotion";
     h += '</div><div class="youtube-options">' + (isDM?"":pill("youtube-native", "Abrir app de YouTube", function () { launch(apps[1]); })) + pill("youtube-return", "Volver a Multimedia", function () { if (!AlmaYouTube.snapshot().ready) closeYoutube(); go("media"); }) + '</div>';
     row(isDM?["youtube-return"]:["youtube-native", "youtube-return"]);
-    h+='<section class="background-audio-test"><p>Prueba experimental: audio de otro YouTube. El video principal queda silenciado.</p><p id="background-audio-status">'+esc(backgroundAudioStatus)+'</p>'+pill("background-audio-stop","Detener audio adicional",function(){stopBackgroundAudio(true);})+'</section>';
-    row(["background-audio-stop"]);
+    h+='<section class="background-audio-test"><p>Prueba experimental: audio de otro YouTube. El video principal queda silenciado.</p><p id="background-audio-status">'+esc(backgroundAudioStatus)+'</p>'+pill("background-audio-play","Reproducir audio experimental",function(){controlBackgroundAudio(true);})+pill("background-audio-pause","Pausar audio experimental",function(){controlBackgroundAudio(false);})+pill("background-audio-stop","Detener audio adicional",function(){stopBackgroundAudio(true);})+'</section>';
+    row(["background-audio-play","background-audio-pause","background-audio-stop"]);
     return h;
   }
   function youtubeHidden() {
@@ -2697,6 +2716,7 @@ var Alma = (function () {
   A.hubControl = function(action,seconds,view) {
     if(action==="background-audio"){startBackgroundAudio(view);return;}
     if(action==="background-stop"){stopBackgroundAudio(true);return;}
+    if(action==="background-play"||action==="background-pause"){controlBackgroundAudio(action==="background-play");return;}
     var remoteKeys={up:38,down:40,left:37,right:39,ok:13,back:88};
     if(remoteKeys[action]){key(remoteKeys[action]);return;}
     if(action==="navigate"){
@@ -2706,6 +2726,13 @@ var Alma = (function () {
       sidebarIndex=Math.max(0,navViews.indexOf(view));go(view);return;
     }
     if(action==="live-channel"){playLive(view);return;}
+    if(action==="live-channel-home"){playLive(view,true);return;}
+    if(action==="play-home"){
+      if(youtubeFull)youtubeFullscreen(false);if(videoFull)fullscreenVideo(false);
+      if(youtubeLoaded){if(AlmaYouTube.snapshot().state===2)AlmaYouTube.send("play");}
+      else{var currentHome=AlmaPlayer.snapshot();if(currentHome.index>=0&&!currentHome.playing&&currentHome.status==="En pausa")AlmaPlayer.play();}
+      go("home");return;
+    }
     if(action==="fullscreen"){
       if(youtubeLoaded)youtubeFullscreen(!youtubeFull);
       else if(AlmaPlayer.snapshot().kind==="video"&&AlmaPlayer.snapshot().index>=0)fullscreenVideo(!videoFull);

@@ -1,3 +1,17 @@
+# Alma TV 11.1.2 · Control de audio experimental y reproducción en Inicio
+
+El control web incorpora Reproducir audio experimental, Pausar audio experimental y Detener audio adicional. Estos botones controlan solo la segunda sesión; el principal conserva su reproducción y permanece silenciado hasta detener el audio adicional. Reproducir permite reintentar el último enlace si la sesión falló. Una pausa solicitada durante la carga impide el inicio automático hasta pulsar Reproducir.
+
+Se cambia la secuencia de inicialización: el segundo YT.Player se construye vacío, sin videoId. Después de Ready se ocultan su superficie y su iframe exterior, y solo entonces se envía loadVideoById. Así se evita cargar una señal en el recuadro de inicialización. Este cambio responde al recuadro y fondo negro observados en el Samsung; la solución de reproducción simultánea sigue pendiente de comprobación física y no se da por confirmada con pruebas simuladas.
+
+Reproducir en Inicio está disponible para el contenido actual, para enviar enlaces de YouTube y por cada canal de la guía. El contenido actual conserva su sesión; se reduce pantalla completa y vuelve al menú. En la guía, la orden selecciona directamente el canal y abre Inicio, sin pasar por la pantalla de Alma Live. Las órdenes de selección pendientes se reemplazan por la última para evitar que una selección anterior vuelva a abrir el reproductor.
+
+Validación: regresión de 107 pruebas de interfaz y 71 Python; tras ajustar la ocultación final se repitieron seis pruebas de audio y dos del control web, todas correctas. Incluyen pausa/reanudación independiente, iframe vacío hasta Ready, ocultación antes de cargar, prioridad de sonido y reproducción de canales en Inicio desde celular. ES5, build y paquetes verificados.
+
+Instalador: `instaladores/AlmaTV-11.1.2-instalador.zip`. Requiere actualizar la Mac, sincronizar aplicaciones en la TV, comprobar 11.1.2 experimental en Configuración y recargar la página del control. La 11.0.3 estable y su recuperación local permanecen intactas.
+
+---
+
 # Alma TV 11.1.1 · Corrección del arranque del audio adicional
 
 La 11.1.0 podía iniciar el segundo iframe fuera de pantalla, dentro de la capa escalada del menú, y ocultar su superficie antes de recibir Ready. La corrección lo mueve al body, sin transformación, con un área de 384×240 y dentro del viewport. El principal se mantiene por encima y conserva la única imagen visible. Al iniciar el audio adicional se vuelve a Inicio sin cambiar el video principal. El segundo iframe permanece renderizable y no recibe una orden prematura de ocultarse.

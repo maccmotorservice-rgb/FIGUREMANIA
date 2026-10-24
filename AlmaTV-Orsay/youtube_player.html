@@ -143,11 +143,11 @@
   window.onYouTubeIframeAPIReady = function () {
     try {
       if(config.background)tell("loading","YT-API: API descargada; creando segundo reproductor.");
-      player = new YT.Player("player", {
-        width: "100%", height: "100%", videoId: config.video,
+      var options = {
+        width: "100%", height: "100%",
         playerVars: { controls: 1, autoplay: 0, playsinline: 1, fs: 1, origin: window.location.protocol + "//" + window.location.host },
         events: {
-          onReady: function () { ready = true; fittedWidth = 0; fittedHeight = 0; fit();
+          onReady: function () { ready = true; if(config.background)loadRequested=true; fittedWidth = 0; fittedHeight = 0; fit();
             if(config.autoplay===true){
               // One bounded recovery if the legacy decoder ignored its first order.
               startAutomatic();
@@ -164,7 +164,9 @@
           onError: function (e) { failure(e.data); },
           onAutoplayBlocked: function () { automaticWanted=false;clearTimeout(automaticTimer);clearTimeout(watchdog); var text = "YT-ACTIVACION: YouTube bloque\u00f3 el inicio autom\u00e1tico y requiere una interacci\u00f3n directa con su reproductor."; tell("status", text, -1); report("blocked", text); }
         }
-      });
+      };
+      if(!config.background)options.videoId=config.video;
+      player = new YT.Player("player", options);
     } catch (e) { tell("error", "El navegador no pudo iniciar el reproductor oficial de YouTube.", -1); report("error", "El navegador no pudo iniciar el reproductor oficial de YouTube."); }
   };
   window.addEventListener("message", function (event) {

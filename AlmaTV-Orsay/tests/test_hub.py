@@ -164,3 +164,13 @@ class BackgroundAudioControlTests(unittest.TestCase):
                 hub.mutate({'action':'background-audio','youtube':'https://dai.ly/x84sh87'},'owner',target)
             hub.mutate({'action':'control','command':'background-stop'},'owner',target)
             self.assertEqual(hub.tv(target)['commands'][-1]['action'],'background-stop')
+
+    def test_home_playback_and_experimental_controls_are_owner_only_and_latest_channel_wins(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            hub=Hub(tmp,'127.0.0.3');target='127.0.0.3'
+            for command in ('background-play','background-pause','play-home','live-channel-home'):
+                with self.assertRaises(PermissionError):hub.mutate({'action':'control','command':command,'view':'capital21'},'guest',target)
+            hub.mutate({'action':'control','command':'live-channel','view':'capital21'},'owner',target)
+            hub.mutate({'action':'control','command':'live-channel-home','view':'capital21'},'owner',target)
+            selections=[c for c in hub.tv(target)['commands'] if c.get('action') in ('live-channel','live-channel-home')]
+            self.assertEqual(len(selections),1);self.assertEqual(selections[0]['action'],'live-channel-home')
