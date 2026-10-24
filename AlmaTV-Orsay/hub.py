@@ -193,6 +193,8 @@ class Hub:
                     if len(channel['queue'])>=100:raise ValueError('La cola admite hasta 100 elementos.')
                     channel['queue'].append(item);self.save()
             elif action=='music':
+                if 'music_active' not in self.channel(target)['telemetry']:
+                    raise ValueError('La TV no ha confirmado la función MP3 sobre fondo. Abre Alma TV 11.1.6 o posterior y comprueba la sincronización y la conexión.')
                 item=self.item(data)
                 if item['kind']!='audio' or not item.get('path','').startswith(('/hub/file/','/media/file/')):
                     raise ValueError('Elige un archivo de música local de tu biblioteca.')

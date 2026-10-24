@@ -184,6 +184,9 @@ class BackgroundMusicTests(unittest.TestCase):
                 {'id':'b'*24,'kind':'video','name':'Video','filename':'movie.mp4'},
                 {'id':'c'*24,'kind':'audio','name':'Remoto','url':'https://example.com/music.mp3'}])
             channel=hub.channel(target);channel['current']={'name':'Video principal','play_id':'principal'}
+            with self.assertRaisesRegex(ValueError,'no ha confirmado'):
+                hub.mutate({'action':'music','source':'a'*24},'owner',target)
+            channel['telemetry']={'music_active':False}
             hub.mutate({'action':'music','source':'a'*24},'owner',target)
             command=hub.tv(target)['commands'][-1]
             self.assertEqual((command['kind'],command['item']['kind'],command['item']['path']),('music','audio','/hub/file/'+'a'*24))

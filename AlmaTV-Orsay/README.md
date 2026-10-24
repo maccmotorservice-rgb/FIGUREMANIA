@@ -1,3 +1,19 @@
+# Alma TV 11.1.7 · Carga explícita de MP3 y diagnóstico visible en Biblioteca
+
+La ruta nueva de MP3 omitía load antes de play, a diferencia del reproductor normal. Ahora llama load explícitamente después de configurar el archivo. También tolera un rechazo del ajuste de volumen, como el reproductor normal, y sigue intentando reproducir: muestra un aviso para usar el volumen de la TV. Un rechazo del silencio independiente detiene el intento para evitar sonido simultáneo no controlado.
+
+La música deja de quedarse cargando indefinidamente. Si no se confirma el inicio en 15 segundos, se pausa el intento y se muestran readyState y networkState; el video conserva su sesión y su política de sonido. Pausar, cerrar, terminar y fallar cancelan la espera. El estado de música aparece también arriba de Biblioteca, cerca del botón que la envía, en lugar de depender de entrar en Control.
+
+El aviso sobre FFmpeg es información general de conversión y no indica que un MP3 compatible necesite conversión. La ruta MP3 adicional continúa sirviendo el archivo original. El puente comprueba que la TV haya reportado la capacidad de música adicional antes de aceptar la orden: una TV anterior ya no la ignora silenciosamente.
+
+El usuario confirmó 11.1.6 instalada y reproducción individual correcta. No contamos todavía con el estado del intento de música adicional en su TV. Estas diferencias de implementación son verificables; no se afirma haber determinado cuál ocasionó su fallo ni que el Samsung ya reproduzca ambos contenidos simultáneamente.
+
+Validación: cinco pruebas de navegador para MP3 (incluyen carga explícita, rechazo de volumen y límite de espera), una prueba del panel con subida real del archivo y 72 Python correctas. ES5, build e integridad de widget/instalador verificados.
+
+Instalador: `instaladores/AlmaTV-11.1.7-instalador.zip`. Actualizar la Mac y sincronizar la TV, comprobar 11.1.7 y recargar el controlador. Con el video de fondo activo, Biblioteca → Reproducir música sobre el fondo. Leer el estado sobre la biblioteca; si no inicia, esperar 15 segundos y copiar el diagnóstico de música. El respaldo estable 11.0.3 permanece intacto.
+
+---
+
 # Alma TV 11.1.6 · MP3 sobre el video de fondo
 
 Biblioteca permite cargar archivos desde la laptop y añade «Reproducir música sobre el fondo» a los audios locales. La Mac sirve el archivo a un elemento HTML audio independiente; no se crea otro reproductor de YouTube. El video existente conserva su iframe, reproducción y posición. La música requiere un video abierto y no sustituye la selección principal ni modifica su cola.

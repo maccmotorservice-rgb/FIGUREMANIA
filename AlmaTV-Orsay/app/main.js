@@ -671,7 +671,7 @@ var Alma = (function () {
           "PREFERENCIAS",
           "A tu medida",
           "Los ajustes no cambian Smart Hub, las aplicaciones de Samsung ni el firmware."
-        ) + '<div class="settings-brand">alma<span>tv 11.1.6 experimental</span></div><div class="grid settings">',
+        ) + '<div class="settings-brand">alma<span>tv 11.1.7 experimental</span></div><div class="grid settings">',
       ids = [];
     for (var i = 0; i < items.length; i++) {
       h += button(items[i][0], items[i][1], items[i][2], items[i][3]);
@@ -2783,7 +2783,7 @@ var Alma = (function () {
   A.hubStatus=function(){
     var status=primaryHubStatus(),music=AlmaMusic.snapshot();
     status.music=music.title;status.music_active=music.active;status.music_muted=music.muted;
-    status.music_state=music.state;status.music_seconds=music.seconds;status.music_error=music.error;return status;
+    status.music_state=music.state;status.music_seconds=music.seconds;status.music_error=music.error||music.warning;return status;
   };
   A.key = key;
   A.go = go;
