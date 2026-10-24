@@ -15,6 +15,7 @@ from xml.etree import ElementTree as ET
 from zipfile import ZipFile
 from preparar import private_ipv4
 from perfil_widget import personalize
+from restaurar_estable_mac import cache_stable, restore_stable
 ROOT=Path(__file__).resolve().parent
 
 def osa(script,*args):
@@ -29,8 +30,10 @@ def admin(command):
 
 def main():
     if sys.platform!='darwin':raise ValueError('Este instalador se abre en macOS.')
-    selection=osa('choose from list {"Instalar o actualizar Alma TV 11", "Recuperar Alma TV 8.7", "Detener instalador Wi-Fi", "Abrir centro de control"} with title "Alma TV" with prompt "Elige una acción" default items {"Instalar o actualizar Alma TV 11"}')
+    selection=osa('choose from list {"Probar Alma TV 11.1 experimental", "Restaurar versión estable 11.0.3", "Detener instalador Wi-Fi", "Abrir centro de control"} with title "Alma TV" with prompt "Elige una acción" default items {"Probar Alma TV 11.1 experimental"}')
     if selection=='false':return
+    if selection=='Restaurar versión estable 11.0.3':restore_stable();return
+    if selection=='Probar Alma TV 11.1 experimental':cache_stable()
     home=Path.home();saved=home/'Library/Application Support/AlmaTV/installer-settings.json'
     settings=json.loads(saved.read_text()) if saved.exists() else {'tv':'192.168.1.249','mac':'192.168.1.30'}
     if selection=='Abrir centro de control':subprocess.run(['open','http://'+private_ipv4(settings['mac'])+':8088/control'],check=True);return

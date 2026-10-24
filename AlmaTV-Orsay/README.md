@@ -1,3 +1,31 @@
+# Alma TV 11.1.0 · Prueba experimental de audio dual
+
+La versión estable sigue siendo 11.0.3, commit `4e1f373a80a8d257d5968188526eca56cca2f4d1`, en `alma-tv/11.0` y `backup/alma-tv-11.0.3`. Esta prueba vive exclusivamente en `alma-tv/experimental-audio-dual` y no sustituye la rama estable.
+
+La prueba está apagada al abrir la app. Primero reproduce un YouTube como fondo. En el control web, envía otro enlace y selecciona «Audio en segundo plano · experimental». Antes de crear el segundo reproductor, la TV debe confirmar que el principal está silenciado. La imagen del principal continúa; solo se oye el adicional. El volumen y Silencio regulan el audio adicional. Detener audio adicional cierra esa sesión y recupera el audio normal del principal. Detener todo, cambiar el video principal o abrir una app nativa libera el segundo reproductor. Navegar y abrir el salvapantallas conservan la sesión.
+
+La segunda sesión usa otro iframe oficial, token y receptor de mensajes independientes. No descarga ni extrae audio. Aunque solo se oiga el audio, YouTube puede seguir procesando el video: la capacidad real de Samsung Orsay para dos sesiones requiere una prueba física. Un fallo informado o el fin del segundo video cierra la prueba y restaura el audio del principal. Si no se confirma el silencio en cinco segundos, no se abre el segundo. No se guarda una preferencia que vuelva a activarlo al reiniciar.
+
+## Respaldo y recuperación
+
+Antes de tocar el puente, el instalador experimental descarga y verifica el instalador estable 11.0.3 (SHA-256 `fa00f93c5c3ab7e5fb7d7087d2c580fbf871f7f5ebe76a69d3acf02027098576`) en `~/Library/Application Support/AlmaTV/rollback`. Si no logra verificarlo, no instala el experimento. La copia local permite recuperar sin depender de que la app experimental responda.
+
+Para volver a la estable desde Terminal de la Mac:
+
+```sh
+python3 "$HOME/Library/Application Support/AlmaTV/rollback/restaurar_estable_mac.py"
+```
+
+Se abre el instalador original de 11.0.3. Elige instalar/actualizar y vuelve a sincronizar aplicaciones de usuario en la TV con la IP mostrada. También puedes abrir de nuevo el instalador experimental y elegir «Restaurar versión estable 11.0.3». La restauración recupera puente y widget, conserva los archivos de datos y permite mantener la foto de perfil. La reinstalación y decodificación en firmware físico quedan pendientes de confirmar.
+
+## Validación
+
+Pasaron 104 pruebas de interfaz y 69 Python, ES5 y build. Se verificaron dos sesiones independientes, silencio confirmado antes de arrancar, control de volumen, aislamiento de mensajes, errores, restauración del audio, cierre de ambos, propietario exclusivo y conservación de la cola/video principal. Se descargó y verificó el respaldo real de 11.0.3; la recuperación se ensayó con paquetes y ejecución simulada del instalador. Las pruebas Samsung/YouTube son simuladas y no prueban rendimiento ni reproducción dual física.
+
+Instalador de prueba: `instaladores/AlmaTV-11.1.0-instalador.zip`.
+
+---
+
 # Alma TV 11.0.3 · Apps y navegación simplificadas
 
 La cuadrícula se abre sin título ni subtítulo. Reloj, Temporizador, Calendario, Clima y Salvapantallas son tarjetas de apps con iconos originales inspirados en la estética de Apple; Conexión y Multimedia también conservan acceso como apps. Alma Live tiene un icono propio de TV, sin usar el logo de Apple ni lanzar la TV nativa.

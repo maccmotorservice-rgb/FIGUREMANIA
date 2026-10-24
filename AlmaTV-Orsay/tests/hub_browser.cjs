@@ -201,3 +201,16 @@ test('Desactivar una lista oculta sus canales normales y conserva favorito, cate
  await p.waitForFunction(()=>AlmaLiveTV.some(c=>c.name==='Canal importado 0'));
  assert.equal(await p.evaluate(()=>AlmaPlayer.snapshot().playing),true);
 });
+
+test('Panel experimental envía audio adicional sin reemplazar el video principal',{timeout:20000},async t=>{
+ const p=await tv(t);await p.route('https://www.youtube.com/iframe_api',r=>r.fulfill({contentType:'application/javascript',body:`window.YT={Player:function(id,options){var node=document.getElementById(id),f=document.createElement('iframe');node.parentNode.replaceChild(f,node);var state=-1,muted=false,volume=70;this.getPlayerState=function(){return state;};this.getCurrentTime=function(){return 1;};this.getVideoData=function(){return {title:'Prueba dual'};};this.setVolume=function(v){volume=v;};this.getVolume=function(){return volume;};this.mute=function(){muted=true;};this.unMute=function(){muted=false;};this.isMuted=function(){return muted;};this.setSize=function(){};this.loadVideoById=this.playVideo=function(){state=1;options.events.onStateChange({data:1});};this.pauseVideo=function(){state=2;options.events.onStateChange({data:2});};setTimeout(function(){options.events.onReady();},10);}};window.onYouTubeIframeAPIReady();`}));
+ const c=await browser.newContext();t.after(()=>c.close());const panel=await c.newPage();await panel.goto(base+'/control');
+ await panel.locator('#online-url').fill('https://youtu.be/M7lc1UVf-VE');await panel.locator('#online-play').click();await p.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
+ const before=await(await fetch(base+'/hub/state')).json();const original=await p.locator('#youtube-frame').getAttribute('src');
+ await panel.locator('#online-mode').selectOption('background');await panel.locator('#online-url').fill('https://youtu.be/dQw4w9WgXcQ');await panel.locator('#online-play').click();
+ await p.waitForFunction(()=>AlmaBackgroundAudio.snapshot().state===1);assert.equal(await p.locator('#youtube-frame').getAttribute('src'),original);
+ assert.equal(await p.evaluate(()=>AlmaYouTube.snapshot().muted),true);
+ const after=await(await fetch(base+'/hub/state')).json();assert.equal(after.current.play_id,before.current.play_id);
+ await panel.locator('[data-command="background-stop"]').click();await p.waitForFunction(()=>!document.getElementById('youtube-audio-frame'));await p.waitForFunction(()=>AlmaYouTube.snapshot().muted===false);
+ assert.equal(await p.evaluate(()=>AlmaYouTube.snapshot().state),1);
+});

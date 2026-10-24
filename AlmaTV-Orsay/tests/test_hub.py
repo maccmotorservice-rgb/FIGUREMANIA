@@ -146,3 +146,21 @@ class HubHTTPTests(unittest.TestCase):
         with patch('hub.shutil.which',return_value=None):status,body,_=self.request('/hub/upload',address='127.0.0.1',csrf='owner-token',raw=image.read_bytes(),filename='family'+image.suffix)
         self.assertEqual(status,200);ident=json.loads(body)['item']['id']
         status,content,_=self.request('/hub/file/'+ident,address='127.0.0.3');self.assertEqual(status,200);self.assertEqual(content,image.read_bytes())
+
+class BackgroundAudioControlTests(unittest.TestCase):
+    def test_owner_only_and_does_not_replace_current_or_queue(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            hub=Hub(tmp,'127.0.0.3');target='127.0.0.3'
+            hub.mutate({'action':'play','youtube':'https://youtu.be/M7lc1UVf-VE'},'owner',target)
+            hub.mutate({'action':'enqueue','youtube':'https://youtu.be/M7lc1UVf-VE'},'owner',target)
+            before=json.dumps(hub.channel(target),sort_keys=True)
+            hub.mutate({'action':'background-audio','youtube':'https://youtu.be/dQw4w9WgXcQ'},'owner',target)
+            self.assertEqual(json.dumps(hub.channel(target),sort_keys=True),before)
+            command=hub.tv(target)['commands'][-1]
+            self.assertEqual((command['kind'],command['action'],command['view']),('control','background-audio','dQw4w9WgXcQ'))
+            with self.assertRaises(PermissionError):
+                hub.mutate({'action':'background-audio','youtube':'https://youtu.be/dQw4w9WgXcQ'},'guest',target)
+            with self.assertRaises(ValueError):
+                hub.mutate({'action':'background-audio','youtube':'https://dai.ly/x84sh87'},'owner',target)
+            hub.mutate({'action':'control','command':'background-stop'},'owner',target)
+            self.assertEqual(hub.tv(target)['commands'][-1]['action'],'background-stop')

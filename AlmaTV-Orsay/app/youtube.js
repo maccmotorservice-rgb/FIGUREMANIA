@@ -1,5 +1,5 @@
 /* Integración oficial de YouTube. ES5; no extrae ni descarga vídeos. */
-var AlmaYouTube = (function () {
+function AlmaYouTubeSession(frameId) {
   "use strict";
   var frame = null, host = null, base = "", token = "", timer = null, lastWidth = 0, lastHeight = 0, presented = null, audioApplied = true, activeProvider="", selectedVideo="", pendingVideo="";
   var chosenLevel=70, chosenMuted=false, endReports=0,playbackStarted=false;
@@ -105,7 +105,7 @@ var AlmaYouTube = (function () {
     for (var i = 0; i < 32; i++) token += Math.floor(Math.random() * 16).toString(16);
     var origin = window.location.protocol === "file:" ? "null" : window.location.protocol + "//" + window.location.host;
     frame = document.createElement("iframe");
-    frame.id = "youtube-frame"; frame.title = "Reproductor oficial de "+(provider==="dailymotion"?"Dailymotion":"YouTube");
+    frame.id = frameId; frame.title = "Reproductor oficial de "+(provider==="dailymotion"?"Dailymotion":"YouTube");
     frame.setAttribute("allow", "autoplay; encrypted-media; fullscreen");
     frame.setAttribute("allowfullscreen", "allowfullscreen");
     frame.setAttribute("referrerpolicy", "origin");
@@ -123,4 +123,6 @@ var AlmaYouTube = (function () {
   function init() { window.addEventListener("message", receive, false); }
   function destroy() { close(); window.removeEventListener("message", receive, false); }
   return { reusable:reusable, level: level, init: init, destroy: destroy, parseUrl: parseUrl, parseLink: parseLink, open: open, close: close, send: send, present: present, resize: resize, snapshot: snapshot };
-})();
+}
+var AlmaYouTube = AlmaYouTubeSession("youtube-frame");
+var AlmaBackgroundAudio = AlmaYouTubeSession("youtube-audio-frame");
