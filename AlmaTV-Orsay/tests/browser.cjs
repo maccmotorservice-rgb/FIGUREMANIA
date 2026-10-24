@@ -45,7 +45,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="11.1.3"'))
+      if (!html.includes('name="alma-build" content="11.1.4"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -130,7 +130,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio 11: dock de logos, abajo abre biblioteca y Atrás restaura Inicio", async () => {
-  assert.equal(await page.locator('meta[name="alma-build"]').getAttribute("content"),"11.1.3");
+  assert.equal(await page.locator('meta[name="alma-build"]').getAttribute("content"),"11.1.4");
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   assert.equal(await page.locator(".home-apps .app").count(),17);
   assert.equal(await page.locator(".focus").getAttribute("id"),"app-0");
@@ -914,7 +914,7 @@ async function officialYouTubeFixture(code = 0, behavior = "normal") {
       this.getVideoData=function(){return {title:'Vídeo de prueba · API simulada'};};
       this.setSize=function(w,h){testYoutube.sizeCount++;testYoutube.size=[w,h];};
       this.playVideo=function(){testYoutube.play++;testYoutube.activation=navigator.userActivation ? navigator.userActivation.isActive : null;${code ? `options.events.onError({data:${code}});` : behavior === "stalled" ? "" : behavior === "ignore-first" ? "if(testYoutube.play>1){state=1;options.events.onStateChange({data:1});}" : behavior === "blocked" ? "options.events.onAutoplayBlocked();" : "state=1;options.events.onStateChange({data:1});"}};
-      ${behavior === "explicit" ? 'this.loadVideoById=function(id){testYoutube.hiddenAtLoad=getComputedStyle(document.getElementById("surface")).visibility;testYoutube.load++;testYoutube.loadedId=id;state=1;options.events.onStateChange({data:1});};' : ''}
+      ${behavior === "explicit" ? 'this.loadVideoById=function(id){testYoutube.levelAtLoad=testYoutube.volume;testYoutube.mutedAtLoad=testYoutube.muted;testYoutube.hiddenAtLoad=getComputedStyle(document.getElementById("surface")).visibility;testYoutube.load++;testYoutube.loadedId=id;state=1;options.events.onStateChange({data:1});};' : ''}
       this.pauseVideo=function(){testYoutube.pause++;state=2;options.events.onStateChange({data:2});};
       this.seekTo=function(value){testYoutube.seek++;testYoutube.lastSeek=value;time=value;};
       setTimeout(function(){options.events.onReady();},0);
@@ -1480,20 +1480,23 @@ for(const mode of ["open","read","register","write"]) {
 
 
 
-test("Arranque, foco y teclas previas a activación no instancian ni abren Audio nativo",async()=>{
+test("Arranque y foco liberan AppCommon sin abrir el mezclador Audio",async()=>{
   await page.addInitScript(()=>{
     window.nativeOpens=0;
-    HTMLObjectElement.prototype.Open=function(){nativeOpens++;throw new Error("No disponible");};
+    window.nativeNames=[];
+    HTMLObjectElement.prototype.Open=function(name){nativeOpens++;nativeNames.push(name);throw new Error("No disponible");};
     HTMLObjectElement.prototype.Execute=function(){return -1;};
     HTMLObjectElement.prototype.Close=function(){return 1;};
   });
   await page.reload();await page.evaluate(()=>window.dispatchEvent(new Event("focus")));
   await key(7);await key(11);await key(27);
-  assert.equal(await page.evaluate(()=>nativeOpens),0);
+  assert.ok(await page.evaluate(()=>nativeOpens>0));
+  assert.equal(await page.evaluate(()=>nativeNames.includes("Audio")),false);
   assert.equal(await page.locator("#alma-audio-plugin").count(),0);
-  assert.equal(await page.locator("#alma-keys-plugin").count(),0);
+  assert.equal(await page.locator("#alma-keys-plugin").count(),1);
   await go("settings");await click("tv-volume");
-  assert.equal(await page.evaluate(()=>nativeOpens),0);
+  assert.ok(await page.evaluate(()=>nativeOpens>0));
+  assert.equal(await page.evaluate(()=>nativeNames.includes("Audio")),false);
   assert.equal(await page.evaluate(()=>AlmaTVAudio.active()),false);
   assert.ok(await page.locator("#tv-volume").isVisible());
   assert.deepEqual(errors,[]);
@@ -1867,7 +1870,7 @@ test('Alma 11: vista previa real, categorías y Reproducir en el inicio conserva
  assert.deepEqual(errors,[]);
 });
 
-test('11.1.3: flecha arriba sube, izquierda permanece en la fila y TV propia tiene logo',async()=>{
+test('11.1.4: flecha arriba sube, izquierda permanece en la fila y TV propia tiene logo',async()=>{
  assert.equal(await page.locator('.focus').getAttribute('id'),'app-0');
  await key(37);assert.equal(await page.locator('.focus').getAttribute('id'),'app-0');
  await key(38);assert.equal(await page.locator('.focus').getAttribute('id'),'nav-0');
@@ -1888,7 +1891,7 @@ test('11.1.3: flecha arriba sube, izquierda permanece en la fila y TV propia tie
  await shot('alma11-experimental-tv');assert.deepEqual(errors,[]);
 });
 
-test('11.1.3: inicia antes de terminar las imágenes y no inicializa dos veces',async(t)=>{
+test('11.1.4: inicia antes de terminar las imágenes y no inicializa dos veces',async(t)=>{
  let release;const delayed=new Promise(resolve=>release=resolve);t.after(()=>release());
  await page.route('**/assets/logos/browser.png',async r=>{await delayed;await r.continue();});
  await page.reload({waitUntil:'domcontentloaded'});
@@ -1900,7 +1903,7 @@ test('11.1.3: inicia antes de terminar las imágenes y no inicializa dos veces',
  release();await page.waitForLoadState('load');await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.1.3: dock más bajo, sin instrucciones y perfil circular con foto local',async()=>{
+test('11.1.4: dock más bajo, sin instrucciones y perfil circular con foto local',async()=>{
  const dock=await page.locator('.home-apps').boundingBox();
  assert.ok(dock.y+dock.height>620&&dock.y+dock.height<700,JSON.stringify(dock));
  assert.equal(await page.locator('#footer').isVisible(),false);
@@ -1915,16 +1918,16 @@ test('11.1.3: dock más bajo, sin instrucciones y perfil circular con foto local
  assert.deepEqual(errors,[]);
 });
 
-test('11.1.3: selector azul tenue sin marco blanco y marca solo en Ajustes',async()=>{
+test('11.1.4: selector azul tenue sin marco blanco y marca solo en Ajustes',async()=>{
  assert.equal(await page.locator('#header .brand').count(),0);
  const focus=await page.locator('.focus').evaluate(n=>{const s=getComputedStyle(n);return {outline:s.outlineStyle,shadow:s.boxShadow,color:s.backgroundColor};});
  assert.equal(focus.outline,'none');assert.match(focus.shadow,/38, 62, 190/);assert.match(focus.shadow,/0\.28/);
  await key(38);assert.equal(await page.locator('.focus').evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(28, 35, 45, 0.68)');
- await go('settings');assert.match(await page.locator('.settings-brand').innerText(),/alma.*tv 11\.1\.3/);
+ await go('settings');assert.match(await page.locator('.settings-brand').innerText(),/alma.*tv 11\.1\.4/);
  await go('home');await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.1.3: cinco apps completas por ventana sin una sexta cortada',async()=>{
+test('11.1.4: cinco apps completas por ventana sin una sexta cortada',async()=>{
  for(let i=0;i<10;i++){
   const visible=await page.locator('.home-apps .app').evaluateAll(nodes=>{const clip=document.querySelector('.app-carousel').getBoundingClientRect();return nodes.map(n=>{const b=n.getBoundingClientRect();return {left:b.left,right:b.right};}).filter(b=>b.right>clip.left+.5&&b.left<clip.right-.5).map(b=>({full:b.left>=clip.left-.5&&b.right<=clip.right+.5}));});
   assert.equal(visible.length,5,JSON.stringify(visible));assert.ok(visible.every(b=>b.full));
@@ -1937,7 +1940,7 @@ test('11.1.3: cinco apps completas por ventana sin una sexta cortada',async()=>{
  await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.1.3: cuadrícula sin encabezados, utilidades como apps y arriba vuelve al dock',async()=>{
+test('11.1.4: cuadrícula sin encabezados, utilidades como apps y arriba vuelve al dock',async()=>{
  assert.deepEqual(await page.locator('#nav button').evaluateAll(ns=>ns.map(n=>n.getAttribute('aria-label'))),['Inicio','Buscar','Apps','Pantalla completa','Salvapantallas','Configuración']);
  await key(40);assert.equal(await page.locator('#safe').getAttribute('data-view'),'apps');
  assert.equal(await page.locator('#view .page-head,#view h1,#view h2,.library-tools').count(),0);
@@ -1998,4 +2001,37 @@ test('Audio compartido: Silencio se conserva y ninguna tecla física se bloquea'
  for(const code of [7,11,27])assert.equal(await key(code),false);
  assert.equal(await page.evaluate(()=>AlmaTVAudio.active()),false);
  await page.evaluate(()=>Alma.hubControl('background-stop'));assert.equal(await main.evaluate(()=>testYoutube.muted),true);await page.evaluate(()=>Alma.hubControl('mute'));await main.waitForFunction(()=>!testYoutube.muted);assert.deepEqual(errors,[]);
+});
+
+
+test("AppCommon libera volumen incluso sin la API clásica y nunca registra teclas",async()=>{
+ await page.evaluate(()=>{
+  window.releaseCalls=[];
+  HTMLObjectElement.prototype.Open=function(name){releaseCalls.push(["Open",name]);return 1;};
+  HTMLObjectElement.prototype.Execute=function(command,code){releaseCalls.push([command,code]);return 1;};
+  HTMLObjectElement.prototype.Close=function(){releaseCalls.push(["Close"]);return 1;};
+  delete Common.API.Plugin;window.dispatchEvent(new Event('focus'));
+ });
+ // Remove Common entirely to exercise the early-return fallback.
+ await page.evaluate(()=>{window.Common=undefined;window.dispatchEvent(new Event('focus'));});
+ for(const code of [7,11,27])assert.equal(await key(code),false);
+ const calls=await page.evaluate(()=>releaseCalls);
+ for(const code of [7,11,27])assert.ok(calls.some(c=>c[0]==='UnregisterKey'&&c[1]===code));
+ assert.equal(calls.some(c=>c[0]==='RegisterKey'||c[1]==='Audio'),false);
+ assert.equal(await page.locator('#alma-audio-plugin').count(),0);assert.deepEqual(errors,[]);
+});
+
+test("Audio adicional aplica nivel antes de cargar y vuelve a aplicarlo tras empezar",async()=>{
+ await officialYouTubeFixture(0,'explicit');await savedYouTube();await click('youtube-play');await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
+ await page.evaluate(()=>Alma.hubControl('volume',85));
+ const main=await(await page.$('#youtube-frame')).contentFrame();
+ await page.evaluate(()=>Alma.hubControl('background-audio',0,'dQw4w9WgXcQ'));
+ await main.waitForFunction(()=>window.testYoutubeAudio&&testYoutubeAudio.load===1&&testYoutubeAudio.volume===85&&!testYoutubeAudio.muted);
+ assert.equal(await main.evaluate(()=>testYoutubeAudio.levelAtLoad),85);
+ assert.equal(await main.evaluate(()=>testYoutubeAudio.mutedAtLoad),false);
+ await main.evaluate(()=>{testYoutubeAudio.muted=true;testYoutubeAudio.volume=0;});
+ await main.waitForFunction(()=>!testYoutubeAudio.muted&&testYoutubeAudio.volume===85);
+ await page.waitForFunction(()=>Alma.hubStatus().background_audio.indexOf('nivel 85 %')!==-1);
+ assert.match(await page.evaluate(()=>Alma.hubStatus().background_audio),/Sonido pendiente/);
+ assert.equal(await main.evaluate(()=>testYoutube.muted),true);assert.deepEqual(errors,[]);
 });

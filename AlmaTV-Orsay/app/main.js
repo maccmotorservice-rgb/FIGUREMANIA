@@ -671,7 +671,7 @@ var Alma = (function () {
           "PREFERENCIAS",
           "A tu medida",
           "Los ajustes no cambian Smart Hub, las aplicaciones de Samsung ni el firmware."
-        ) + '<div class="settings-brand">alma<span>tv 11.1.3 experimental</span></div><div class="grid settings">',
+        ) + '<div class="settings-brand">alma<span>tv 11.1.4 experimental</span></div><div class="grid settings">',
       ids = [];
     for (var i = 0; i < items.length; i++) {
       h += button(items[i][0], items[i][1], items[i][2], items[i][3]);
@@ -1047,7 +1047,7 @@ var Alma = (function () {
   function updateBackgroundAudio(){
     if(!backgroundAudio)return;
     var value=AlmaBackgroundAudio.snapshot();
-    backgroundAudioStatus=value.failed?value.status:(value.state===1?"Audio adicional reproduciéndose":value.status);
+    backgroundAudioStatus=value.status;
     htmlIfChanged(el("background-audio-status"),esc(backgroundAudioStatus));
     if(value.failed||value.finished){stopBackgroundAudio(true,value.failed?"La prueba de audio no pudo continuar: "+value.status:"El audio adicional terminó.");return;}
     AlmaBackgroundAudio.resize(384,240);
@@ -1071,7 +1071,7 @@ var Alma = (function () {
       if(AlmaYouTube.snapshot().muted===true){
         backgroundAudioStatus="Conectando el audio adicional…";
         styleIfChanged(el("youtube-audio-host"),"left","0px");styleIfChanged(el("youtube-audio-host"),"top","0px");
-        try{AlmaBackgroundAudio.open(el("youtube-audio-host"),prefs.macIp,id,updateBackgroundAudio,"youtube",false);}
+        try{AlmaBackgroundAudio.level(prefs.appVolume,prefs.appMuted);AlmaBackgroundAudio.open(el("youtube-audio-host"),prefs.macIp,id,updateBackgroundAudio,"youtube",false);}
         catch(error){stopBackgroundAudio(true,"No se pudo abrir la sesión adicional: "+String(error.message||error));}return;
       }
       if(new Date().getTime()>backgroundAudio.deadline){stopBackgroundAudio(true,"La TV no confirmó el silencio del video. La prueba no se inició.");return;}
@@ -2449,17 +2449,18 @@ var Alma = (function () {
   function releaseVolumeKeys() {
     if (AlmaTVAudio.active()) AlmaTVAudio.close();
     try {
-      if (typeof Common === "undefined" || !Common.API) return;
+      if (typeof Common === "undefined" || !Common.API) { AlmaTVAudio.release(volumeKeyCodes); return; }
       if (typeof Common.API.TVKeyValue === "function") {
         var keys = new Common.API.TVKeyValue();
         volumeKeyCodes = [typeof keys.KEY_VOL_UP === "number" ? keys.KEY_VOL_UP : 7, typeof keys.KEY_VOL_DOWN === "number" ? keys.KEY_VOL_DOWN : 11, typeof keys.KEY_MUTE === "number" ? keys.KEY_MUTE : 27];
       }
       if (!nativeKeyPlugin && typeof Common.API.Plugin === "function") nativeKeyPlugin = new Common.API.Plugin();
-      if (!nativeKeyPlugin || typeof nativeKeyPlugin.unregistKey !== "function") return;
+      if (!nativeKeyPlugin || typeof nativeKeyPlugin.unregistKey !== "function") { AlmaTVAudio.release(volumeKeyCodes); return; }
       for (var i = 0; i < volumeKeyCodes.length; i++) {
         try { nativeKeyPlugin.unregistKey(volumeKeyCodes[i]); } catch (unavailableKey) {}
       }
     } catch (unavailablePlugin) {}
+    AlmaTVAudio.release(volumeKeyCodes);
   }
   function scheduleVolumeRelease(){releaseVolumeKeys();clearTimeout(volumeReleaseTimer);volumeReleaseTimer=setTimeout(releaseVolumeKeys,500);}
   function key(code) {

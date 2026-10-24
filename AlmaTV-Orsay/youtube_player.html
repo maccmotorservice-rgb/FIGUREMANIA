@@ -169,16 +169,22 @@
       player = new YT.Player("player", options);
     } catch (e) { tell("error", "El navegador no pudo iniciar el reproductor oficial de YouTube.", -1); report("error", "El navegador no pudo iniciar el reproductor oficial de YouTube."); }
   };
-  var audioPlayer=null,audioSession="",audioVideo="",audioReady=false,audioFailed=false,audioFinished=false,audioLevel=70,audioMuted=false,audioStatus="Desactivado";
+  var audioPlayer=null,audioSession="",audioVideo="",audioReady=false,audioFailed=false,audioFinished=false,audioLevel=70,audioMuted=false,audioStatus="Desactivado",audioLevelTimer=null;
   function audioTell(){
     if(!audioSession)return;var state=-1,seconds=0,volume=audioLevel,muted=audioMuted;
     try{if(audioReady&&audioPlayer){state=audioPlayer.getPlayerState();seconds=audioPlayer.getCurrentTime();if(audioPlayer.getVolume)volume=audioPlayer.getVolume();if(audioPlayer.isMuted)muted=audioPlayer.isMuted();}}catch(ignore){}
-    window.parent.postMessage(JSON.stringify({channel:"alma-youtube-audio",token:config.token,session:audioSession,ready:audioReady,state:state,seconds:seconds,volume:volume,muted:muted,status:audioStatus,failed:audioFailed,finished:audioFinished}),config.parent==="null"?"*":config.parent);
+    var status=!audioFailed&&state===1?"YouTube indica reproducción · "+Math.floor(seconds)+" s · nivel "+volume+" % · "+(muted?"silenciado":"sin silencio")+". Sonido pendiente de comprobar en la TV.":audioStatus;
+    window.parent.postMessage(JSON.stringify({channel:"alma-youtube-audio",token:config.token,session:audioSession,ready:audioReady,state:state,seconds:seconds,volume:volume,muted:muted,status:status,failed:audioFailed,finished:audioFinished}),config.parent==="null"?"*":config.parent);
   }
   function audioClose(){
-    audioSession="";audioReady=false;
+    audioSession="";audioReady=false;clearTimeout(audioLevelTimer);
     try{if(audioPlayer&&audioPlayer.destroy)audioPlayer.destroy();else if(audioPlayer)audioPlayer.pauseVideo();}catch(ignore){}
     audioPlayer=null;var node=document.getElementById("audio-surface");if(node&&node.parentNode)node.parentNode.removeChild(node);
+  }
+  function applyAudioLevel(){
+    if(!audioReady||!audioPlayer)return;
+    try{if(audioMuted)audioPlayer.mute();else audioPlayer.unMute();audioPlayer.setVolume(audioLevel);}
+    catch(error){audioFailed=true;audioStatus="YT-AUDIO-NIVEL: "+String(error.message||error);}
   }
   function audioReceive(event){
     var data;try{data=typeof event.data==="string"?JSON.parse(event.data):event.data;}catch(ignore){return;}
@@ -187,12 +193,12 @@
     if(event.origin!==config.parent&&!fileOrigin)return;
     if(data.command==="open"){
       if(!ready||!player||!/^[a-f0-9]{32}$/.test(data.session)||!/^[A-Za-z0-9_-]{11}$/.test(data.video))return;
-      audioClose();audioSession=data.session;audioVideo=data.video;audioFailed=false;audioFinished=false;audioStatus="YT-COMPARTIDA: creando audio dentro de la sesión principal.";
+      audioClose();audioSession=data.session;audioVideo=data.video;audioLevel=typeof data.level==="number"&&isFinite(data.level)?Math.max(0,Math.min(100,data.level)):70;audioMuted=data.muted===true;audioFailed=false;audioFinished=false;audioStatus="YT-COMPARTIDA: creando audio dentro de la sesión principal.";
       var current=audioSession,surface=document.createElement("div"),mount=document.createElement("div");surface.id="audio-surface";mount.id="audio-player";surface.style.cssText="position:absolute;left:0;top:0;width:384px;height:240px;z-index:0;pointer-events:none";surface.appendChild(mount);document.body.appendChild(surface);document.getElementById("surface").style.position="relative";document.getElementById("surface").style.zIndex="1";
       audioTell();
       try{audioPlayer=new YT.Player("audio-player",{width:384,height:240,playerVars:{controls:0,autoplay:0,playsinline:1,origin:window.location.protocol+"//"+window.location.host},events:{
-        onReady:function(){if(current!==audioSession)return;audioReady=true;surface.style.left="-10000px";surface.style.top="-10000px";audioStatus="Audio listo; imagen oculta antes de cargar.";audioTell();},
-        onStateChange:function(e){if(current!==audioSession)return;audioFinished=e.data===0;audioStatus=e.data===1?"Audio adicional reproduciéndose":(e.data===2?"Audio adicional en pausa":"Preparando audio adicional");audioTell();},
+        onReady:function(){if(current!==audioSession)return;audioReady=true;applyAudioLevel();surface.style.left="-10000px";surface.style.top="-10000px";audioStatus="Audio listo; imagen oculta antes de cargar.";audioTell();},
+        onStateChange:function(e){if(current!==audioSession)return;if(e.data===1){applyAudioLevel();clearTimeout(audioLevelTimer);audioLevelTimer=setTimeout(function(){if(current===audioSession){applyAudioLevel();audioTell();}},500);}audioFinished=e.data===0;audioStatus=e.data===1?"Audio adicional reproduciéndose":(e.data===2?"Audio adicional en pausa":"Preparando audio adicional");audioTell();},
         onError:function(e){if(current!==audioSession)return;audioFailed=true;audioStatus="YT-AUDIO: error "+e.data;audioTell();},
         onAutoplayBlocked:function(){if(current!==audioSession)return;audioFailed=true;audioStatus="YT-AUDIO: se bloqueó el inicio automático.";audioTell();}
       }});}catch(error){audioFailed=true;audioStatus="YT-COMPARTIDA: "+String(error.message||error);audioTell();}
@@ -204,7 +210,7 @@
     try{
       if(data.command==="play"){audioFailed=false;audioFinished=false;if(!audioPlayer._almaLoaded){audioPlayer._almaLoaded=true;audioPlayer.loadVideoById(audioVideo);}else audioPlayer.playVideo();}
       else if(data.command==="pause")audioPlayer.pauseVideo();
-      else if(data.command==="volume"&&typeof data.level==="number"&&isFinite(data.level)&&data.level>=0&&data.level<=100){audioLevel=data.level;audioMuted=data.muted===true;audioPlayer.setVolume(audioLevel);if(audioMuted)audioPlayer.mute();else audioPlayer.unMute();}
+      else if(data.command==="volume"&&typeof data.level==="number"&&isFinite(data.level)&&data.level>=0&&data.level<=100){audioLevel=data.level;audioMuted=data.muted===true;applyAudioLevel();}
     }catch(error){audioFailed=true;audioStatus="YT-AUDIO-ORDEN: "+String(error.message||error);}
     audioTell();
   }

@@ -1,3 +1,17 @@
+# Alma TV 11.1.4 · Liberación de teclas Samsung y nivel del audio adicional
+
+Se conecta la liberación de Vol+, Vol− y Silencio por AppCommon.UnregisterKey, además de Common.API.Plugin. La ruta AppCommon ahora crea su objeto SEF cuando todavía no existe; no abre Audio ni registra teclas. Se intenta también cuando falta la API clásica o falla su carga.
+
+El audio adicional recibe el volumen y el silencio actuales antes de crearse, los aplica al recibir Ready, al empezar y una vez más a los 500 ms. El último intento se cancela al cerrar o reemplazar la sesión. Se conservan las preferencias de silencio del usuario. El estado informa tiempo, volumen y silencio reportados por YouTube: no afirma que haya sonido real por recibir estado 1.
+
+El propietario observó arranque intermitente, imágenes superpuestas y ausencia de sonido en 11.1.3. Los cambios de 11.1.4 corrigen omisiones concretas, pero la liberación física de teclas, la mezcla audible y la composición de imagen en Samsung siguen pendientes de validación en su televisor. No se afirma haber solucionado el encimado ni compatibilidad con dos decodificadores.
+
+Validación: ES5, build e integridad de widget/instalador correctos; 71 pruebas Python. La regresión verificó 107 escenarios de navegador; la prueba nueva de nivel antes de cargar pasó al ajustar su espera hasta la carga efectiva del reproductor. Se validan llamadas y estados simulados, no sonido físico.
+
+Instalador: `instaladores/AlmaTV-11.1.4-instalador.zip`. Actualizar la Mac, sincronizar en la TV y recargar el control web. Probar primero Vol+/Vol− del control físico con un solo video. La versión estable 11.0.3 y la recuperación local permanecen intactas.
+
+---
+
 # Alma TV 11.1.3 · Volumen y API compartida para el audio experimental
 
 Las teclas físicas Vol+, Vol− y Silencio quedan a cargo de Samsung. Se retira la activación del mezclador nativo desde Configuración y se liberan las teclas después de iniciar reproducción o ajustar el audio web. El deslizador web envía el valor final también cuando el navegador solo entrega `change`; cada orden aplica explícitamente el volumen solicitado a YouTube.
