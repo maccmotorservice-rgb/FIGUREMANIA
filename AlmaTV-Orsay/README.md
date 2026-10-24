@@ -1,3 +1,23 @@
+# Alma TV 11.1.8 · Control con el tema de Alma y vista pulsable
+
+El controlador de laptop y teléfono usa el fondo original, paneles oscuros translúcidos, selección azul tenue, reloj y perfil local. La barra inferior muestra cinco accesos completos y desplaza el resto. Los nombres de las secciones siguen disponibles para lectores de pantalla, teclado y tooltips. La guía, biblioteca, cola, importación, escenas y ajustes conservan sus operaciones.
+
+Laptop abre Vista TV; teléfono abre Mando. Vista TV recibe el contenido de los menús de Alma y permite pulsar las apps y opciones que están en pantalla. La orden se valida contra la vista y los elementos activos del televisor, y ejecuta la misma acción que el selector. El teclado en pantalla también se puede pulsar y refleja el texto actual de los campos. El teclado del navegador también permite flechas, Aceptar y Volver. Requiere sincronizar el widget 11.1.8 y actualizar el puente; la vista no está disponible con un widget anterior.
+
+«Mostrar contenido» activa una vista previa de YouTube silenciada en el navegador del controlador, con seguimiento aproximado de tiempo y estado mediante la API oficial. Es otra sesión del navegador de la laptop/teléfono: **no captura la pantalla de la TV, HDMI, Smart Hub ni aplicaciones externas**. Su disponibilidad depende del video, las políticas del reproductor y la conexión. La vista de menús funciona por separado de esa reproducción.
+
+La vista de menús solo se entrega al propietario vinculado; se elimina del estado de invitados. El puente filtra el HTML recibido; la vista se muestra en un iframe sin permiso para scripts, con CSP y filtrado adicional. Las pulsaciones no aceptan código arbitrario ni selecciones de una vista anterior. La foto se lee de la caché local de la Mac y no se incluye en el repositorio o instalador público.
+
+Los snapshots se obtienen solo cuando un controlador del propietario solicita Vista TV, con una autorización temporal que caduca a los diez segundos de dejar de renovarse. Se obtienen como máximo una vez por segundo elegible de polling. Se limitan sus tamaños y no incluyen objetos multimedia. El estilo se carga una vez en la vista del controlador; las actualizaciones sustituyen su contenido sin recargar el iframe. Las pantallas demasiado grandes pueden no estar disponibles en Vista TV; Mando y las herramientas web permanecen disponibles.
+
+El trabajo sobre audio simultáneo continúa pendiente. Esta versión no certifica YouTube + MP3 simultáneos, ni incorpora la alternativa de pistas de audio del informe de investigación. El fondo original, los datos locales y el respaldo estable 11.0.3 permanecen preservados.
+
+Validación: 97 pruebas de aplicación, 19 del controlador con puente real y 74 Python correctas. Tras incorporar la captura de menús bajo demanda se repitieron las dos pruebas de vista pulsable y vista previa, ambas correctas. ES5 y build verificados. Las APIs de TV/YouTube usadas por estas pruebas son simuladas; queda pendiente la validación física en el Samsung. Capturas en `docs/capturas/alma11-control-laptop.png` y `alma11-control-telefono.png`.
+
+Instalador: `instaladores/AlmaTV-11.1.8-instalador.zip`. Actualizar en Mac, sincronizar aplicaciones en TV, comprobar 11.1.8 en Configuración y recargar el controlador. La Mac sigue encendida y conectada. La latencia, coste de los snapshots en Orsay y funcionamiento físico de pulsaciones y vista previa requieren la comprobación del propietario en su Samsung.
+
+---
+
 # Alma TV 11.1.7 · Carga explícita de MP3 y diagnóstico visible en Biblioteca
 
 La ruta nueva de MP3 omitía load antes de play, a diferencia del reproductor normal. Ahora llama load explícitamente después de configurar el archivo. También tolera un rechazo del ajuste de volumen, como el reproductor normal, y sigue intentando reproducir: muestra un aviso para usar el volumen de la TV. Un rechazo del silencio independiente detiene el intento para evitar sonido simultáneo no controlado.

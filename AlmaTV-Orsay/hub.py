@@ -4,6 +4,9 @@ import hashlib
 import http.client
 import ipaddress
 import json
+import re
+from html import escape
+from html.parser import HTMLParser
 import mimetypes
 from pathlib import Path
 import secrets
@@ -17,9 +20,38 @@ import time
 from urllib.parse import urlsplit
 from xml.etree import ElementTree as ET
 
-ACTIONS = {'music-play','music-pause','music-stop','music-mute','play','pause','toggle','stop','seek','home','media','saver','volume-up','volume-down','volume','mute','live-channel','navigate','up','down','left','right','ok','back','fullscreen','background-stop','background-play','background-pause','play-home','live-channel-home'}
+ACTIONS = {'touch','music-play','music-pause','music-stop','music-mute','play','pause','toggle','stop','seek','home','media','saver','volume-up','volume-down','volume','mute','live-channel','navigate','up','down','left','right','ok','back','fullscreen','background-stop','background-play','background-pause','play-home','live-channel-home'}
 VIEWS={'home','search','apps','media','hub','clock','weather','calendar','timer','settings','saver','livetv'}
 EXTENSIONS = {'.mp3':'audio','.m4a':'audio','.wav':'audio','.mp4':'video','.m4v':'video','.jpg':'photo','.jpeg':'photo','.png':'photo','.mov':'convert','.mkv':'convert'}
+
+class ScreenMarkup(HTMLParser):
+    tags={'div','span','p','button','h1','h2','h3','h4','img','header','nav','main','section','strong','small','b','i','time','label','input','br','ul','li','em','a'}
+    def __init__(self):super().__init__(convert_charrefs=True);self.parts=[];self.skip=0
+    def handle_starttag(self,tag,attrs):
+        if tag in ('script','style','iframe','object','audio','video'):self.skip+=1;return
+        if self.skip or tag not in self.tags:return
+        safe=[]
+        for key,value in attrs:
+            value=value or ''
+            if key in ('id','class','title','role','hidden','disabled','value','data-focus','data-view','data-home-media','data-youtube-mode','data-media-kind','data-playing','data-hub-photo') or re.fullmatch(r'aria-[a-z-]+',key):safe.append((key,value))
+            elif key=='src' and tag=='img' and re.fullmatch(r'assets/[A-Za-z0-9_./-]+\.(?:png|jpg|jpeg)',value) and '..' not in value:safe.append((key,value))
+            elif key=='style' and not re.search(r'url|expression|javascript|@|\\',value,re.I):safe.append((key,value))
+        self.parts.append('<'+tag+''.join(' '+k+'="'+escape(v,quote=True)+'"' for k,v in safe)+'>')
+    def handle_endtag(self,tag):
+        if tag in ('script','style','iframe','object','audio','video'):self.skip=max(0,self.skip-1);return
+        if not self.skip and tag in self.tags:self.parts.append('</'+tag+'>')
+    def handle_data(self,data):
+        if not self.skip:self.parts.append(escape(data))
+    def handle_startendtag(self,tag,attrs):self.handle_starttag(tag,attrs)
+
+def clean_screen(screen):
+    if not isinstance(screen,dict) or not isinstance(screen.get('html'),str) or len(screen['html'])>55000 or not isinstance(screen.get('view'),str) or not re.fullmatch(r'[a-z-]{1,24}',screen['view']) or len(json.dumps(screen))>65000:return None
+    parser=ScreenMarkup();parser.feed(screen['html']);result={'html':''.join(parser.parts),'view':screen['view'],'scroll':screen.get('scroll',0),'video':None}
+    if type(result['scroll']) not in (int,float):result['scroll']=0
+    video=screen.get('video')
+    if isinstance(video,dict) and isinstance(video.get('id'),str) and re.fullmatch(r'[A-Za-z0-9_-]{5,16}',video['id']):
+        result['video']={'id':video['id'],'provider':'youtube' if video.get('provider')=='youtube' else 'other','seconds':video.get('seconds',0) if type(video.get('seconds')) in (int,float) else 0,'state':video.get('state',-1) if type(video.get('state')) is int else -1}
+    return result
 
 class PublicConnection(http.client.HTTPSConnection):
     def __init__(self, host, address, port=443, timeout=12):
@@ -66,7 +98,7 @@ class Hub:
         self.iptv=IPTV(self.root/'iptv.json',json.loads((Path(__file__).resolve().parent/'tv_channels.json').read_text()))
         self.path=self.root/'hub.json';self.lock=threading.RLock();self.clock=clock or time.time
         self.pin='%06d'%secrets.randbelow(1000000);self.guest_pin='%06d'%secrets.randbelow(1000000)
-        self.mac_files={};self.attempts={};self.commands=[];self.jobs={};self.converting=threading.Lock();self.schedule_seen=set();self.remote_until={}
+        self.mac_files={};self.attempts={};self.commands=[];self.jobs={};self.converting=threading.Lock();self.schedule_seen=set();self.remote_until={};self.screen_until={}
         self.data={'favorites':[],'playlists':[],'sources':[],'scenes':[],'schedules':[],'sessions':{},'channels':{tv:{'name':'Mi TV','queue':[],'history':[],'current':None,'telemetry':{},'seen':0}}}
         if self.path.exists():
             try:
@@ -153,18 +185,31 @@ class Hub:
                         repeated=dict(channel['current'],play_id=secrets.token_hex(16));channel['queue'].append(repeated)
                     self.advance(target)
                 telemetry=event.get('telemetry')
+                old_screen=channel['telemetry'].get('screen')
                 if isinstance(telemetry,dict):channel['telemetry']={k:v for k,v in telemetry.items() if k in ('music','music_active','music_muted','music_state','music_seconds','music_error','background_audio','title','state','seconds','duration','kind','error','volume','muted','observed_volume','observed_muted','engine','view','focus','focus_id') and isinstance(v,(str,int,float,bool)) and len(str(v))<=300}
-            result={'commands':[dict(command) for command in self.commands if command['target']==target and command['expires']>self.clock()], 'pin':self.pin,'guest_pin':self.guest_pin,'poll_ms':250 if self.remote_until.get(target,0)>self.clock() else 2000}
+                if isinstance(telemetry,dict):
+                    screen=telemetry.get('screen')
+                    screen=clean_screen(screen)
+                    if screen is not None:channel['telemetry']['screen']=screen
+                    elif old_screen is not None:channel['telemetry']['screen']=old_screen
+            result={'commands':[dict(command) for command in self.commands if command['target']==target and command['expires']>self.clock()], 'pin':self.pin,'guest_pin':self.guest_pin,'poll_ms':250 if self.remote_until.get(target,0)>self.clock() else 2000,'screen_requested':self.screen_until.get(target,0)>self.clock()}
             result['live_edit_ack']=live_ack
             if live_error:result['live_edit_error']=live_error
             result['live_revision']=self.iptv.revision
             if live_ack or not event or event.get('live_revision')!=self.iptv.revision:
                 result['live_catalog']=self.iptv.catalog;result['live_categories']=self.iptv.data['categories']
             return result
+    def request_screen(self,target):
+        with self.lock:
+            self.channel(target)
+            if self.screen_until.get(target,0)<=self.clock():self.remote_until[target]=self.clock()+5
+            self.screen_until[target]=self.clock()+10
     def snapshot(self,target,role):
         with self.lock:
             self.schedules();channel=self.channel(target)
             result={'iptv':self.iptv.info(),'live_tv':self.iptv.catalog,'target':target,'channels':[{'id':key,'name':value['name'],'online':self.clock()-value['seen']<10} for key,value in self.data['channels'].items()], 'queue':channel['queue'],'repeat':channel.get('repeat',False),'playlists':self.data['playlists'],'current':channel['current'],'telemetry':channel['telemetry'],'sources':[{k:v for k,v in source.items() if k not in ('url','filename')} for source in self.data['sources']]+[{'id':ident,'name':file.stem,'kind':kind,'local':True,'favorite':ident in self.data['favorites']} for ident,(file,kind) in self.mac_files.items()], 'scenes':self.data['scenes'],'role':role,'jobs':self.jobs}
+            if role!='owner':
+                result['telemetry']=dict(result['telemetry']);result['telemetry'].pop('screen',None)
             if role=='owner':result.update(pin=self.pin,guest_pin=self.guest_pin,schedules=self.data['schedules'],ffmpeg=bool(shutil.which('ffmpeg')))
             return result
     def item(self,data):
@@ -208,6 +253,7 @@ class Hub:
                 command=data.get('command')
                 if command not in ACTIONS:raise ValueError('Control no disponible.')
                 seconds=data.get('seconds',10)
+                if command=='touch' and (not isinstance(data.get('view'),str) or not re.fullmatch(r'[a-z-]{1,24}:[A-Za-z0-9_-]{1,80}',data['view'])):raise ValueError('Selección de pantalla no válida.')
                 if command=='volume' and (type(seconds) is not int or not 0<=seconds<=100):raise ValueError('Volumen no válido.')
                 if command=='seek' and seconds not in (-30,-10,-5,5,10,30):raise ValueError('Salto no válido.')
                 view=data.get('view','')
@@ -271,7 +317,6 @@ class Hub:
                 self.emit(target,{'kind':'scene','scene':scene})
             elif action=='schedule':
                 when=data.get('time','');days=data.get('days',list(range(7)))
-                import re
                 if not re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d',when) or not isinstance(days,list) or not days or any(type(day)!=int or day not in range(7) for day in days) or not any(s['id']==data.get('scene') for s in self.data['scenes']):raise ValueError('Horario o escena no válido.')
                 if len(self.data['schedules'])>=100:raise ValueError('Límite de horarios alcanzado.')
                 self.data['schedules'].append({'id':secrets.token_hex(12),'scene':data['scene'],'target':target,'time':when,'days':days,'enabled':True});self.save()

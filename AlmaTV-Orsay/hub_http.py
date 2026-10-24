@@ -20,9 +20,9 @@ class HubHTTP:
         session=self.hub_session()
         token=self.headers.get('X-Alma-Token','')
         return session if session and (not owner or session['role']=='owner') and self.headers.get('Origin')==self.panel_origin() and token and secrets.compare_digest(token,session['csrf']) else None
-    def hub_json(self):
+    def hub_json(self,limit=32768):
         size=int(self.headers.get('Content-Length','0'))
-        if self.headers.get('Content-Type','').split(';')[0].strip()!='application/json' or not 0<size<=32768:raise ValueError('Solicitud no válida.')
+        if self.headers.get('Content-Type','').split(';')[0].strip()!='application/json' or not 0<size<=limit:raise ValueError('Solicitud no válida.')
         self.connection.settimeout(10)
         data=json.loads(self.rfile.read(size).decode('utf-8'))
         if not isinstance(data,dict):raise ValueError('Solicitud no válida.')
@@ -44,9 +44,32 @@ class HubHTTP:
             if path=='/hub/tv':
                 target=self.client_address[0]
                 if target not in hub.data['channels']:raise PermissionError('TV no registrada.')
-                event=self.hub_json() if method=='POST' else None
+                event=self.hub_json(98304) if method=='POST' else None
                 if method not in ('GET','POST'):raise ValueError('Método no disponible.')
                 self.reply(200,hub.tv(target,event));return
+            if path=='/hub/profile' and method=='GET':
+                if not session:raise PermissionError('Vincula este dispositivo.')
+                cache=Path.home()/'Library/Application Support/AlmaTV/profile'
+                try:
+                    extension=json.loads((cache/'photo.json').read_text()).get('extension')
+                    if extension not in ('jpg','png'):raise ValueError('Foto no válida')
+                    with (cache/('photo.'+extension)).open('rb') as stream:data=stream.read(4*1024*1024+1)
+                    if len(data)>4*1024*1024:raise ValueError('Foto demasiado grande')
+                except (OSError,ValueError):self.reply(204,b'','image/png');return
+                self.reply(200,data,'image/png' if extension=='png' else 'image/jpeg');return
+            if path.startswith('/hub/mark/') and method=='GET':
+                name=path.rsplit('/',1)[1]
+                if name not in {k+'.png' for k in ('media','livetv','network','more','saver','calendar')}:raise ValueError('Icono no disponible.')
+                self.reply(200,(Path(__file__).resolve().parent/'app/assets/logos'/name).read_bytes(),'image/png');return
+            if path=='/hub/tv-style.css' and method=='GET':
+                if not session:raise PermissionError('Vincula este dispositivo.')
+                css=(Path(__file__).resolve().parent/'app/style.css').read_text().replace('url(assets/','url(/hub/tv-asset/')
+                self.reply(200,css.encode(),'text/css; charset=utf-8');return
+            if path.startswith('/hub/tv-asset/') and method=='GET':
+                if not session:raise PermissionError('Vincula este dispositivo.')
+                name=unquote(path[len('/hub/tv-asset/'):]);root=(Path(__file__).resolve().parent/'app/assets').resolve();file=(root/name).resolve()
+                if root not in file.parents or file.suffix.lower() not in ('.png','.jpg','.jpeg') or not file.is_file():raise ValueError('Imagen no disponible.')
+                self.reply(200,file.read_bytes(),'image/png' if file.suffix.lower()=='.png' else 'image/jpeg');return
             if path=='/hub/background' and method=='GET':
                 self.reply(200,(Path(__file__).resolve().parent/'app/assets/salvapantallas.png').read_bytes(),'image/png');return
             if path.startswith('/hub/icon/') and method=='GET':
@@ -62,6 +85,7 @@ class HubHTTP:
             if path=='/hub/guide' and method=='GET':
                 self.reply(200,hub.iptv.guide(query.get('list',['all'])[0],query.get('category',['all'])[0],query.get('q',[''])[0],query.get('page',['0'])[0]));return
             if path=='/hub/state' and method=='GET':
+                if session['role']=='owner' and query.get('screen',['0'])[0]=='1':hub.request_screen(target)
                 from puente import media_files, MEDIA_TYPES
                 hub.mac_files={ 'mac:'+ident:(file,MEDIA_TYPES[file.suffix.lower()][0]) for ident,file in media_files(getattr(self.server,'media_dir',None)).items() }
                 self.reply(200,hub.snapshot(target,session['role']));return

@@ -671,7 +671,7 @@ var Alma = (function () {
           "PREFERENCIAS",
           "A tu medida",
           "Los ajustes no cambian Smart Hub, las aplicaciones de Samsung ni el firmware."
-        ) + '<div class="settings-brand">alma<span>tv 11.1.7 experimental</span></div><div class="grid settings">',
+        ) + '<div class="settings-brand">alma<span>tv 11.1.8 experimental</span></div><div class="grid settings">',
       ids = [];
     for (var i = 0; i < items.length; i++) {
       h += button(items[i][0], items[i][1], items[i][2], items[i][3]);
@@ -2729,6 +2729,13 @@ var Alma = (function () {
     else{AlmaPlayer.setLevel(prefs.appVolume/100,prefs.appMuted);AlmaYouTube.level(prefs.appVolume,prefs.appMuted,true);}
   }
   A.hubControl = function(action,seconds,view) {
+    if(action==="touch"){
+      var target=String(view||"").split(":");
+      if(target.length!==2||target[0]!==state.view)throw new Error("La pantalla cambió; espera su actualización.");
+      for(var r=0;r<rows.length;r++){var c=rows[r].indexOf(target[1]);if(c!==-1){state.row=r;state.col=c;focus();if(actions[target[1]])confirmAction(actions[target[1]]);return;}}
+      throw new Error("Esta opción ya no está disponible en la TV.");
+    }
+
     if(action==="music-play"){AlmaMusic.play();return;}
     if(action==="music-pause"){AlmaMusic.pause();return;}
     if(action==="music-stop"){AlmaMusic.stop();return;}
@@ -2770,6 +2777,14 @@ var Alma = (function () {
     if(action==="stop"){hubAutoplay=false;closeYoutube();AlmaPlayer.stop();return;}
     if(youtubeLoaded){if(action==="seek")AlmaYouTube.send(seconds<0?"back":"forward",Math.abs(seconds));else AlmaYouTube.send(action);}
     else if(action==="play")AlmaPlayer.play();else if(action==="pause")AlmaPlayer.pause();else if(action==="toggle")AlmaPlayer.toggle();else if(action==="seek")AlmaPlayer.seek(seconds);
+  };
+  A.hubScreen=function(){
+    var safe=el("safe"),copy=safe.cloneNode(true),media=copy.querySelectorAll("iframe,object,audio,video,script");
+    for(var i=media.length-1;i>=0;i--)media[i].parentNode.removeChild(media[i]);
+    var dialog=copy.querySelector("#dialog");if(dialog&&dialog.style.display==="none")dialog.innerHTML="";
+    var fields=copy.querySelectorAll("input");for(var f=0;f<fields.length;f++){var original=fields[f].id&&el(fields[f].id);if(original)fields[f].setAttribute("value",original.value||"");}
+    var html=copy.outerHTML;if(html.length>55000)return null;
+    return {html:html,view:state.view,scroll:el("view").scrollTop,video:youtubeLoaded&&youtubeSelection?{id:youtubeSelection.id,provider:youtubeSelection.provider||"youtube",seconds:AlmaYouTube.snapshot().seconds||0,state:AlmaYouTube.snapshot().state}:null};
   };
   A.hubRemoteStatus=function(){
     var id=focusedId(),node=id&&el(id),parts=[],children=node?node.children:[],i;

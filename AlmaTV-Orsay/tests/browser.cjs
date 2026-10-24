@@ -45,7 +45,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="11.1.7"'))
+      if (!html.includes('name="alma-build" content="11.1.8"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -130,7 +130,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio 11: dock de logos, abajo abre biblioteca y Atrás restaura Inicio", async () => {
-  assert.equal(await page.locator('meta[name="alma-build"]').getAttribute("content"),"11.1.7");
+  assert.equal(await page.locator('meta[name="alma-build"]').getAttribute("content"),"11.1.8");
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   assert.equal(await page.locator(".home-apps .app").count(),17);
   assert.equal(await page.locator(".focus").getAttribute("id"),"app-0");
@@ -1870,7 +1870,7 @@ test('Alma 11: vista previa real, categorías y Reproducir en el inicio conserva
  assert.deepEqual(errors,[]);
 });
 
-test('11.1.7: flecha arriba sube, izquierda permanece en la fila y TV propia tiene logo',async()=>{
+test('11.1.8: flecha arriba sube, izquierda permanece en la fila y TV propia tiene logo',async()=>{
  assert.equal(await page.locator('.focus').getAttribute('id'),'app-0');
  await key(37);assert.equal(await page.locator('.focus').getAttribute('id'),'app-0');
  await key(38);assert.equal(await page.locator('.focus').getAttribute('id'),'nav-0');
@@ -1891,7 +1891,7 @@ test('11.1.7: flecha arriba sube, izquierda permanece en la fila y TV propia tie
  await shot('alma11-experimental-tv');assert.deepEqual(errors,[]);
 });
 
-test('11.1.7: inicia antes de terminar las imágenes y no inicializa dos veces',async(t)=>{
+test('11.1.8: inicia antes de terminar las imágenes y no inicializa dos veces',async(t)=>{
  let release;const delayed=new Promise(resolve=>release=resolve);t.after(()=>release());
  await page.route('**/assets/logos/browser.png',async r=>{await delayed;await r.continue();});
  await page.reload({waitUntil:'domcontentloaded'});
@@ -1903,7 +1903,7 @@ test('11.1.7: inicia antes de terminar las imágenes y no inicializa dos veces',
  release();await page.waitForLoadState('load');await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.1.7: dock más bajo, sin instrucciones y perfil circular con foto local',async()=>{
+test('11.1.8: dock más bajo, sin instrucciones y perfil circular con foto local',async()=>{
  const dock=await page.locator('.home-apps').boundingBox();
  assert.ok(dock.y+dock.height>620&&dock.y+dock.height<700,JSON.stringify(dock));
  assert.equal(await page.locator('#footer').isVisible(),false);
@@ -1918,16 +1918,16 @@ test('11.1.7: dock más bajo, sin instrucciones y perfil circular con foto local
  assert.deepEqual(errors,[]);
 });
 
-test('11.1.7: selector azul tenue sin marco blanco y marca solo en Ajustes',async()=>{
+test('11.1.8: selector azul tenue sin marco blanco y marca solo en Ajustes',async()=>{
  assert.equal(await page.locator('#header .brand').count(),0);
  const focus=await page.locator('.focus').evaluate(n=>{const s=getComputedStyle(n);return {outline:s.outlineStyle,shadow:s.boxShadow,color:s.backgroundColor};});
  assert.equal(focus.outline,'none');assert.match(focus.shadow,/38, 62, 190/);assert.match(focus.shadow,/0\.28/);
  await key(38);assert.equal(await page.locator('.focus').evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(28, 35, 45, 0.68)');
- await go('settings');assert.match(await page.locator('.settings-brand').innerText(),/alma.*tv 11\.1\.7/);
+ await go('settings');assert.match(await page.locator('.settings-brand').innerText(),/alma.*tv 11\.1\.8/);
  await go('home');await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.1.7: cinco apps completas por ventana sin una sexta cortada',async()=>{
+test('11.1.8: cinco apps completas por ventana sin una sexta cortada',async()=>{
  for(let i=0;i<10;i++){
   const visible=await page.locator('.home-apps .app').evaluateAll(nodes=>{const clip=document.querySelector('.app-carousel').getBoundingClientRect();return nodes.map(n=>{const b=n.getBoundingClientRect();return {left:b.left,right:b.right};}).filter(b=>b.right>clip.left+.5&&b.left<clip.right-.5).map(b=>({full:b.left>=clip.left-.5&&b.right<=clip.right+.5}));});
   assert.equal(visible.length,5,JSON.stringify(visible));assert.ok(visible.every(b=>b.full));
@@ -1940,7 +1940,7 @@ test('11.1.7: cinco apps completas por ventana sin una sexta cortada',async()=>{
  await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.1.7: cuadrícula sin encabezados, utilidades como apps y arriba vuelve al dock',async()=>{
+test('11.1.8: cuadrícula sin encabezados, utilidades como apps y arriba vuelve al dock',async()=>{
  assert.deepEqual(await page.locator('#nav button').evaluateAll(ns=>ns.map(n=>n.getAttribute('aria-label'))),['Inicio','Buscar','Apps','Pantalla completa','Salvapantallas','Configuración']);
  await key(40);assert.equal(await page.locator('#safe').getAttribute('data-view'),'apps');
  assert.equal(await page.locator('#view .page-head,#view h1,#view h2,.library-tools').count(),0);

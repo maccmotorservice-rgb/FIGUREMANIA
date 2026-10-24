@@ -199,3 +199,26 @@ class BackgroundMusicTests(unittest.TestCase):
             for name in ['music-play','music-pause','music-mute','music-stop']:
                 hub.mutate({'action':'control','command':name},'owner',target)
                 self.assertEqual(hub.tv(target)['commands'][-1]['action'],name)
+
+class TouchScreenTests(unittest.TestCase):
+    def test_screen_is_sanitized_owner_only_and_touch_is_owner_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            hub=Hub(directory,'127.0.0.3');target='127.0.0.3'
+            html='<div id="safe"><button data-focus="app-0" onclick="alert(1)">App</button><img src="https://evil.example/x"><script>alert(1)</script><div style="background:url(https://evil.example/x)">Hola</div></div>'
+            hub.tv(target,{'telemetry':{'screen':{'html':html,'view':'home','video':None}}})
+            markup=hub.snapshot(target,'owner')['telemetry']['screen']['html']
+            self.assertIn('data-focus="app-0"',markup);self.assertNotIn('evil.example',markup);self.assertNotIn('script',markup);self.assertNotIn('onclick',markup)
+            self.assertNotIn('screen',hub.snapshot(target,'guest')['telemetry'])
+            for view in ('home:app-0','apps:app-1'):
+                hub.mutate({'action':'control','command':'touch','view':view},'owner',target)
+            for view in ('app-0','home:../secret',{'id':'app-0'}):
+                with self.assertRaises(ValueError):hub.mutate({'action':'control','command':'touch','view':view},'owner',target)
+            with self.assertRaises(PermissionError):hub.mutate({'action':'control','command':'touch','view':'home:app-0'},'guest',target)
+
+class ScreenDemandTests(unittest.TestCase):
+    def test_screen_capture_is_off_by_default_and_expires_without_viewers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            now=[100.0];hub=Hub(directory,'127.0.0.3',lambda:now[0]);target='127.0.0.3'
+            self.assertFalse(hub.tv(target)['screen_requested'])
+            hub.request_screen(target);self.assertTrue(hub.tv(target)['screen_requested'])
+            now[0]+=11;self.assertFalse(hub.tv(target)['screen_requested'])

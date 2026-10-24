@@ -16,7 +16,7 @@ class ControlUpdateTests(unittest.TestCase):
             install(source,root)
             self.assertEqual((root/'hub_panel.antes-guia.html').read_text(),'Página anterior')
             self.assertEqual((root/'iptv.json').read_text(),'mis favoritos');self.assertEqual((root/'hub.json').read_text(),'biblioteca')
-            self.assertEqual({p.name for p in root.iterdir()},{'hub_panel.html','hub_panel.antes-guia.html','iptv.py','hub.py','hub_http.py','iptv.py.antes-listas','hub.py.antes-listas','hub_http.py.antes-listas','hub.json','iptv.json'})
+            self.assertEqual({p.name for p in root.iterdir()},{'hub_panel.html','hub_panel.antes-guia.html','iptv.py','hub.py','hub_http.py','iptv.py.antes-listas','hub.py.antes-listas','hub_http.py.antes-listas','hub.json','iptv.json','app'})
     def test_old_or_missing_bridge_and_invalid_update_leave_panel_untouched(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);source=ROOT/'hub_panel.html'

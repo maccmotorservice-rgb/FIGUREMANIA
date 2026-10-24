@@ -7,8 +7,9 @@ import subprocess
 import sys
 import tempfile
 
-VERSION = '11.0.2'
-FILES = ('hub_panel.html','hub.py','hub_http.py','iptv.py')
+VERSION = '11.1.8'
+CORE = ('hub_panel.html','hub.py','hub_http.py','iptv.py')
+FILES = CORE + ('app/style.css',) + tuple(str(p.relative_to(Path(__file__).resolve().parent)) for p in sorted((Path(__file__).resolve().parent/'app/assets/logos').glob('*.png')))
 
 def install(source, directory):
     source=Path(source);directory=Path(directory);destination=directory/'hub_panel.html'
@@ -24,21 +25,23 @@ def install(source, directory):
     originals={}
     for name in FILES:
         target=directory/name
-        if not target.is_file() or target.is_symlink():raise ValueError('Falta un archivo del puente instalado: '+name)
-        originals[name]=target.read_bytes()
+        if (name in CORE and not target.is_file()) or target.is_symlink():raise ValueError('Falta un archivo del puente instalado: '+name)
+        originals[name]=target.read_bytes() if target.is_file() else None
     installed=[]
     with tempfile.TemporaryDirectory(dir=str(directory),prefix='.alma-control-') as temporary:
         staging=Path(temporary)
         for name,content in contents.items():
-            target=staging/name;target.write_bytes(content);target.chmod(0o644)
+            target=staging/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(content);target.chmod(0o644)
         for name in FILES:
             target=directory/name;backup=directory/('hub_panel.antes-guia.html' if name=='hub_panel.html' else name+'.antes-listas')
-            if not backup.exists():shutil.copy2(target,backup)
+            if target.is_file() and not backup.exists():backup.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(target,backup)
         try:
-            for name in FILES:(staging/name).replace(directory/name);installed.append(name)
+            for name in FILES:
+                (directory/name).parent.mkdir(parents=True,exist_ok=True);(staging/name).replace(directory/name);installed.append(name)
         except OSError:
             for name in reversed(installed):
-                rollback=staging/('rollback-'+name);rollback.write_bytes(originals[name]);rollback.chmod(0o644);rollback.replace(directory/name)
+                if originals[name] is None:(directory/name).unlink(missing_ok=True);continue
+                rollback=staging/('rollback-'+name);rollback.parent.mkdir(parents=True,exist_ok=True);rollback.write_bytes(originals[name]);rollback.chmod(0o644);rollback.replace(directory/name)
             raise
     return destination
 
@@ -50,7 +53,7 @@ def main():
     except (ValueError,OSError) as error:raise SystemExit(str(error))
     try:subprocess.run(['launchctl','kickstart','-k','gui/'+str(os.getuid())+'/local.almatv.puente'],check=True)
     except subprocess.CalledProcessError:raise SystemExit('Archivos actualizados, pero no se pudo reiniciar el puente. Reinicia sesión en la Mac para iniciarlo y recarga el control.')
-    print('Control web '+VERSION+' y puente actualizados. No necesitas sincronizar ni reiniciar la TV.')
+    print('Control web '+VERSION+' y puente actualizados. La vista pulsable requiere Alma TV 11.1.8 o posterior en el televisor.')
     print('El puente se reinició; puede tardar unos segundos en responder. Recarga http://192.168.1.30:8088/control. Puedes cerrar Terminal.')
 
 if __name__=='__main__':main()

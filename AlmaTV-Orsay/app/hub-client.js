@@ -1,7 +1,7 @@
 /* Alma TV local controller. ES5; no native modules opened here. */
 var AlmaHub = (function () {
   "use strict";
-  var next=0,busy=false,failures=0,active=null,ended="",pins={pin:"",guest_pin:""},slide=null,slideIndex=0,lastSlide=0,seen=[],lastAck="",lastError="",seenFor="",timer=null,running=false,pollDelay=2000,lastContact=0;
+  var next=0,busy=false,failures=0,active=null,ended="",pins={pin:"",guest_pin:""},slide=null,slideIndex=0,lastSlide=0,seen=[],lastAck="",lastError="",seenFor="",timer=null,running=false,pollDelay=2000,lastContact=0,lastScreenSent=0,wantScreen=false;
   var liveRevision="",liveCategories=["Deportes","Entretenimiento","Películas","Series","Documentales","Noticias","Streaming"],liveEdits=[];
   try{var savedEdits=JSON.parse(localStorage.getItem("alma.live.edits")||"[]");if(Object.prototype.toString.call(savedEdits)==="[object Array]")liveEdits=savedEdits.slice(-1000);}catch(ignoreEdits){}
   function saveLiveEdits(){try{localStorage.setItem("alma.live.edits",JSON.stringify(liveEdits));}catch(ignore){}}
@@ -71,9 +71,10 @@ var AlmaHub = (function () {
     if(busy||now<next||document.hidden)return;
     next=now+pollDelay;busy=true;
     var status=Alma.hubStatus();if(slide&&slide.music&&status.state==="Finalizado")Alma.hubPlay(slide.music,true);if(lastError)status.error=lastError;var remote=Alma.hubRemoteStatus();status.view=remote.view;status.focus=remote.focus;status.focus_id=remote.focus_id;var event={telemetry:status,live_revision:liveRevision,live_edits:liveEdits.slice(0,20)};
+    if(wantScreen&&typeof Alma.hubScreen==="function"&&now-lastScreenSent>=1000){var screen=Alma.hubScreen();if(screen){if(JSON.stringify(screen).length<65000)event.telemetry.screen=screen;lastScreenSent=now;}}
     if(lastAck)event.ack=lastAck;
     if(active&&active.kind!=="photo"&&active.kind!=="card"&&ended!==active.play_id&&((status.kind==="youtube"||status.kind==="dailymotion")?status.finished:status.state==="Finalizado")) {event.ended=active.play_id;ended=active.play_id;}
-    request(event,function(data){busy=false;if(!data){failures++;next=new Date().getTime()+Math.min(30000,failures*5000);return;}failures=0;lastContact=new Date().getTime();pollDelay=data.poll_ms===250?250:2000;next=new Date().getTime()+pollDelay;pins.pin=data.pin||"";pins.guest_pin=data.guest_pin||"";if(data.live_edit_ack){liveEdits=liveEdits.filter(function(e){return data.live_edit_ack.indexOf(e.op)<0;});saveLiveEdits();}if(data.live_edit_error)Alma.hubNotice(data.live_edit_error);if(data.live_catalog)applyCatalog(data.live_catalog,data.live_revision,data.live_categories);var commands=data.commands||[];if(commands.length){execute(commands[0]);next=0;}onRender();});
+    request(event,function(data){busy=false;if(!data){failures++;next=new Date().getTime()+Math.min(30000,failures*5000);return;}failures=0;lastContact=new Date().getTime();var screenStarted=!wantScreen&&data.screen_requested===true;wantScreen=data.screen_requested===true;pollDelay=data.poll_ms===250?250:2000;next=screenStarted?0:new Date().getTime()+pollDelay;pins.pin=data.pin||"";pins.guest_pin=data.guest_pin||"";if(data.live_edit_ack){liveEdits=liveEdits.filter(function(e){return data.live_edit_ack.indexOf(e.op)<0;});saveLiveEdits();}if(data.live_edit_error)Alma.hubNotice(data.live_edit_error);if(data.live_catalog)applyCatalog(data.live_catalog,data.live_revision,data.live_categories);var commands=data.commands||[];if(commands.length){execute(commands[0]);next=0;}onRender();});
   }
   function onRender(){
     if(slide&&slide.items.length)show(slide.items[slideIndex]);
