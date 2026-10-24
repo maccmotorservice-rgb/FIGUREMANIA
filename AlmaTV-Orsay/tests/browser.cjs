@@ -45,7 +45,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="11.1.0"'))
+      if (!html.includes('name="alma-build" content="11.1.1"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -130,7 +130,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio 11: dock de logos, abajo abre biblioteca y Atrás restaura Inicio", async () => {
-  assert.equal(await page.locator('meta[name="alma-build"]').getAttribute("content"),"11.1.0");
+  assert.equal(await page.locator('meta[name="alma-build"]').getAttribute("content"),"11.1.1");
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   assert.equal(await page.locator(".home-apps .app").count(),17);
   assert.equal(await page.locator(".focus").getAttribute("id"),"app-0");
@@ -896,7 +896,7 @@ async function officialYouTubeFixture(code = 0, behavior = "normal") {
   const referers = [];
   await page.route("http://192.168.1.30:8088/youtube/player?**", async r => {
     const url = new URL(r.request().url());
-    const config = {video:url.searchParams.get("video"),token:url.searchParams.get("token"),parent:url.searchParams.get("parent"),autoplay:url.searchParams.get("autoplay")==="1"};
+    const config = {video:url.searchParams.get("video"),token:url.searchParams.get("token"),parent:url.searchParams.get("parent"),autoplay:url.searchParams.get("autoplay")==="1",background:url.searchParams.get("session")==="background"};
     const html = fs.readFileSync(path.join(ROOT,"youtube_player.html"),"utf8").replace("__ALMA_YT_CONFIG__", JSON.stringify(config));
     await r.fulfill({status:200,contentType:"text/html; charset=utf-8",headers:{"Referrer-Policy":"origin"},body:html});
   });
@@ -1876,7 +1876,7 @@ test('Alma 11: vista previa real, categorías y Reproducir en el inicio conserva
  assert.deepEqual(errors,[]);
 });
 
-test('11.1.0: flecha arriba sube, izquierda permanece en la fila y TV propia tiene logo',async()=>{
+test('11.1.1: flecha arriba sube, izquierda permanece en la fila y TV propia tiene logo',async()=>{
  assert.equal(await page.locator('.focus').getAttribute('id'),'app-0');
  await key(37);assert.equal(await page.locator('.focus').getAttribute('id'),'app-0');
  await key(38);assert.equal(await page.locator('.focus').getAttribute('id'),'nav-0');
@@ -1897,7 +1897,7 @@ test('11.1.0: flecha arriba sube, izquierda permanece en la fila y TV propia tie
  await shot('alma11-experimental-tv');assert.deepEqual(errors,[]);
 });
 
-test('11.1.0: inicia antes de terminar las imágenes y no inicializa dos veces',async(t)=>{
+test('11.1.1: inicia antes de terminar las imágenes y no inicializa dos veces',async(t)=>{
  let release;const delayed=new Promise(resolve=>release=resolve);t.after(()=>release());
  await page.route('**/assets/logos/browser.png',async r=>{await delayed;await r.continue();});
  await page.reload({waitUntil:'domcontentloaded'});
@@ -1909,7 +1909,7 @@ test('11.1.0: inicia antes de terminar las imágenes y no inicializa dos veces',
  release();await page.waitForLoadState('load');await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.1.0: dock más bajo, sin instrucciones y perfil circular con foto local',async()=>{
+test('11.1.1: dock más bajo, sin instrucciones y perfil circular con foto local',async()=>{
  const dock=await page.locator('.home-apps').boundingBox();
  assert.ok(dock.y+dock.height>620&&dock.y+dock.height<700,JSON.stringify(dock));
  assert.equal(await page.locator('#footer').isVisible(),false);
@@ -1924,16 +1924,16 @@ test('11.1.0: dock más bajo, sin instrucciones y perfil circular con foto local
  assert.deepEqual(errors,[]);
 });
 
-test('11.1.0: selector azul tenue sin marco blanco y marca solo en Ajustes',async()=>{
+test('11.1.1: selector azul tenue sin marco blanco y marca solo en Ajustes',async()=>{
  assert.equal(await page.locator('#header .brand').count(),0);
  const focus=await page.locator('.focus').evaluate(n=>{const s=getComputedStyle(n);return {outline:s.outlineStyle,shadow:s.boxShadow,color:s.backgroundColor};});
  assert.equal(focus.outline,'none');assert.match(focus.shadow,/38, 62, 190/);assert.match(focus.shadow,/0\.28/);
  await key(38);assert.equal(await page.locator('.focus').evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(28, 35, 45, 0.68)');
- await go('settings');assert.match(await page.locator('.settings-brand').innerText(),/alma.*tv 11\.1\.0/);
+ await go('settings');assert.match(await page.locator('.settings-brand').innerText(),/alma.*tv 11\.1\.1/);
  await go('home');await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.1.0: cinco apps completas por ventana sin una sexta cortada',async()=>{
+test('11.1.1: cinco apps completas por ventana sin una sexta cortada',async()=>{
  for(let i=0;i<10;i++){
   const visible=await page.locator('.home-apps .app').evaluateAll(nodes=>{const clip=document.querySelector('.app-carousel').getBoundingClientRect();return nodes.map(n=>{const b=n.getBoundingClientRect();return {left:b.left,right:b.right};}).filter(b=>b.right>clip.left+.5&&b.left<clip.right-.5).map(b=>({full:b.left>=clip.left-.5&&b.right<=clip.right+.5}));});
   assert.equal(visible.length,5,JSON.stringify(visible));assert.ok(visible.every(b=>b.full));
@@ -1946,7 +1946,7 @@ test('11.1.0: cinco apps completas por ventana sin una sexta cortada',async()=>{
  await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.1.0: cuadrícula sin encabezados, utilidades como apps y arriba vuelve al dock',async()=>{
+test('11.1.1: cuadrícula sin encabezados, utilidades como apps y arriba vuelve al dock',async()=>{
  assert.deepEqual(await page.locator('#nav button').evaluateAll(ns=>ns.map(n=>n.getAttribute('aria-label'))),['Inicio','Buscar','Apps','Pantalla completa','Salvapantallas','Configuración']);
  await key(40);assert.equal(await page.locator('#safe').getAttribute('data-view'),'apps');
  assert.equal(await page.locator('#view .page-head,#view h1,#view h2,.library-tools').count(),0);
@@ -2026,4 +2026,26 @@ test('Dual experimental: mensajes de otra sesión no cambian estados y respeta S
  await page.evaluate(()=>Alma.hubControl('background-stop'));
  const main=await (await page.$('#youtube-frame')).contentFrame();assert.equal(await main.evaluate(()=>testYoutube.muted),true);
  await page.evaluate(()=>Alma.hubControl('mute'));await main.waitForFunction(()=>!testYoutube.muted);assert.deepEqual(errors,[]);
+});
+
+test('Dual corregido: arranca dentro del viewport sin escala y detrás del principal',async()=>{
+ await officialYouTubeFixture();
+ let startup=null;
+ await page.route('https://www.youtube.com/iframe_api',async route=>{
+  if(!route.request().frame().url().includes('session=background'))return route.fallback();
+  startup=await page.evaluate(()=>{const frame=document.getElementById('youtube-audio-frame'),host=document.getElementById('youtube-audio-host'),b=frame.getBoundingClientRect();return {parent:host.parentNode.tagName,left:b.left,top:b.top,width:b.width,height:b.height,mainZ:getComputedStyle(document.getElementById('youtube-host')).zIndex,audioZ:getComputedStyle(host).zIndex};});
+  const canStart=startup.parent==='BODY'&&startup.left>=0&&startup.top>=0&&startup.width>=384&&startup.height>=240;
+  await route.fulfill({contentType:'application/javascript',body:`window.YT={Player:function(id,options){var node=document.getElementById(id),f=document.createElement('iframe');node.parentNode.replaceChild(f,node);var state=-1,muted=false,volume=70;this.getPlayerState=function(){return state;};this.getCurrentTime=function(){return state===1?3:0;};this.getDuration=function(){return 1000;};this.getVideoData=function(){return {title:'Arranque con viewport'};};this.setVolume=function(v){volume=v;};this.getVolume=function(){return volume;};this.mute=function(){muted=true;};this.unMute=function(){muted=false;};this.isMuted=function(){return muted;};this.setSize=function(){};this.loadVideoById=this.playVideo=function(){state=1;options.events.onStateChange({data:1});};this.pauseVideo=function(){state=2;options.events.onStateChange({data:2});};if(${canStart})setTimeout(function(){options.events.onReady();},10);}};window.onYouTubeIframeAPIReady();`});
+ });
+ await savedYouTube();await click('youtube-play');await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
+ const original=await page.locator('#youtube-frame').getAttribute('src');
+ await page.evaluate(()=>Alma.hubControl('background-audio',0,'dQw4w9WgXcQ'));
+ await page.waitForFunction(()=>AlmaBackgroundAudio.snapshot().state===1&&AlmaBackgroundAudio.snapshot().seconds>0);
+ assert.equal(startup.parent,'BODY');assert.ok(startup.width>=384&&startup.height>=240,JSON.stringify(startup));
+ assert.ok(Number(startup.mainZ)>Number(startup.audioZ),JSON.stringify(startup));
+ assert.equal(await page.locator('#youtube-frame').getAttribute('src'),original);
+ assert.equal(await page.locator('#safe').getAttribute('data-view'),'home');
+ const audio=await(await page.$('#youtube-audio-frame')).contentFrame();
+ assert.equal(await audio.locator('#surface').evaluate(n=>getComputedStyle(n).visibility),'visible');
+ await page.evaluate(()=>Alma.hubControl('background-stop'));assert.equal(await page.locator('#youtube-audio-frame').count(),0);assert.deepEqual(errors,[]);
 });

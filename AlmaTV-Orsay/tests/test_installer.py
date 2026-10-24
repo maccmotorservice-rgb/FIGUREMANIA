@@ -26,7 +26,7 @@ class InstallerTests(unittest.TestCase):
         self.files={str(p.relative_to(ROOT/'app')):p.read_bytes() for p in (ROOT/'app').rglob('*') if p.is_file()}
     def test_manifest_identity_plain_info_and_relative_resources(self):
         ident,version,_=preparar.validate(self.files)
-        self.assertEqual((ident,version),('AlmaTV86','11.1.0'))
+        self.assertEqual((ident,version),('AlmaTV86','11.1.1'))
         self.assertNotIn(b'<',self.files['widget.info'])
         self.assertIn(b'1280x720',self.files['widget.info'])
         with tempfile.TemporaryDirectory() as directory:
@@ -195,6 +195,17 @@ class BridgeTests(unittest.TestCase):
             self.assertEqual(error.exception.code,502)
     def test_redirects_are_rejected_before_following(self):
         with self.assertRaises(ValueError):puente.NoRedirect().redirect_request(None,None,302,'',{},'https://evil.example')
+
+    def test_background_player_has_boot_diagnostics_without_changing_primary_config(self):
+        import re
+        route='/youtube/player?video=M7lc1UVf-VE&token='+'a'*32+'&parent=null'
+        with self.req(route+'&session=background') as response:body=response.read().decode()
+        background=json.loads(re.search(r'var config = (\{.*?\}), player',body).group(1))
+        self.assertTrue(background['background'])
+        with self.req(route) as response:body=response.read().decode()
+        primary=json.loads(re.search(r'var config = (\{.*?\}), player',body).group(1))
+        self.assertNotIn('background',primary)
+        self.assertEqual(background['token'],primary['token'])
 
 class LibraryTests(unittest.TestCase):
     setUp=BridgeTests.setUp

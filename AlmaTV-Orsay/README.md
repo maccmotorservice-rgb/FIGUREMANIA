@@ -1,3 +1,17 @@
+# Alma TV 11.1.1 · Corrección del arranque del audio adicional
+
+La 11.1.0 podía iniciar el segundo iframe fuera de pantalla, dentro de la capa escalada del menú, y ocultar su superficie antes de recibir Ready. La corrección lo mueve al body, sin transformación, con un área de 384×240 y dentro del viewport. El principal se mantiene por encima y conserva la única imagen visible. Al iniciar el audio adicional se vuelve a Inicio sin cambiar el video principal. El segundo iframe permanece renderizable y no recibe una orden prematura de ocultarse.
+
+Esto corrige un problema de inicialización del código. Se reproduce en una prueba que no entrega Ready si el iframe nace fuera del viewport, escalado o demasiado pequeño. El rendimiento y la reproducción simultánea reales todavía deben comprobarse en el Samsung físico; no se afirma compatibilidad física por pasar pruebas simuladas.
+
+El error de tiempo de espera ahora muestra el último paso: conexión al puente, carga de la API o creación del reproductor. El puente marca únicamente la sesión adicional para esos mensajes; la sesión principal conserva su configuración anterior.
+
+Validación final: 105 pruebas de interfaz y 70 de Python pasaron, además de ES5, build y verificación de integridad de widget/instalador. La rama y el instalador estable 11.0.3 siguen intactos. Se conserva la recuperación local verificada antes de instalar el experimento.
+
+Instalar `instaladores/AlmaTV-11.1.1-instalador.zip` en la Mac y sincronizar aplicaciones de usuario en la TV. Comprobar Configuración → 11.1.1 experimental antes de repetir la prueba: primer YouTube como video de fondo; segundo enlace en «Audio en segundo plano · experimental».
+
+---
+
 # Alma TV 11.1.0 · Prueba experimental de audio dual
 
 La versión estable sigue siendo 11.0.3, commit `4e1f373a80a8d257d5968188526eca56cca2f4d1`, en `alma-tv/11.0` y `backup/alma-tv-11.0.3`. Esta prueba vive exclusivamente en `alma-tv/experimental-audio-dual` y no sustituye la rama estable.

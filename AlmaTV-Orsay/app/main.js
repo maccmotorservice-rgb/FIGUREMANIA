@@ -670,7 +670,7 @@ var Alma = (function () {
           "PREFERENCIAS",
           "A tu medida",
           "Los ajustes no cambian Smart Hub, las aplicaciones de Samsung ni el firmware."
-        ) + '<div class="settings-brand">alma<span>tv 11.1.0 experimental</span></div><div class="grid settings">',
+        ) + '<div class="settings-brand">alma<span>tv 11.1.1 experimental</span></div><div class="grid settings">',
       ids = [];
     for (var i = 0; i < items.length; i++) {
       h += button(items[i][0], items[i][1], items[i][2], items[i][3]);
@@ -1049,8 +1049,8 @@ var Alma = (function () {
     backgroundAudioStatus=value.failed?value.status:(value.state===1?"Audio adicional reproduciéndose":value.status);
     htmlIfChanged(el("background-audio-status"),esc(backgroundAudioStatus));
     if(value.failed||value.finished){stopBackgroundAudio(true,value.failed?"La prueba de audio no pudo continuar: "+value.status:"El audio adicional terminó.");return;}
-    AlmaBackgroundAudio.resize(320,200);
-    AlmaBackgroundAudio.present(false,false);
+    AlmaBackgroundAudio.resize(384,240);
+    AlmaBackgroundAudio.present(true,false);
     if(value.ready&&!backgroundAudio.sent){backgroundAudio.sent=true;AlmaBackgroundAudio.send("play");}
     if(value.state===1&&!backgroundAudio.levelApplied){backgroundAudio.levelApplied=true;AlmaBackgroundAudio.level(prefs.appVolume,prefs.appMuted);}
   }
@@ -1060,12 +1060,14 @@ var Alma = (function () {
     if(!youtubeLoaded||youtubeAudioOnly||!youtubeSelection||youtubeSelection.provider==="dailymotion"||principal.state!==1||principal.failed)throw new Error("Primero reproduce un video de YouTube como fondo. Esta prueba necesita ese video activo.");
     stopBackgroundAudio(false);
     backgroundAudio={id:id,deadline:new Date().getTime()+5000,sent:false,levelApplied:false};backgroundAudioStatus="Comprobando silencio del video principal…";
+    go("home");
     AlmaYouTube.level(prefs.appVolume,true);
     function waitForMute(){
       if(!backgroundAudio)return;
       if(AlmaYouTube.snapshot().muted===true){
         backgroundAudioStatus="Conectando el audio adicional…";
-        AlmaBackgroundAudio.open(el("youtube-audio-host"),prefs.macIp,id,updateBackgroundAudio,"youtube",false);return;
+        try{AlmaBackgroundAudio.open(el("youtube-audio-host"),prefs.macIp,id,updateBackgroundAudio,"youtube",false);}
+        catch(error){stopBackgroundAudio(true,"No se pudo abrir la sesión adicional: "+String(error.message||error));}return;
       }
       if(new Date().getTime()>backgroundAudio.deadline){stopBackgroundAudio(true,"La TV no confirmó el silencio del video. La prueba no se inició.");return;}
       backgroundAudioTimer=setTimeout(waitForMute,100);
@@ -1157,7 +1159,7 @@ var Alma = (function () {
     var backdrop=backdropView()&&!youtubeFull&&!youtubeAudioOnly&&!value.failed&&!value.finished;
     homeBackdrop(backdrop);
     if(state.view==="home")updateHero(heroIndex);
-    styleIfChanged(host,"zIndex",backdrop?"0":(youtubeFull?"110":"12"));
+    styleIfChanged(host,"zIndex",backdrop?(backgroundAudio?"1":"0"):(youtubeFull?"110":"12"));
     styleIfChanged(host,"pointerEvents",backdrop?"none":"auto");
     // Navigation changes presentation only; never send pause/play or reload.
     if (youtubeAudioOnly || state.view === "saver" || (modal&&!backdrop) || (!youtubeFull&&!backdrop&&!slot)) {
@@ -2582,6 +2584,7 @@ var Alma = (function () {
     releaseVolumeKeys();
     window.addEventListener("focus", releaseVolumeKeys, false);
     window.onresize = fitScreen;
+    document.body.appendChild(el("youtube-audio-host"));
     document.body.appendChild(el("youtube-host"));
     document.body.appendChild(el("media-video"));
     document.body.appendChild(el("video-help"));

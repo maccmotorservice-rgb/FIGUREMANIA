@@ -142,6 +142,7 @@
   }
   window.onYouTubeIframeAPIReady = function () {
     try {
+      if(config.background)tell("loading","YT-API: API descargada; creando segundo reproductor.");
       player = new YT.Player("player", {
         width: "100%", height: "100%", videoId: config.video,
         playerVars: { controls: 1, autoplay: 0, playsinline: 1, fs: 1, origin: window.location.protocol + "//" + window.location.host },
@@ -231,6 +232,7 @@
   var script = document.createElement("script");
   script.src = "https://www.youtube.com/iframe_api";
   script.onerror = function () { tell("error", "No se pudo cargar YouTube. Comprueba internet y la compatibilidad HTTPS del televisor.", -1); report("error", "No se pudo cargar la API de YouTube."); };
+  if(config.background)tell("loading","YT-PUENTE: página del segundo reproductor abierta; cargando API de YouTube.");
   document.head.appendChild(script);
 })();
 </script>

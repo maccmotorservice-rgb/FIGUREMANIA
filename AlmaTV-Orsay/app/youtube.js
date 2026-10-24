@@ -111,11 +111,12 @@ function AlmaYouTubeSession(frameId) {
     frame.setAttribute("referrerpolicy", "origin");
     frame.setAttribute("frameborder", "0");
     value.status = "Conectando con el puente y el reproductor oficial de "+(provider==="dailymotion"?"Dailymotion":"YouTube")+"…";
-    frame.src = base + (provider==="dailymotion"?"/dailymotion/player?video=":"/youtube/player?video=") + id + "&provider=" + provider + "&autoplay="+(autoplay===true?"1":"0")+"&token=" + token + "&parent=" + encodeURIComponent(origin);
+    frame.src = base + (provider==="dailymotion"?"/dailymotion/player?video=":"/youtube/player?video=") + id + (frameId==="youtube-audio-frame"?"&session=background":"") + "&provider=" + provider + "&autoplay="+(autoplay===true?"1":"0")+"&token=" + token + "&parent=" + encodeURIComponent(origin);
+    if(frameId==="youtube-audio-frame"){frame.width=384;frame.height=240;frame.style.width="384px";frame.style.height="240px";}
     host.style.display = "block"; host.appendChild(frame);
     timer = setTimeout(function () {
       value.failed = true;
-      value.status = (provider==="dailymotion"?"Dailymotion":"YouTube")+" no respondió. Comprueba el puente actualizado y la conexión. El navegador de la TV puede ser incompatible.";
+      value.status = (provider==="dailymotion"?"Dailymotion":"YouTube")+" no respondió. Último paso: "+value.status;
       changed();
     }, 25000);
     changed();
