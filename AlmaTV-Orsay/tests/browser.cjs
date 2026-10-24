@@ -45,7 +45,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="11.1.2"'))
+      if (!html.includes('name="alma-build" content="11.1.3"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -130,7 +130,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio 11: dock de logos, abajo abre biblioteca y Atrás restaura Inicio", async () => {
-  assert.equal(await page.locator('meta[name="alma-build"]').getAttribute("content"),"11.1.2");
+  assert.equal(await page.locator('meta[name="alma-build"]').getAttribute("content"),"11.1.3");
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   assert.equal(await page.locator(".home-apps .app").count(),17);
   assert.equal(await page.locator(".focus").getAttribute("id"),"app-0");
@@ -908,15 +908,15 @@ async function officialYouTubeFixture(code = 0, behavior = "normal") {
     window.YT={Player:function(id,options){
       var iframe=document.createElement('iframe');iframe.src='https://www.youtube.com/embed/'+options.videoId;
       var node=document.getElementById(id);node.parentNode.replaceChild(iframe,node);
-      var state=-1,time=20;window.testYoutube={play:0,pause:0,seek:0,load:0,size:null,sizeCount:0,options:options,volume:100,muted:false};
+      var state=-1,time=20;var testYoutube={play:0,pause:0,seek:0,load:0,size:null,sizeCount:0,options:options,volume:100,muted:false};if(id==="player")window.testYoutube=testYoutube;else window.testYoutubeAudio=testYoutube;
       this.getPlayerState=function(){return state;}; this.getCurrentTime=function(){return time;};
       this.setVolume=function(v){if(state!==1)testYoutube.earlyAudio=true;testYoutube.volume=v;};this.getVolume=function(){return testYoutube.volume;};this.mute=function(){testYoutube.muted=true;};this.unMute=function(){testYoutube.unmuteCount=(testYoutube.unmuteCount||0)+1;if(state!==1)testYoutube.earlyAudio=true;testYoutube.muted=false;};this.isMuted=function(){return testYoutube.muted;};
       this.getVideoData=function(){return {title:'Vídeo de prueba · API simulada'};};
-      this.setSize=function(w,h){window.testYoutube.sizeCount++;window.testYoutube.size=[w,h];};
-      this.playVideo=function(){window.testYoutube.play++;window.testYoutube.activation=navigator.userActivation ? navigator.userActivation.isActive : null;${code ? `options.events.onError({data:${code}});` : behavior === "stalled" ? "" : behavior === "ignore-first" ? "if(testYoutube.play>1){state=1;options.events.onStateChange({data:1});}" : behavior === "blocked" ? "options.events.onAutoplayBlocked();" : "state=1;options.events.onStateChange({data:1});"}};
-      ${behavior === "explicit" ? 'this.loadVideoById=function(id){window.testYoutube.hiddenAtLoad=getComputedStyle(document.getElementById("surface")).visibility;window.testYoutube.load++;window.testYoutube.loadedId=id;state=1;options.events.onStateChange({data:1});};' : ''}
-      this.pauseVideo=function(){window.testYoutube.pause++;state=2;options.events.onStateChange({data:2});};
-      this.seekTo=function(value){window.testYoutube.seek++;window.testYoutube.lastSeek=value;time=value;};
+      this.setSize=function(w,h){testYoutube.sizeCount++;testYoutube.size=[w,h];};
+      this.playVideo=function(){testYoutube.play++;testYoutube.activation=navigator.userActivation ? navigator.userActivation.isActive : null;${code ? `options.events.onError({data:${code}});` : behavior === "stalled" ? "" : behavior === "ignore-first" ? "if(testYoutube.play>1){state=1;options.events.onStateChange({data:1});}" : behavior === "blocked" ? "options.events.onAutoplayBlocked();" : "state=1;options.events.onStateChange({data:1});"}};
+      ${behavior === "explicit" ? 'this.loadVideoById=function(id){testYoutube.hiddenAtLoad=getComputedStyle(document.getElementById("surface")).visibility;testYoutube.load++;testYoutube.loadedId=id;state=1;options.events.onStateChange({data:1});};' : ''}
+      this.pauseVideo=function(){testYoutube.pause++;state=2;options.events.onStateChange({data:2});};
+      this.seekTo=function(value){testYoutube.seek++;testYoutube.lastSeek=value;time=value;};
       setTimeout(function(){options.events.onReady();},0);
     }};window.onYouTubeIframeAPIReady();
   `}));
@@ -1459,24 +1459,15 @@ async function nativeAudioFixture(mode="normal") {
   },mode);
 }
 
-test("Volumen físico utiliza Audio nativo, cambia un paso real por tecla y Silencio sin salir (API Samsung simulada)", async () => {
-  await nativeAudioFixture();
-  assert.equal(await page.evaluate(()=>AlmaTVAudio.active()),true);
-  assert.deepEqual((await page.evaluate(()=>audioCalls)).filter(c=>c[0]==="RegisterKey").map(c=>c[1]),[7,11,27]);
-  assert.equal(await key(7),true);
-  assert.equal(await page.evaluate(()=>tvLevel),21);
-  assert.match(await page.locator("#toast").innerText(),/Volumen de la TV: 21/);
-  await key(11); assert.equal(await page.evaluate(()=>tvLevel),20);
-  await key(27); assert.equal(await page.evaluate(()=>tvMuted),1);
-  await key(27); assert.equal(await page.evaluate(()=>tvMuted),0);
-  assert.ok(!(await page.evaluate(()=>platformCalls)).includes("exit"));
-  assert.deepEqual((await page.evaluate(()=>audioCalls)).filter(c=>c[0]==="SetVolumeWithKey").map(c=>c[1]),[0,1]);
-  await page.evaluate(()=>AlmaTVAudio.close());
-  assert.deepEqual((await page.evaluate(()=>audioCalls)).filter(c=>c[0]==="UnregisterKey").map(c=>c[1]),[7,11,27]);
-  assert.deepEqual(errors,[]);
+test("Volumen físico siempre vuelve a Samsung sin activar Audio ni registrar teclas",async()=>{
+ await nativeAudioFixture();assert.equal(await page.evaluate(()=>AlmaTVAudio.active()),false);
+ for(const code of [7,11,27,7,11])assert.equal(await key(code),false);
+ assert.equal(await page.evaluate(()=>tvLevel),20);
+ assert.equal(await page.evaluate(()=>audioCalls.some(c=>c[0]==="RegisterKey"||c[0]==="OpenAudio"||c[0]==="SetVolumeWithKey")),false);
+ assert.ok(!(await page.evaluate(()=>platformCalls)).includes("exit"));assert.deepEqual(errors,[]);
 });
 for(const mode of ["open","read","register","write"]) {
-  test("Audio nativo rechaza fallo "+mode+" y devuelve las teclas al sistema (API simulada)",async()=>{
+  test("La disponibilidad nativa "+mode+" no permite capturar volumen físico",async()=>{
     await nativeAudioFixture(mode);
     if(mode==="write") await key(7);
     assert.equal(await page.evaluate(()=>AlmaTVAudio.active()),false);
@@ -1502,7 +1493,7 @@ test("Arranque, foco y teclas previas a activación no instancian ni abren Audio
   assert.equal(await page.locator("#alma-audio-plugin").count(),0);
   assert.equal(await page.locator("#alma-keys-plugin").count(),0);
   await go("settings");await click("tv-volume");
-  assert.equal(await page.evaluate(()=>nativeOpens),1);
+  assert.equal(await page.evaluate(()=>nativeOpens),0);
   assert.equal(await page.evaluate(()=>AlmaTVAudio.active()),false);
   assert.ok(await page.locator("#tv-volume").isVisible());
   assert.deepEqual(errors,[]);
@@ -1876,7 +1867,7 @@ test('Alma 11: vista previa real, categorías y Reproducir en el inicio conserva
  assert.deepEqual(errors,[]);
 });
 
-test('11.1.2: flecha arriba sube, izquierda permanece en la fila y TV propia tiene logo',async()=>{
+test('11.1.3: flecha arriba sube, izquierda permanece en la fila y TV propia tiene logo',async()=>{
  assert.equal(await page.locator('.focus').getAttribute('id'),'app-0');
  await key(37);assert.equal(await page.locator('.focus').getAttribute('id'),'app-0');
  await key(38);assert.equal(await page.locator('.focus').getAttribute('id'),'nav-0');
@@ -1897,7 +1888,7 @@ test('11.1.2: flecha arriba sube, izquierda permanece en la fila y TV propia tie
  await shot('alma11-experimental-tv');assert.deepEqual(errors,[]);
 });
 
-test('11.1.2: inicia antes de terminar las imágenes y no inicializa dos veces',async(t)=>{
+test('11.1.3: inicia antes de terminar las imágenes y no inicializa dos veces',async(t)=>{
  let release;const delayed=new Promise(resolve=>release=resolve);t.after(()=>release());
  await page.route('**/assets/logos/browser.png',async r=>{await delayed;await r.continue();});
  await page.reload({waitUntil:'domcontentloaded'});
@@ -1909,7 +1900,7 @@ test('11.1.2: inicia antes de terminar las imágenes y no inicializa dos veces',
  release();await page.waitForLoadState('load');await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.1.2: dock más bajo, sin instrucciones y perfil circular con foto local',async()=>{
+test('11.1.3: dock más bajo, sin instrucciones y perfil circular con foto local',async()=>{
  const dock=await page.locator('.home-apps').boundingBox();
  assert.ok(dock.y+dock.height>620&&dock.y+dock.height<700,JSON.stringify(dock));
  assert.equal(await page.locator('#footer').isVisible(),false);
@@ -1924,16 +1915,16 @@ test('11.1.2: dock más bajo, sin instrucciones y perfil circular con foto local
  assert.deepEqual(errors,[]);
 });
 
-test('11.1.2: selector azul tenue sin marco blanco y marca solo en Ajustes',async()=>{
+test('11.1.3: selector azul tenue sin marco blanco y marca solo en Ajustes',async()=>{
  assert.equal(await page.locator('#header .brand').count(),0);
  const focus=await page.locator('.focus').evaluate(n=>{const s=getComputedStyle(n);return {outline:s.outlineStyle,shadow:s.boxShadow,color:s.backgroundColor};});
  assert.equal(focus.outline,'none');assert.match(focus.shadow,/38, 62, 190/);assert.match(focus.shadow,/0\.28/);
  await key(38);assert.equal(await page.locator('.focus').evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(28, 35, 45, 0.68)');
- await go('settings');assert.match(await page.locator('.settings-brand').innerText(),/alma.*tv 11\.1\.2/);
+ await go('settings');assert.match(await page.locator('.settings-brand').innerText(),/alma.*tv 11\.1\.3/);
  await go('home');await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.1.2: cinco apps completas por ventana sin una sexta cortada',async()=>{
+test('11.1.3: cinco apps completas por ventana sin una sexta cortada',async()=>{
  for(let i=0;i<10;i++){
   const visible=await page.locator('.home-apps .app').evaluateAll(nodes=>{const clip=document.querySelector('.app-carousel').getBoundingClientRect();return nodes.map(n=>{const b=n.getBoundingClientRect();return {left:b.left,right:b.right};}).filter(b=>b.right>clip.left+.5&&b.left<clip.right-.5).map(b=>({full:b.left>=clip.left-.5&&b.right<=clip.right+.5}));});
   assert.equal(visible.length,5,JSON.stringify(visible));assert.ok(visible.every(b=>b.full));
@@ -1946,7 +1937,7 @@ test('11.1.2: cinco apps completas por ventana sin una sexta cortada',async()=>{
  await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.1.2: cuadrícula sin encabezados, utilidades como apps y arriba vuelve al dock',async()=>{
+test('11.1.3: cuadrícula sin encabezados, utilidades como apps y arriba vuelve al dock',async()=>{
  assert.deepEqual(await page.locator('#nav button').evaluateAll(ns=>ns.map(n=>n.getAttribute('aria-label'))),['Inicio','Buscar','Apps','Pantalla completa','Salvapantallas','Configuración']);
  await key(40);assert.equal(await page.locator('#safe').getAttribute('data-view'),'apps');
  assert.equal(await page.locator('#view .page-head,#view h1,#view h2,.library-tools').count(),0);
@@ -1963,106 +1954,48 @@ test('11.1.2: cuadrícula sin encabezados, utilidades como apps y arriba vuelve 
 });
 
 
-test('Dual experimental: apagado por defecto, dos sesiones aisladas y prioridad de audio reversible',async()=>{
- assert.equal(await page.locator('#youtube-audio-frame').count(),0);
+test('Audio compartido: usa una sola API, conserva el fondo y pausa/reanuda solo audio',async()=>{
+ assert.equal(await page.evaluate(()=>AlmaBackgroundAudio.snapshot().active),false);
  await assert.rejects(()=>page.evaluate(()=>Alma.hubControl('background-audio',0,'dQw4w9WgXcQ')),/Primero reproduce/);
- await officialYouTubeFixture();await savedYouTube();await click('youtube-play');await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
- const primary=await (await page.$('#youtube-frame')).contentFrame();
- const src=await page.locator('#youtube-frame').getAttribute('src');
- await page.locator('#youtube-frame').evaluate(n=>n.dataset.identity='principal');
- await page.evaluate(()=>Alma.hubControl('background-audio',0,'dQw4w9WgXcQ'));
- await page.waitForFunction(()=>AlmaBackgroundAudio.snapshot().state===1);
- const audio=await (await page.$('#youtube-audio-frame')).contentFrame();
- await audio.waitForFunction(()=>testYoutube.volume===70&&!testYoutube.muted);
- assert.equal(await primary.evaluate(()=>testYoutube.muted),true);
- assert.equal(await primary.evaluate(()=>testYoutube.pause),0);
- assert.equal(await page.locator('#youtube-frame').getAttribute('src'),src);
- await page.evaluate(()=>Alma.hubControl('volume',35));
- await audio.waitForFunction(()=>testYoutube.volume===35);assert.equal(await primary.evaluate(()=>testYoutube.muted),true);
+ let requests=0;page.on('request',r=>{if(r.url()==='https://www.youtube.com/iframe_api')requests++;});
+ await officialYouTubeFixture(0,'explicit');await savedYouTube();await click('youtube-play');await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
+ const main=await(await page.$('#youtube-frame')).contentFrame(),src=await page.locator('#youtube-frame').getAttribute('src');
+ await page.evaluate(()=>Alma.hubControl('background-audio',0,'dQw4w9WgXcQ'));await page.waitForFunction(()=>AlmaBackgroundAudio.snapshot().state===1);
+ await main.waitForFunction(()=>testYoutubeAudio.volume===70&&!testYoutubeAudio.muted);
+ assert.equal(requests,1);assert.equal(await page.locator('#youtube-audio-frame').count(),0);assert.equal(await page.locator('#youtube-frame').getAttribute('src'),src);
+ assert.equal(await main.evaluate(()=>testYoutube.muted),true);assert.equal(await main.evaluate(()=>testYoutube.pause),0);
+ await page.evaluate(()=>Alma.hubControl('background-pause'));await page.waitForFunction(()=>AlmaBackgroundAudio.snapshot().state===2);assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);
+ await page.evaluate(()=>Alma.hubControl('background-play'));await page.waitForFunction(()=>AlmaBackgroundAudio.snapshot().state===1);
+ for(const level of [20,85,0,100]){await page.evaluate(v=>Alma.hubControl('volume',v),level);await main.waitForFunction(v=>testYoutubeAudio.volume===v,level);assert.equal(await main.evaluate(()=>testYoutube.muted),true);}
  for(const view of ['home','apps','saver','home'])await go(view);
- assert.equal(await page.locator('#youtube-frame').getAttribute('data-identity'),'principal');
- assert.equal(await page.locator('#youtube-audio-frame').count(),1);
- assert.equal(await audio.evaluate(()=>testYoutube.pause),0);
- await page.evaluate(()=>Alma.hubControl('background-stop'));
- await primary.waitForFunction(()=>!testYoutube.muted&&testYoutube.volume===35);
- assert.equal(await page.locator('#youtube-audio-frame').count(),0);
- assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);
- assert.deepEqual(errors,[]);
+ assert.equal(await main.evaluate(()=>testYoutube.pause),0);assert.equal(await main.evaluate(()=>testYoutubeAudio.pause),1);
+ await page.evaluate(()=>Alma.hubControl('background-stop'));await main.waitForFunction(()=>!testYoutube.muted&&testYoutube.volume===100);
+ assert.equal(await page.evaluate(()=>AlmaBackgroundAudio.snapshot().active),false);assert.equal(await main.locator('#audio-surface').count(),0);assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);assert.deepEqual(errors,[]);
 });
 
-test('Dual experimental: error del segundo recupera audio del principal y detener libera ambos',async()=>{
- await officialYouTubeFixture();await savedYouTube();await click('youtube-play');await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
- const primary=await (await page.$('#youtube-frame')).contentFrame();
- await page.evaluate(()=>Alma.hubControl('background-audio',0,'dQw4w9WgXcQ'));await page.waitForFunction(()=>AlmaBackgroundAudio.snapshot().state===1);
- const audio=await (await page.$('#youtube-audio-frame')).contentFrame();
- await audio.evaluate(()=>testYoutube.options.events.onError({data:150}));
- await page.waitForFunction(()=>!document.getElementById('youtube-audio-frame'));
- await primary.waitForFunction(()=>!testYoutube.muted);
- assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);
- await page.evaluate(()=>Alma.hubControl('background-audio',0,'dQw4w9WgXcQ'));await page.waitForFunction(()=>AlmaBackgroundAudio.snapshot().state===1);
- await page.evaluate(()=>Alma.hubControl('stop'));
- assert.equal(await page.locator('#youtube-frame,#youtube-audio-frame').count(),0);
- assert.deepEqual(errors,[]);
-});
-
-
-test('Dual experimental: sin confirmación de silencio no abre el segundo reproductor',async()=>{
- await officialYouTubeFixture();await savedYouTube();await click('youtube-play');await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
- await page.evaluate(()=>{window.originalPrincipalSnapshot=AlmaYouTube.snapshot;AlmaYouTube.snapshot=function(){var value=originalPrincipalSnapshot();value.muted=false;return value;};Alma.hubControl('background-audio',0,'dQw4w9WgXcQ');});
- await page.waitForFunction(()=>Alma.hubStatus().background_audio.indexOf('no confirmó')!==-1);
- assert.equal(await page.locator('#youtube-audio-frame').count(),0);
- await page.evaluate(()=>AlmaYouTube.snapshot=originalPrincipalSnapshot);
- assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);assert.deepEqual(errors,[]);
-});
-
-test('Dual experimental: mensajes de otra sesión no cambian estados y respeta Silencio',async()=>{
- await officialYouTubeFixture();await savedYouTube();await click('youtube-play');await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
- await page.evaluate(()=>{Alma.hubControl('mute');Alma.hubControl('background-audio',0,'dQw4w9WgXcQ');});
- await page.waitForFunction(()=>AlmaBackgroundAudio.snapshot().state===1);
- const audio=await (await page.$('#youtube-audio-frame')).contentFrame();await audio.waitForFunction(()=>testYoutube.muted);
- await page.evaluate(()=>{var main=document.getElementById('youtube-frame'),extra=document.getElementById('youtube-audio-frame'),url=new URL(extra.src);window.dispatchEvent(new MessageEvent('message',{source:main.contentWindow,origin:url.origin,data:JSON.stringify({channel:'alma-youtube',token:url.searchParams.get('token'),type:'error',state:0,status:'Fallo falso'})}));});
- assert.equal(await page.evaluate(()=>AlmaBackgroundAudio.snapshot().state),1);
- assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);
- await page.evaluate(()=>Alma.hubControl('background-stop'));
- const main=await (await page.$('#youtube-frame')).contentFrame();assert.equal(await main.evaluate(()=>testYoutube.muted),true);
- await page.evaluate(()=>Alma.hubControl('mute'));await main.waitForFunction(()=>!testYoutube.muted);assert.deepEqual(errors,[]);
-});
-
-test('Dual corregido: arranca dentro del viewport sin escala y detrás del principal',async()=>{
- await officialYouTubeFixture();
- let startup=null;
- await page.route('https://www.youtube.com/iframe_api',async route=>{
-  if(!route.request().frame().url().includes('session=background'))return route.fallback();
-  startup=await page.evaluate(()=>{const frame=document.getElementById('youtube-audio-frame'),host=document.getElementById('youtube-audio-host'),b=frame.getBoundingClientRect();return {parent:host.parentNode.tagName,left:b.left,top:b.top,width:b.width,height:b.height,mainZ:getComputedStyle(document.getElementById('youtube-host')).zIndex,audioZ:getComputedStyle(host).zIndex};});
-  const canStart=startup.parent==='BODY'&&startup.left>=0&&startup.top>=0&&startup.width>=384&&startup.height>=240;
-  await route.fulfill({contentType:'application/javascript',body:`window.YT={Player:function(id,options){var node=document.getElementById(id),f=document.createElement('iframe');node.parentNode.replaceChild(f,node);var state=-1,muted=false,volume=70;this.getPlayerState=function(){return state;};this.getCurrentTime=function(){return state===1?3:0;};this.getDuration=function(){return 1000;};this.getVideoData=function(){return {title:'Arranque con viewport'};};this.setVolume=function(v){volume=v;};this.getVolume=function(){return volume;};this.mute=function(){muted=true;};this.unMute=function(){muted=false;};this.isMuted=function(){return muted;};this.setSize=function(){};this.loadVideoById=this.playVideo=function(){state=1;options.events.onStateChange({data:1});};this.pauseVideo=function(){state=2;options.events.onStateChange({data:2});};if(${canStart})setTimeout(function(){options.events.onReady();},10);}};window.onYouTubeIframeAPIReady();`});
- });
- await savedYouTube();await click('youtube-play');await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
- const original=await page.locator('#youtube-frame').getAttribute('src');
- await page.evaluate(()=>Alma.hubControl('background-audio',0,'dQw4w9WgXcQ'));
- await page.waitForFunction(()=>AlmaBackgroundAudio.snapshot().state===1&&AlmaBackgroundAudio.snapshot().seconds>0);
- assert.equal(startup.parent,'BODY');assert.ok(startup.width>=384&&startup.height>=240,JSON.stringify(startup));
- assert.ok(Number(startup.mainZ)>Number(startup.audioZ),JSON.stringify(startup));
- assert.equal(await page.locator('#youtube-frame').getAttribute('src'),original);
- assert.equal(await page.locator('#safe').getAttribute('data-view'),'home');
- const audio=await(await page.$('#youtube-audio-frame')).contentFrame();
- assert.equal(await audio.locator('#surface').evaluate(n=>getComputedStyle(n).visibility),'hidden');
- await page.evaluate(()=>Alma.hubControl('background-stop'));assert.equal(await page.locator('#youtube-audio-frame').count(),0);assert.deepEqual(errors,[]);
-});
-
-
-test('Dual manual: carga sin video hasta Ready, oculta imagen antes de cargar y pausa solo el audio',async()=>{
+test('Audio compartido: error, mensajes inválidos y cierre no afectan al principal',async()=>{
  await officialYouTubeFixture(0,'explicit');await savedYouTube();await click('youtube-play');await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
  const main=await(await page.$('#youtube-frame')).contentFrame();
  await page.evaluate(()=>Alma.hubControl('background-audio',0,'dQw4w9WgXcQ'));await page.waitForFunction(()=>AlmaBackgroundAudio.snapshot().state===1);
- const audio=await(await page.$('#youtube-audio-frame')).contentFrame();
- assert.equal(await audio.evaluate(()=>Object.prototype.hasOwnProperty.call(testYoutube.options,'videoId')),false);
- assert.equal(await audio.evaluate(()=>testYoutube.hiddenAtLoad),'hidden');
- assert.ok((await page.locator('#youtube-audio-frame').boundingBox()).x<0);
- assert.equal(await audio.evaluate(()=>testYoutube.loadedId),'dQw4w9WgXcQ');
- await page.evaluate(()=>Alma.hubControl('background-pause'));await page.waitForFunction(()=>AlmaBackgroundAudio.snapshot().state===2);
- assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);assert.equal(await main.evaluate(()=>testYoutube.pause),0);
+ await page.evaluate(()=>{const f=document.getElementById('youtube-frame'),u=new URL(f.src);window.dispatchEvent(new MessageEvent('message',{source:f.contentWindow,origin:u.origin,data:JSON.stringify({channel:'alma-youtube-audio',token:u.searchParams.get('token'),session:'incorrecta',failed:true,state:0})}));});
+ assert.equal(await page.evaluate(()=>AlmaBackgroundAudio.snapshot().state),1);
+ await main.evaluate(()=>testYoutubeAudio.options.events.onError({data:150}));await page.waitForFunction(()=>!AlmaBackgroundAudio.snapshot().active);await main.waitForFunction(()=>!testYoutube.muted);assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);
  await page.evaluate(()=>Alma.hubControl('background-play'));await page.waitForFunction(()=>AlmaBackgroundAudio.snapshot().state===1);
- assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);
- await page.evaluate(()=>Alma.hubControl('background-stop'));await main.waitForFunction(()=>!testYoutube.muted);assert.deepEqual(errors,[]);
+ await page.evaluate(()=>Alma.hubControl('stop'));assert.equal(await page.locator('#youtube-frame').count(),0);assert.equal(await page.evaluate(()=>AlmaBackgroundAudio.snapshot().active),false);assert.deepEqual(errors,[]);
+});
+
+test('Audio compartido: no arranca si el principal no confirma silencio',async()=>{
+ await officialYouTubeFixture();await savedYouTube();await click('youtube-play');await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
+ await page.evaluate(()=>{window.originalPrincipalSnapshot=AlmaYouTube.snapshot;AlmaYouTube.snapshot=function(){var v=originalPrincipalSnapshot();v.muted=false;return v;};Alma.hubControl('background-audio',0,'dQw4w9WgXcQ');});
+ await page.waitForFunction(()=>Alma.hubStatus().background_audio.indexOf('no confirmó')!==-1);assert.equal(await page.evaluate(()=>AlmaBackgroundAudio.snapshot().active),false);
+ await page.evaluate(()=>AlmaYouTube.snapshot=originalPrincipalSnapshot);assert.equal(await page.evaluate(()=>AlmaYouTube.snapshot().state),1);assert.deepEqual(errors,[]);
+});
+
+test('Audio compartido: Silencio se conserva y ninguna tecla física se bloquea',async()=>{
+ await officialYouTubeFixture(0,'explicit');await savedYouTube();await click('youtube-play');await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
+ await page.evaluate(()=>{Alma.hubControl('mute');Alma.hubControl('background-audio',0,'dQw4w9WgXcQ');});await page.waitForFunction(()=>AlmaBackgroundAudio.snapshot().state===1);
+ const main=await(await page.$('#youtube-frame')).contentFrame();await main.waitForFunction(()=>testYoutubeAudio.muted);
+ for(const code of [7,11,27])assert.equal(await key(code),false);
+ assert.equal(await page.evaluate(()=>AlmaTVAudio.active()),false);
+ await page.evaluate(()=>Alma.hubControl('background-stop'));assert.equal(await main.evaluate(()=>testYoutube.muted),true);await page.evaluate(()=>Alma.hubControl('mute'));await main.waitForFunction(()=>!testYoutube.muted);assert.deepEqual(errors,[]);
 });

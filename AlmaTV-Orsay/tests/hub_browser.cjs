@@ -213,7 +213,7 @@ test('Panel experimental envía audio adicional sin reemplazar el video principa
  const after=await(await fetch(base+'/hub/state')).json();assert.equal(after.current.play_id,before.current.play_id);
  await panel.locator('[data-command="background-pause"]').click();await p.waitForFunction(()=>AlmaBackgroundAudio.snapshot().state===2);assert.equal(await p.evaluate(()=>AlmaYouTube.snapshot().state),1);
  await panel.locator('[data-command="background-play"]').click();await p.waitForFunction(()=>AlmaBackgroundAudio.snapshot().state===1);
- await panel.locator('[data-command="background-stop"]').click();await p.waitForFunction(()=>!document.getElementById('youtube-audio-frame'));await p.waitForFunction(()=>AlmaYouTube.snapshot().muted===false);
+ await panel.locator('[data-command="background-stop"]').click();await p.waitForFunction(()=>!AlmaBackgroundAudio.snapshot().active);await p.waitForFunction(()=>AlmaYouTube.snapshot().muted===false);
  assert.equal(await p.evaluate(()=>AlmaYouTube.snapshot().state),1);
 });
 
@@ -234,4 +234,15 @@ test('Guía web reproduce directamente en Inicio y vuelve al fondo sin reiniciar
  assert.equal(await p.evaluate(()=>AlmaPlayer.snapshot().title),before);assert.equal(await p.evaluate(()=>AlmaPlayer.snapshot().playing),true);
  assert.equal(await panel.locator('[data-command="background-play"]').count(),1);assert.equal(await panel.locator('[data-command="background-pause"]').count(),1);
  assert.equal(await panel.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+});
+
+test('Volumen web admite bajar y subir con change sin input y no captura las teclas Samsung',{timeout:20000},async t=>{
+ const p=await tv(t),c=await browser.newContext();t.after(()=>c.close());const panel=await c.newPage();await panel.goto(base+'/control');
+ await panel.getByRole('tab',{name:'Biblioteca',exact:true}).click();await panel.locator('#sources .item').filter({hasText:'video-prueba'}).getByRole('button',{name:'Reproducir ahora',exact:true}).click();await p.waitForFunction(()=>AlmaPlayer.snapshot().playing);
+ await panel.getByRole('tab',{name:'Control',exact:true}).click();
+ for(const level of [20,85,0,100]){
+  await panel.locator('#volume-slider').evaluate((n,v)=>{n.value=v;n.dispatchEvent(new Event('change',{bubbles:true}));},level);
+  await p.waitForFunction(v=>Math.abs(AlmaPlayer.snapshot().volume-v/100)<.001,level);
+ }
+ assert.deepEqual(await p.evaluate(()=>[7,11,27].map(code=>Alma.key(code))),[false,false,false]);assert.equal(await p.evaluate(()=>AlmaTVAudio.active()),false);
 });

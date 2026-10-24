@@ -1,3 +1,15 @@
+# Alma TV 11.1.3 · Volumen y API compartida para el audio experimental
+
+Las teclas físicas Vol+, Vol− y Silencio quedan a cargo de Samsung. Se retira la activación del mezclador nativo desde Configuración y se liberan las teclas después de iniciar reproducción o ajustar el audio web. El deslizador web envía el valor final también cuando el navegador solo entrega `change`; cada orden aplica explícitamente el volumen solicitado a YouTube.
+
+El audio adicional usa ahora la API de YouTube ya cargada por el video principal, dentro del mismo documento del puente. Se elimina la segunda carga exterior de la API que quedaba esperando Ready. Conserva pausa, reproducción y cierre independientes, autenticación de mensajes por origen, token y sesión, y recuperación del sonido principal ante un error. La reproducción simultánea y las teclas físicas requieren validación en el Samsung real; las pruebas de navegador no confirman compatibilidad del hardware.
+
+Validación: ES5 y build correctos; 71 pruebas Python y la regresión de navegador completas sin errores. Las pruebas incluyen volumen web en ambas direcciones, teclas físicas sin captura y control independiente del audio adicional.
+
+Instalador: `instaladores/AlmaTV-11.1.3-instalador.zip`. Actualizar la Mac, sincronizar en la TV y recargar el control web. La versión estable 11.0.3 y su recuperación permanecen intactas.
+
+---
+
 # Alma TV 11.1.2 · Control de audio experimental y reproducción en Inicio
 
 El control web incorpora Reproducir audio experimental, Pausar audio experimental y Detener audio adicional. Estos botones controlan solo la segunda sesión; el principal conserva su reproducción y permanece silenciado hasta detener el audio adicional. Reproducir permite reintentar el último enlace si la sesión falló. Una pausa solicitada durante la carga impide el inicio automático hasta pulsar Reproducir.

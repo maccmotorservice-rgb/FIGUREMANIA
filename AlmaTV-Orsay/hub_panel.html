@@ -61,7 +61,7 @@ var volumeTimer=null,volumeUntil=0,volumePending=null;
 function showVolume(value,muted){el("volume-slider").value=value;el("volume-fill").style.height=(muted?0:value)+"%";el("volume-value").textContent=muted?"Silenciado":value+" %";}
 function sendVolume(){if(volumeTimer){clearTimeout(volumeTimer);volumeTimer=null;}if(volumePending===null)return;var value=volumePending;volumePending=null;pendingActions=pendingActions.filter(function(a){return a.command!=="volume";});action({action:"control",command:"volume",seconds:value});}
 el("volume-slider").oninput=function(){var value=Number(this.value);volumeUntil=Date.now()+1600;volumePending=value;showVolume(value,false);if(!volumeTimer)volumeTimer=setTimeout(sendVolume,350);};
-el("volume-slider").onchange=sendVolume;
+el("volume-slider").onchange=function(){var value=Number(this.value);volumePending=value;volumeUntil=Date.now()+1600;showVolume(value,false);sendVolume();};
 var signature="";
 function render(){if(!state)return;
 var nativeAudio=state.telemetry.engine==="samsung-hls";el("volume-slider").disabled=nativeAudio;
