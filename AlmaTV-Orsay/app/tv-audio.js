@@ -17,12 +17,12 @@ var AlmaTVAudio = (function () {
   }
   function release(codes) {
     if (active) return;
-    var plugin = object("alma-keys-plugin");
-    if (!plugin || typeof plugin.Open !== "function" || typeof plugin.Execute !== "function") return;
+    var object = document.getElementById("alma-keys-plugin");
+    if (!object || typeof object.Open !== "function" || typeof object.Execute !== "function") return;
     try {
-      if (plugin.Open("AppCommon", "1.000", "AppCommon") === 1) {
-        for (var i = 0; i < codes.length; i++) { try { plugin.Execute("UnregisterKey", codes[i]); } catch (e) {} }
-        try { plugin.Close(); } catch (e) {}
+      if (object.Open("AppCommon", "1.000", "AppCommon") === 1) {
+        for (var i = 0; i < codes.length; i++) { try { object.Execute("UnregisterKey", codes[i]); } catch (e) {} }
+        try { object.Close(); } catch (e) {}
       }
     } catch (e) {}
   }

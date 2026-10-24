@@ -1,3 +1,17 @@
+# Alma TV 11.1.5 · Retirar llamadas nativas compartidas por volumen y audio adicional
+
+En 11.1.4 ambos desencadenantes reportados de salida llegan a releaseVolumeKeys: las teclas físicas lo llaman directamente; el inicio del segundo audio lo llama mediante scheduleVolumeRelease. Esa ruta abre AppCommon, desregistra teclas y cierra el objeto SEF, y se repite a los 500 ms. Es una causa candidata común para la regresión de cierre; no hay registro fatal del Samsung que confirme la llamada exacta que falla. Un fallo del plugin nativo no necesariamente produce una excepción JavaScript capturable.
+
+11.1.5 elimina esos callbacks de reproducción, volumen web, foco y pulsaciones. Las teclas físicas retornan sin consumir el evento ni llamar plugins. Solo se solicita la cesión clásica una vez al iniciar la aplicación, sin abrir AppCommon. Se retira también la creación automática del objeto SEF añadida en 11.1.4. La sesión YouTube adicional y sus controles se conservan, para aislar esta variable de la prueba.
+
+Una prueba instrumenta Open, Execute, Close y la ruta SEF de liberación, y exige cero llamadas al pulsar Vol+/Vol−/Silencio, iniciar los dos reproductores, ajustar el nivel y recuperar foco. Comprueba además que los eventos físicos no se cancelen y que no haya nuevas solicitudes de desregistro durante esos recorridos. Son pruebas simuladas: el cierre, el volumen físico, el sonido simultáneo y el encimado de imagen todavía requieren comprobación en el Samsung real.
+
+Validación: 108 pruebas de navegador, 71 Python, ES5, build e integridad del widget y del instalador correctos.
+
+Instalador: `instaladores/AlmaTV-11.1.5-instalador.zip`. Actualizar la Mac, sincronizar en la TV, confirmar 11.1.5 y recargar el controlador. Probar primero el volumen físico con un solo video, después el audio adicional. La versión estable 11.0.3 y su respaldo siguen intactos.
+
+---
+
 # Alma TV 11.1.4 · Liberación de teclas Samsung y nivel del audio adicional
 
 Se conecta la liberación de Vol+, Vol− y Silencio por AppCommon.UnregisterKey, además de Common.API.Plugin. La ruta AppCommon ahora crea su objeto SEF cuando todavía no existe; no abre Audio ni registra teclas. Se intenta también cuando falta la API clásica o falla su carga.

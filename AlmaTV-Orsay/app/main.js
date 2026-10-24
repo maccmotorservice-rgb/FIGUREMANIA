@@ -671,7 +671,7 @@ var Alma = (function () {
           "PREFERENCIAS",
           "A tu medida",
           "Los ajustes no cambian Smart Hub, las aplicaciones de Samsung ni el firmware."
-        ) + '<div class="settings-brand">alma<span>tv 11.1.4 experimental</span></div><div class="grid settings">',
+        ) + '<div class="settings-brand">alma<span>tv 11.1.5 experimental</span></div><div class="grid settings">',
       ids = [];
     for (var i = 0; i < items.length; i++) {
       h += button(items[i][0], items[i][1], items[i][2], items[i][3]);
@@ -1055,7 +1055,7 @@ var Alma = (function () {
     styleIfChanged(el("youtube-audio-host"),"top",value.ready?"-10000px":"0px");
     AlmaBackgroundAudio.present(!value.ready,false);
     if(value.ready&&!backgroundAudio.sent&&backgroundAudio.wantPlay){backgroundAudio.sent=true;AlmaBackgroundAudio.send("play");}
-    if(value.state===1&&!backgroundAudio.levelApplied){backgroundAudio.levelApplied=true;AlmaBackgroundAudio.level(prefs.appVolume,prefs.appMuted);scheduleVolumeRelease();}
+    if(value.state===1&&!backgroundAudio.levelApplied){backgroundAudio.levelApplied=true;AlmaBackgroundAudio.level(prefs.appVolume,prefs.appMuted);}
   }
   function startBackgroundAudio(id){
     var principal=AlmaYouTube.snapshot();
@@ -1156,10 +1156,8 @@ var Alma = (function () {
     var value=active?"true":"false",stage=el("stage");
     if(stage.getAttribute("data-home-video")!==value)stage.setAttribute("data-home-video",value);
   }
-  var volumePlaybackState=-99;
   function updateYoutube() {
     var value = AlmaYouTube.snapshot(), host = el("youtube-host");
-    if(value.state!==volumePlaybackState){volumePlaybackState=value.state;if(value.state===1)scheduleVolumeRelease();}
     if(backgroundAudio&&(value.failed||value.finished))stopBackgroundAudio(true,"El video principal terminó o falló; se cerró la prueba de audio.");
     attributeIfChanged(el("safe"),"data-youtube-mode",youtubeAudioOnly ? "audio" : "video");
     if (hubAutoplay && value.ready) {hubAutoplay=false;if(value.state!==1&&!value.automatic)AlmaYouTube.send("play");}
@@ -2445,27 +2443,27 @@ var Alma = (function () {
   function toggleTVVolume() {
     releaseVolumeKeys();notice("Volumen y Silencio del control físico quedan a cargo de Samsung. El control web ajusta solo la reproducción de Alma TV.");
   }
-  var volumeKeyCodes = [7, 11, 27], nativeKeyPlugin = null, volumeReleaseTimer=null;
+  var volumeKeyCodes = [7, 11, 27], volumeKeysReleased=false;
   function releaseVolumeKeys() {
-    if (AlmaTVAudio.active()) AlmaTVAudio.close();
+    // Only at startup. Never open/close AppCommon during a key event or playback.
+    if(volumeKeysReleased)return;
+    volumeKeysReleased=true;
     try {
-      if (typeof Common === "undefined" || !Common.API) { AlmaTVAudio.release(volumeKeyCodes); return; }
+      if (typeof Common === "undefined" || !Common.API) return;
       if (typeof Common.API.TVKeyValue === "function") {
         var keys = new Common.API.TVKeyValue();
         volumeKeyCodes = [typeof keys.KEY_VOL_UP === "number" ? keys.KEY_VOL_UP : 7, typeof keys.KEY_VOL_DOWN === "number" ? keys.KEY_VOL_DOWN : 11, typeof keys.KEY_MUTE === "number" ? keys.KEY_MUTE : 27];
       }
-      if (!nativeKeyPlugin && typeof Common.API.Plugin === "function") nativeKeyPlugin = new Common.API.Plugin();
-      if (!nativeKeyPlugin || typeof nativeKeyPlugin.unregistKey !== "function") { AlmaTVAudio.release(volumeKeyCodes); return; }
-      for (var i = 0; i < volumeKeyCodes.length; i++) {
-        try { nativeKeyPlugin.unregistKey(volumeKeyCodes[i]); } catch (unavailableKey) {}
+      var plugin=typeof Common.API.Plugin === "function"?new Common.API.Plugin():null;
+      if(!plugin||typeof plugin.unregistKey!=="function")return;
+      for(var i=0;i<volumeKeyCodes.length;i++){
+        try{plugin.unregistKey(volumeKeyCodes[i]);}catch(unavailableKey){}
       }
-    } catch (unavailablePlugin) {}
-    AlmaTVAudio.release(volumeKeyCodes);
+    }catch(unavailablePlugin){}
   }
-  function scheduleVolumeRelease(){releaseVolumeKeys();clearTimeout(volumeReleaseTimer);volumeReleaseTimer=setTimeout(releaseVolumeKeys,500);}
   function key(code) {
     // Samsung handles its own amplifier and OSD. Do not consume Vol+/Vol-/Mute.
-    if (volumeKeyCodes.indexOf(code) !== -1) {releaseVolumeKeys();return false;}
+    if (volumeKeyCodes.indexOf(code) !== -1) return false;
 
     var map = {
         4: "left",
@@ -2602,7 +2600,6 @@ var Alma = (function () {
       api.sendReadyEvent();
     } catch (e) {}
     releaseVolumeKeys();
-    window.addEventListener("focus", releaseVolumeKeys, false);
     window.onresize = fitScreen;
     document.body.appendChild(el("youtube-audio-host"));
     document.body.appendChild(el("youtube-host"));
@@ -2683,7 +2680,6 @@ var Alma = (function () {
     AlmaHub.stop();
     AlmaTVAudio.close();
     window.onresize = null;
-    window.removeEventListener("focus", releaseVolumeKeys, false);
     stopBackgroundAudio(false);
     AlmaBackgroundAudio.destroy();
     AlmaYouTube.destroy();
@@ -2691,7 +2687,6 @@ var Alma = (function () {
     AlmaPlayer.destroy();
     clearInterval(interval);
     clearTimeout(toastTimer);
-    clearTimeout(volumeReleaseTimer);
     invalidate();
   };
   var hubAutoplay = false;
@@ -2714,7 +2709,6 @@ var Alma = (function () {
     // Do not touch the inactive hardware decoder when adjusting online audio.
     if(youtubeLoaded){AlmaPlayer.setLevel(prefs.appVolume/100,prefs.appMuted,true);AlmaYouTube.level(prefs.appVolume,backgroundAudio?true:prefs.appMuted);if(backgroundAudio)AlmaBackgroundAudio.level(prefs.appVolume,prefs.appMuted);}
     else{AlmaPlayer.setLevel(prefs.appVolume/100,prefs.appMuted);AlmaYouTube.level(prefs.appVolume,prefs.appMuted,true);}
-    scheduleVolumeRelease();
   }
   A.hubControl = function(action,seconds,view) {
     if(action==="background-audio"){startBackgroundAudio(view);return;}
