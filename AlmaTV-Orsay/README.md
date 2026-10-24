@@ -1,3 +1,19 @@
+# Alma TV 11.1.9 · TV en vivo rediseñada e iconos adaptados
+
+TV en vivo presenta una previsualización grande a la izquierda y categorías plateadas en dos columnas a la derecha. Los símbolos locales distinguen todos los canales, favoritos y géneros; las categorías adicionales siguen disponibles al desplazarse con las flechas. El selector conserva su brillo azul tenue. La vista de canales usa filas anchas translúcidas con nombre, región/categoría, Favorito y Organizar, sin logos de canales.
+
+La previsualización conserva Pantalla completa, Reproducir en el inicio y Ver reproductor, y añade Pausar/Reproducir y Detener usando el reproductor existente. La pausa de HLS conserva el comportamiento previo del adaptador: al reanudar se reconecta a la señal en vivo, no se añade DVR. Reproducir en el inicio mantiene la sesión activa y vuelve al fondo del menú. Las listas, favoritos y categorías conservan sus datos y reglas anteriores.
+
+El fondo negro de las referencias no sustituye el fondo personal. El archivo original permanece idéntico. Cuando la señal HLS usa el plano nativo inferior, cuatro regiones de fondo rodean la ventana de video sin cubrirla; respetan la imagen y el encuadre cover centrado. Esas regiones se retiran al volver a Inicio, ampliar el video o salir de la previsualización. No se crean nuevos reproductores ni se capturan teclas de volumen.
+
+Se adaptaron las cuatro referencias de TV en vivo, navegador, clima y calendario mediante edición de imagen, conservando sus motivos y colores. Se exportaron tarjetas de 180×100 píxeles; el relleno usa background-size: cover, igual que el motor del fondo, sin depender de object-fit en Orsay. No se modifican los archivos de Netflix, YouTube, Prime, Disney, Apple TV, Max o Xbox. Las referencias adaptadas de mayor resolución se conservan en docs/design/iconos; tools/render_live_design.cjs permite exportar de nuevo los cuatro PNG y los símbolos originales de categorías.
+
+El controlador 11.1.8 sigue disponible y recibe automáticamente los menús y estilos nuevos al actualizar el puente y el widget. La reproducción de audio simultáneo permanece pendiente. La composición real del plano nativo y el rendimiento requieren comprobación en el Samsung UN50J5200 físico; las pruebas con API simulada no acreditan imagen HLS real.
+
+Instalador: instaladores/AlmaTV-11.1.9-instalador.zip. Actualizar en la Mac, sincronizar aplicaciones en la TV, comprobar 11.1.9 en Configuración y recargar el controlador. El respaldo estable 11.0.3 permanece intacto.
+
+---
+
 # Alma TV 11.1.8 · Control con el tema de Alma y vista pulsable
 
 El controlador de laptop y teléfono usa el fondo original, paneles oscuros translúcidos, selección azul tenue, reloj y perfil local. La barra inferior muestra cinco accesos completos y desplaza el resto. Los nombres de las secciones siguen disponibles para lectores de pantalla, teclado y tooltips. La guía, biblioteca, cola, importación, escenas y ajustes conservan sus operaciones.
@@ -347,3 +363,5 @@ Validación 10.2.0: 46 pruebas Python; 85 pruebas previas de interfaz y una prue
 
 
 Validación 10.3.0: 48 pruebas Python y 89 pruebas de interfaz completas pasaron. Las pruebas específicas comprueban clasificación manual, categorías propias, eliminación/restauración, persistencia tras refrescar listas, cambios TV↔panel y trabajo sin puente. Se reproduce el paso Samsung HLS→YouTube y se verifica que el deslizador del panel vuelve a habilitarse y envía 25 % y 80 % al SDK simulado. Las API Samsung/YouTube se simulan; falta confirmar físicamente la versión 10.3.0 en el televisor. Capturas de pruebas locales: [Aplicaciones, cuatro por fila](docs/capturas/41-apps-cuatro-por-fila.png), [favoritos clasificados](docs/capturas/42-favoritos-categorias-TV-prueba.png) y [categoría propia desde el celular](docs/capturas/43-favoritos-celular-prueba.png).
+
+Validación 11.1.9: 119 pruebas de navegador y 74 pruebas de empaquetado aprobadas; comprobación ES5 y compilación correctas. La composición del video nativo con el fondo requiere comprobarse en la TV física.

@@ -45,7 +45,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="11.1.8"'))
+      if (!html.includes('name="alma-build" content="11.1.9"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -130,7 +130,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio 11: dock de logos, abajo abre biblioteca y Atrás restaura Inicio", async () => {
-  assert.equal(await page.locator('meta[name="alma-build"]').getAttribute("content"),"11.1.8");
+  assert.equal(await page.locator('meta[name="alma-build"]').getAttribute("content"),"11.1.9");
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   assert.equal(await page.locator(".home-apps .app").count(),17);
   assert.equal(await page.locator(".focus").getAttribute("id"),"app-0");
@@ -1870,7 +1870,7 @@ test('Alma 11: vista previa real, categorías y Reproducir en el inicio conserva
  assert.deepEqual(errors,[]);
 });
 
-test('11.1.8: flecha arriba sube, izquierda permanece en la fila y TV propia tiene logo',async()=>{
+test('11.1.9: flecha arriba sube, izquierda permanece en la fila y TV propia tiene logo',async()=>{
  assert.equal(await page.locator('.focus').getAttribute('id'),'app-0');
  await key(37);assert.equal(await page.locator('.focus').getAttribute('id'),'app-0');
  await key(38);assert.equal(await page.locator('.focus').getAttribute('id'),'nav-0');
@@ -1882,7 +1882,7 @@ test('11.1.8: flecha arriba sube, izquierda permanece en la fila y TV propia tie
  await key(40);assert.equal(await page.locator('#safe').getAttribute('data-view'),'apps');
  for(const id of ['app-7','app-8','app-9']){
   assert.equal(await page.locator('#'+id+' img.brand-logo').count(),1);
-  assert.equal(await page.locator('#'+id+' img').evaluate(n=>n.complete&&n.naturalWidth===400),true);
+  assert.equal(await page.locator('#'+id+' img').evaluate(n=>n.complete&&n.naturalWidth>0),true);
  }
  assert.equal(await page.locator('#app-9').getAttribute('aria-label'),'Alma TV en vivo');
  const exits=await page.evaluate(()=>platformCalls.filter(c=>c==='exit').length);
@@ -1891,7 +1891,7 @@ test('11.1.8: flecha arriba sube, izquierda permanece en la fila y TV propia tie
  await shot('alma11-experimental-tv');assert.deepEqual(errors,[]);
 });
 
-test('11.1.8: inicia antes de terminar las imágenes y no inicializa dos veces',async(t)=>{
+test('11.1.9: inicia antes de terminar las imágenes y no inicializa dos veces',async(t)=>{
  let release;const delayed=new Promise(resolve=>release=resolve);t.after(()=>release());
  await page.route('**/assets/logos/browser.png',async r=>{await delayed;await r.continue();});
  await page.reload({waitUntil:'domcontentloaded'});
@@ -1903,7 +1903,7 @@ test('11.1.8: inicia antes de terminar las imágenes y no inicializa dos veces',
  release();await page.waitForLoadState('load');await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.1.8: dock más bajo, sin instrucciones y perfil circular con foto local',async()=>{
+test('11.1.9: dock más bajo, sin instrucciones y perfil circular con foto local',async()=>{
  const dock=await page.locator('.home-apps').boundingBox();
  assert.ok(dock.y+dock.height>620&&dock.y+dock.height<700,JSON.stringify(dock));
  assert.equal(await page.locator('#footer').isVisible(),false);
@@ -1918,16 +1918,16 @@ test('11.1.8: dock más bajo, sin instrucciones y perfil circular con foto local
  assert.deepEqual(errors,[]);
 });
 
-test('11.1.8: selector azul tenue sin marco blanco y marca solo en Ajustes',async()=>{
+test('11.1.9: selector azul tenue sin marco blanco y marca solo en Ajustes',async()=>{
  assert.equal(await page.locator('#header .brand').count(),0);
  const focus=await page.locator('.focus').evaluate(n=>{const s=getComputedStyle(n);return {outline:s.outlineStyle,shadow:s.boxShadow,color:s.backgroundColor};});
  assert.equal(focus.outline,'none');assert.match(focus.shadow,/38, 62, 190/);assert.match(focus.shadow,/0\.28/);
  await key(38);assert.equal(await page.locator('.focus').evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(28, 35, 45, 0.68)');
- await go('settings');assert.match(await page.locator('.settings-brand').innerText(),/alma.*tv 11\.1\.8/);
+ await go('settings');assert.match(await page.locator('.settings-brand').innerText(),/alma.*tv 11\.1\.9/);
  await go('home');await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.1.8: cinco apps completas por ventana sin una sexta cortada',async()=>{
+test('11.1.9: cinco apps completas por ventana sin una sexta cortada',async()=>{
  for(let i=0;i<10;i++){
   const visible=await page.locator('.home-apps .app').evaluateAll(nodes=>{const clip=document.querySelector('.app-carousel').getBoundingClientRect();return nodes.map(n=>{const b=n.getBoundingClientRect();return {left:b.left,right:b.right};}).filter(b=>b.right>clip.left+.5&&b.left<clip.right-.5).map(b=>({full:b.left>=clip.left-.5&&b.right<=clip.right+.5}));});
   assert.equal(visible.length,5,JSON.stringify(visible));assert.ok(visible.every(b=>b.full));
@@ -1940,7 +1940,7 @@ test('11.1.8: cinco apps completas por ventana sin una sexta cortada',async()=>{
  await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.1.8: cuadrícula sin encabezados, utilidades como apps y arriba vuelve al dock',async()=>{
+test('11.1.9: cuadrícula sin encabezados, utilidades como apps y arriba vuelve al dock',async()=>{
  assert.deepEqual(await page.locator('#nav button').evaluateAll(ns=>ns.map(n=>n.getAttribute('aria-label'))),['Inicio','Buscar','Apps','Pantalla completa','Salvapantallas','Configuración']);
  await key(40);assert.equal(await page.locator('#safe').getAttribute('data-view'),'apps');
  assert.equal(await page.locator('#view .page-head,#view h1,#view h2,.library-tools').count(),0);
@@ -2118,4 +2118,34 @@ test('MP3 admite motores que rechazan volume sin impedir play ni silenciar músi
  assert.match(await page.evaluate(()=>Alma.hubStatus().music_error),/volumen del MP3/);
  await page.evaluate(()=>Alma.hubControl('music-mute'));await frame.waitForFunction(()=>!testYoutube.muted);
  assert.equal(await page.evaluate(()=>document.getElementById('background-music').muted),true);assert.deepEqual(errors,[]);
+});
+
+test('11.1.9: TV en vivo tiene categorías plateadas, canales sin logos y conserva pausa e Inicio',async()=>{
+ const stream='https://streams.example.org/live-redesign.mp4';await page.route(stream,r=>r.fulfill({contentType:'video/mp4',body:fs.readFileSync(path.join(ROOT,'tests/fixtures/video-prueba.mp4'))}));
+ await page.evaluate(url=>{AlmaLiveTV[0].url=url;Alma.go('livetv');},stream);
+ const preview=await page.locator('.live-preview-panel').boundingBox(),categories=await page.locator('.live-category-grid').boundingBox();assert.ok(preview.x+preview.width<categories.x);assert.ok(preview.width>categories.width);
+ assert.ok(await page.locator('#live-section-0 .live-category-icon').isVisible());assert.equal(await page.locator('.live-category-grid').evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(0, 0, 0, 0)');
+ await shot('alma11-9-tv-categorias');await click('live-section-0');assert.equal(await page.locator('.live-channel-row img').count(),0);assert.ok(await page.locator('.live-channel-row').count());await shot('alma11-9-tv-canales');
+ await click('live-capital21');await page.locator('#media-video').evaluate(n=>{n.loop=true;n.dataset.redesign='kept';});await page.waitForFunction(()=>AlmaPlayer.snapshot().playing&&AlmaPlayer.snapshot().time>0.1);
+ const src=await page.locator('#media-video').getAttribute('src');await click('live-toggle');await page.waitForFunction(()=>!AlmaPlayer.snapshot().playing&&document.getElementById('live-toggle').textContent==='Reproducir');assert.equal(await page.locator('#live-toggle').innerText(),'Reproducir');
+ await click('live-toggle');await page.waitForFunction(()=>AlmaPlayer.snapshot().playing);assert.equal(await page.locator('#media-video').getAttribute('src'),src);
+ await click('live-home');assert.equal(await page.locator('#safe').getAttribute('data-view'),'home');assert.equal(await page.locator('#media-video').getAttribute('data-redesign'),'kept');assert.equal(await page.locator('#stage').getAttribute('data-home-video'),'true');
+ await page.evaluate(()=>Alma.go('livetv'));await click('live-stop');assert.equal(await page.evaluate(()=>AlmaPlayer.snapshot().status),'Detenido');assert.equal(await page.locator('#stage').getAttribute('data-home-video'),'false');assert.deepEqual(errors,[]);
+});
+
+test('11.1.9: el fondo nativo rodea la previsualización sin taparla y se retira al ir a Inicio',async()=>{
+ await page.evaluate(()=>{window.nativeDesignCalls=[];HTMLObjectElement.prototype.Open=function(){return 1;};HTMLObjectElement.prototype.Close=function(){return 1;};HTMLObjectElement.prototype.Execute=function(command){nativeDesignCalls.push(command);if(command==='GetSource')return 18;if(command==='StartPlayback')this.OnEvent(7,0);return 1;};Alma.go('livetv');});
+ await click('live-section-0');await click('live-capital21');await page.waitForFunction(()=>AlmaPlayer.snapshot().native&&AlmaPlayer.snapshot().playing);
+ const result=await page.evaluate(()=>{var style=document.getElementById('media-video').style,rect={left:parseFloat(style.left),top:parseFloat(style.top)};rect.right=rect.left+parseFloat(style.width);rect.bottom=rect.top+parseFloat(style.height);return Array.prototype.map.call(document.querySelectorAll('.live-wallpaper-mask'),function(n){var b=n.getBoundingClientRect();return {display:n.style.display,image:n.style.backgroundImage,overlap:Math.max(0,Math.min(b.right,rect.right)-Math.max(b.left,rect.left))*Math.max(0,Math.min(b.bottom,rect.bottom)-Math.max(b.top,rect.top))};});});
+ assert.equal(result.length,4);for(const mask of result){assert.match(mask.image,/salvapantallas/);assert.ok(mask.overlap<2);}
+ const starts=await page.evaluate(()=>nativeDesignCalls.filter(c=>c==='StartPlayback').length);await click('live-home');assert.equal(await page.evaluate(()=>nativeDesignCalls.filter(c=>c==='StartPlayback').length),starts);assert.equal(await page.locator('.live-wallpaper-mask').evaluateAll(ns=>ns.every(n=>n.style.display==='none')),true);assert.equal(await page.locator('#stage').getAttribute('data-home-video'),'true');assert.deepEqual(errors,[]);
+});
+
+test('11.1.9: cuatro iconos llenan la tarjeta y las categorías adicionales son alcanzables',async()=>{
+ await go('apps');
+ for(const name of ['browser','livetv','utility-weather','utility-calendar']){
+  const card=page.locator('.apps-grid .card.app.'+name),a=await card.boundingBox(),mark=await card.locator('.app-mark').boundingBox();assert.ok(Math.abs(a.width-mark.width)<3);assert.ok(Math.abs(a.height-mark.height)<3);assert.equal(await card.locator('.app-mark').evaluate(n=>getComputedStyle(n).backgroundSize),'cover');
+ }
+ await shot('alma11-9-iconos');await page.evaluate(()=>Alma.go('livetv'));for(let i=0;i<6;i++)await key(40);
+ assert.ok(await page.locator('.live-category-grid').evaluate(n=>n.scrollTop>0));assert.deepEqual(errors,[]);
 });

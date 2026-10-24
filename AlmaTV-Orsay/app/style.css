@@ -1998,3 +1998,48 @@ html.native-live #live-status,html.native-live .live-preview-actions{background:
 /* Experimental audio surface: created only on explicit request. */
 #youtube-audio-host{display:none;position:absolute;left:0;top:0;width:384px;height:240px;overflow:hidden;pointer-events:none;z-index:0}
 .background-audio-test{padding:10px;margin-top:12px;background:rgba(37,47,62,.8);border-radius:14px}
+
+/* 11.1.9: TV en vivo sobre el fondo personal, con categorías plateadas. */
+#safe[data-view="livetv"] #view{background:transparent!important;border:0;border-radius:0;padding:10px 20px!important}
+#safe[data-view="livetv"] .page-head{margin:0 0 16px;padding:0}
+#safe[data-view="livetv"] .page-head h1{font-size:27px;line-height:32px;margin:4px 0 0}
+#safe[data-view="livetv"] .page-head p:empty{display:none}
+#safe[data-view="livetv"] .eyebrow{font-size:11px;letter-spacing:1.2px;color:#d7dde4}
+.live-lobby{min-height:495px}
+.live-preview-panel{display:inline-block;vertical-align:top;width:64%;box-sizing:border-box;border:1px solid rgba(235,240,246,.35);border-radius:18px;padding:10px;background:transparent}
+.live-preview-frame{width:100%;border:1px solid rgba(255,255,255,.25);border-radius:12px;box-sizing:border-box;overflow:hidden}
+#live-preview{border:0;border-radius:0;background:rgba(12,18,25,.25);width:100%;height:400px;box-sizing:border-box;overflow:hidden}
+#live-preview span{display:block;padding-top:175px;font-size:17px;color:#e2e8ef}
+.live-preview-meta{padding:10px 8px 5px;background:rgba(177,186,196,.3);border-radius:0 0 11px 11px}
+#safe[data-view="livetv"] #live-status{margin:0 0 8px;line-height:18px;font-size:12px;min-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#f1f3f7}
+.live-preview-actions{white-space:nowrap}
+.live-preview-actions .pill{font-size:12px;padding:8px 9px;line-height:16px;margin:0 4px 5px 0;border-radius:8px;background:rgba(39,48,61,.65)!important}
+.live-category-grid{position:relative;display:inline-block;vertical-align:top;width:33%;height:480px;margin-left:3%;padding:0 4px 0;overflow:auto;box-sizing:border-box}
+.live-category-grid .live-category-tile{display:inline-block;vertical-align:top;box-sizing:border-box;width:47%;height:108px;margin:0 3% 12px 0;padding:12px 4px 9px;border-radius:16px;background:#d8dde0;background:-webkit-linear-gradient(top,#eceff1,#c6cdd2);background:linear-gradient(#eceff1,#c6cdd2);border:1px solid rgba(255,255,255,.5);text-align:center;color:#252b30}
+.live-category-icon{display:block;width:45px;height:45px;margin:0 auto 8px}
+.live-category-grid .live-category-tile strong{display:block;font-size:13px;line-height:17px;font-weight:normal;color:#252b30;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.live-category-grid .live-category-tile.focus{background:#d8dde0;outline:none;border-color:rgba(38,62,190,.4)!important;box-shadow:0 0 10px 2px rgba(38,62,190,.28)!important}
+.live-filter{margin:5px 0 10px}.live-controls{margin-bottom:8px}
+.live-controls .pill,.live-filter .pill{padding:8px 12px;font-size:12px;margin:0 7px 6px 0}
+.live-channel-row{display:block;white-space:nowrap;box-sizing:border-box;width:100%;min-height:82px;margin-bottom:10px;border:1px solid rgba(232,238,245,.26);border-radius:16px;background:rgba(37,45,57,.74);overflow:hidden}
+.live-channels .live-channel-row .live-channel{display:inline-block;vertical-align:middle;box-sizing:border-box;width:68%;height:82px;margin:0;padding:15px 20px;background:transparent;border:0;border-radius:14px;text-align:left;overflow:hidden}
+.live-channel-row .live-channel strong{display:block;line-height:25px;font-size:21px;color:#f3f5f8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.live-channel-row .live-channel small{display:block;font-size:12px;line-height:19px;margin:2px 0 0;color:#c4cfde}
+.live-channels .live-channel-row .pill{display:inline-block;vertical-align:middle;width:13.5%;box-sizing:border-box;padding:9px 4px;margin:0 1% 0 0;font-size:12px;text-align:center;border-radius:10px;background:rgba(81,98,119,.7)!important}
+.live-channel-row .live-channel.focus{background:rgba(229,234,239,.9)!important}
+.live-channel-row .live-channel.focus strong{color:#18212b}.live-channel-row .live-channel.focus small{color:#455366}
+.live-wallpaper-mask{position:fixed;z-index:1;display:none;pointer-events:none;background-repeat:no-repeat}
+html.native-live .live-preview-panel,html.native-live .live-preview-frame,html.native-live #live-preview{background:transparent!important}
+html.native-live .live-preview-meta{background:rgba(64,75,89,.82)}
+html.native-live #live-status,html.native-live .live-preview-actions{background:transparent}
+.app-track .card.app.browser{padding:0!important;background:#152061!important}
+.app-track .card.app.browser .app-mark{height:100%;line-height:normal}
+.app-track .card.app.browser .brand-logo,.app-track .card.app.livetv .brand-logo,.app-track .card.app.utility-calendar .brand-logo,.app-track .card.app.utility-weather .brand-logo{width:100%;height:100%;object-fit:cover}
+/* Filled app tiles use background-size, supported by the legacy wallpaper engine. */
+.app-track .card.app.browser .app-mark,.app-track .card.app.livetv .app-mark,.app-track .card.app.utility-calendar .app-mark,.app-track .card.app.utility-weather .app-mark{background-size:cover;background-position:center;background-repeat:no-repeat}
+.app-track .card.app.browser .app-mark{background-image:url(assets/logos/browser.png)}
+.app-track .card.app.livetv .app-mark{background-image:url(assets/logos/livetv.png)}
+.app-track .card.app.utility-calendar .app-mark{background-image:url(assets/logos/calendar.png)}
+.app-track .card.app.utility-weather .app-mark{background-image:url(assets/logos/weather.png)}
+.app-track .card.app.browser .brand-logo,.app-track .card.app.livetv .brand-logo,.app-track .card.app.utility-calendar .brand-logo,.app-track .card.app.utility-weather .brand-logo{opacity:0}
+.app-track .card.app.browser,.app-track .card.app.livetv,.app-track .card.app.utility-calendar,.app-track .card.app.utility-weather{border:0!important}
