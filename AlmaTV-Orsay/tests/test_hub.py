@@ -174,3 +174,25 @@ class BackgroundAudioControlTests(unittest.TestCase):
             hub.mutate({'action':'control','command':'live-channel-home','view':'capital21'},'owner',target)
             selections=[c for c in hub.tv(target)['commands'] if c.get('action') in ('live-channel','live-channel-home')]
             self.assertEqual(len(selections),1);self.assertEqual(selections[0]['action'],'live-channel-home')
+
+class BackgroundMusicTests(unittest.TestCase):
+    def test_local_music_is_independent_and_owner_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            hub=Hub(directory,'127.0.0.3');target='127.0.0.3'
+            hub.data['sources'].extend([
+                {'id':'a'*24,'kind':'audio','name':'Mi MP3','filename':'music.mp3'},
+                {'id':'b'*24,'kind':'video','name':'Video','filename':'movie.mp4'},
+                {'id':'c'*24,'kind':'audio','name':'Remoto','url':'https://example.com/music.mp3'}])
+            channel=hub.channel(target);channel['current']={'name':'Video principal','play_id':'principal'}
+            hub.mutate({'action':'music','source':'a'*24},'owner',target)
+            command=hub.tv(target)['commands'][-1]
+            self.assertEqual((command['kind'],command['item']['kind'],command['item']['path']),('music','audio','/hub/file/'+'a'*24))
+            self.assertEqual(channel['current']['play_id'],'principal')
+            self.assertEqual(channel['queue'],[])
+            for ident in ['b'*24,'c'*24]:
+                with self.assertRaises(ValueError):hub.mutate({'action':'music','source':ident},'owner',target)
+            for action in [{'action':'music','source':'a'*24},{'action':'control','command':'music-mute'}]:
+                with self.assertRaises(PermissionError):hub.mutate(action,'guest',target)
+            for name in ['music-play','music-pause','music-mute','music-stop']:
+                hub.mutate({'action':'control','command':name},'owner',target)
+                self.assertEqual(hub.tv(target)['commands'][-1]['action'],name)

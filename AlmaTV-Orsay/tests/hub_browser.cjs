@@ -246,3 +246,22 @@ test('Volumen web admite bajar y subir con change sin input y no captura las tec
  }
  assert.deepEqual(await p.evaluate(()=>[7,11,27].map(code=>Alma.key(code))),[false,false,false]);assert.equal(await p.evaluate(()=>AlmaTVAudio.active()),false);
 });
+
+test('Laptop carga MP3 y el panel alterna música y sonido del fondo sin reemplazarlo',{timeout:25000},async t=>{
+ const p=await tv(t);await dailymotionFixture(p);
+ await action({action:'play',youtube:'https://dai.ly/x84sh87',name:'Mi fondo'});await p.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
+ const src=await p.locator('#youtube-frame').getAttribute('src'),frame=p.frame({url:/dailymotion\/player/});
+ const original=(await(await fetch(base+'/hub/state')).json()).current.play_id;
+ const c=await browser.newContext();t.after(()=>c.close());const panel=await c.newPage();await panel.goto(base+'/control');
+ await panel.getByRole('tab',{name:'Biblioteca',exact:true}).click();
+ await panel.locator('#upload').setInputFiles({name:'musica-laptop.mp3',mimeType:'audio/mpeg',buffer:fs.readFileSync(path.join(ROOT,'app/assets/media/prueba-sonido.mp3'))});
+ await panel.locator('#sources .item').filter({hasText:'musica-laptop'}).getByRole('button',{name:'Reproducir música sobre el fondo',exact:true}).click();
+ await p.waitForFunction(()=>AlmaMusic.snapshot().playing&&document.getElementById('background-music').readyState>=2);await frame.waitForFunction(()=>dmMuted);
+ await panel.getByRole('tab',{name:'Control',exact:true}).click();await panel.locator('#music-mute').click();
+ await frame.waitForFunction(()=>!dmMuted);assert.equal(await p.evaluate(()=>document.getElementById('background-music').muted),true);
+ await panel.waitForFunction(()=>document.getElementById('music-mute').getAttribute('aria-pressed')==='true');await panel.locator('#music-mute').click();await frame.waitForFunction(()=>dmMuted);
+ await panel.locator('[data-command="music-pause"]').click();await frame.waitForFunction(()=>!dmMuted);
+ await panel.locator('[data-command="music-play"]').click();await p.waitForFunction(()=>AlmaMusic.snapshot().playing);await frame.waitForFunction(()=>dmMuted);
+ await panel.locator('[data-command="music-stop"]').click();await p.waitForFunction(()=>!AlmaMusic.snapshot().active);await frame.waitForFunction(()=>!dmMuted);
+ assert.equal(await p.locator('#youtube-frame').getAttribute('src'),src);assert.equal((await(await fetch(base+'/hub/state')).json()).current.play_id,original);
+});

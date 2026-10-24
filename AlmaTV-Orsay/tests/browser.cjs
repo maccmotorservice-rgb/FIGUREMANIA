@@ -45,7 +45,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="11.1.5"'))
+      if (!html.includes('name="alma-build" content="11.1.6"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -130,7 +130,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio 11: dock de logos, abajo abre biblioteca y Atrás restaura Inicio", async () => {
-  assert.equal(await page.locator('meta[name="alma-build"]').getAttribute("content"),"11.1.5");
+  assert.equal(await page.locator('meta[name="alma-build"]').getAttribute("content"),"11.1.6");
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   assert.equal(await page.locator(".home-apps .app").count(),17);
   assert.equal(await page.locator(".focus").getAttribute("id"),"app-0");
@@ -1870,7 +1870,7 @@ test('Alma 11: vista previa real, categorías y Reproducir en el inicio conserva
  assert.deepEqual(errors,[]);
 });
 
-test('11.1.5: flecha arriba sube, izquierda permanece en la fila y TV propia tiene logo',async()=>{
+test('11.1.6: flecha arriba sube, izquierda permanece en la fila y TV propia tiene logo',async()=>{
  assert.equal(await page.locator('.focus').getAttribute('id'),'app-0');
  await key(37);assert.equal(await page.locator('.focus').getAttribute('id'),'app-0');
  await key(38);assert.equal(await page.locator('.focus').getAttribute('id'),'nav-0');
@@ -1891,7 +1891,7 @@ test('11.1.5: flecha arriba sube, izquierda permanece en la fila y TV propia tie
  await shot('alma11-experimental-tv');assert.deepEqual(errors,[]);
 });
 
-test('11.1.5: inicia antes de terminar las imágenes y no inicializa dos veces',async(t)=>{
+test('11.1.6: inicia antes de terminar las imágenes y no inicializa dos veces',async(t)=>{
  let release;const delayed=new Promise(resolve=>release=resolve);t.after(()=>release());
  await page.route('**/assets/logos/browser.png',async r=>{await delayed;await r.continue();});
  await page.reload({waitUntil:'domcontentloaded'});
@@ -1903,7 +1903,7 @@ test('11.1.5: inicia antes de terminar las imágenes y no inicializa dos veces',
  release();await page.waitForLoadState('load');await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.1.5: dock más bajo, sin instrucciones y perfil circular con foto local',async()=>{
+test('11.1.6: dock más bajo, sin instrucciones y perfil circular con foto local',async()=>{
  const dock=await page.locator('.home-apps').boundingBox();
  assert.ok(dock.y+dock.height>620&&dock.y+dock.height<700,JSON.stringify(dock));
  assert.equal(await page.locator('#footer').isVisible(),false);
@@ -1918,16 +1918,16 @@ test('11.1.5: dock más bajo, sin instrucciones y perfil circular con foto local
  assert.deepEqual(errors,[]);
 });
 
-test('11.1.5: selector azul tenue sin marco blanco y marca solo en Ajustes',async()=>{
+test('11.1.6: selector azul tenue sin marco blanco y marca solo en Ajustes',async()=>{
  assert.equal(await page.locator('#header .brand').count(),0);
  const focus=await page.locator('.focus').evaluate(n=>{const s=getComputedStyle(n);return {outline:s.outlineStyle,shadow:s.boxShadow,color:s.backgroundColor};});
  assert.equal(focus.outline,'none');assert.match(focus.shadow,/38, 62, 190/);assert.match(focus.shadow,/0\.28/);
  await key(38);assert.equal(await page.locator('.focus').evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(28, 35, 45, 0.68)');
- await go('settings');assert.match(await page.locator('.settings-brand').innerText(),/alma.*tv 11\.1\.5/);
+ await go('settings');assert.match(await page.locator('.settings-brand').innerText(),/alma.*tv 11\.1\.6/);
  await go('home');await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.1.5: cinco apps completas por ventana sin una sexta cortada',async()=>{
+test('11.1.6: cinco apps completas por ventana sin una sexta cortada',async()=>{
  for(let i=0;i<10;i++){
   const visible=await page.locator('.home-apps .app').evaluateAll(nodes=>{const clip=document.querySelector('.app-carousel').getBoundingClientRect();return nodes.map(n=>{const b=n.getBoundingClientRect();return {left:b.left,right:b.right};}).filter(b=>b.right>clip.left+.5&&b.left<clip.right-.5).map(b=>({full:b.left>=clip.left-.5&&b.right<=clip.right+.5}));});
   assert.equal(visible.length,5,JSON.stringify(visible));assert.ok(visible.every(b=>b.full));
@@ -1940,7 +1940,7 @@ test('11.1.5: cinco apps completas por ventana sin una sexta cortada',async()=>{
  await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
-test('11.1.5: cuadrícula sin encabezados, utilidades como apps y arriba vuelve al dock',async()=>{
+test('11.1.6: cuadrícula sin encabezados, utilidades como apps y arriba vuelve al dock',async()=>{
  assert.deepEqual(await page.locator('#nav button').evaluateAll(ns=>ns.map(n=>n.getAttribute('aria-label'))),['Inicio','Buscar','Apps','Pantalla completa','Salvapantallas','Configuración']);
  await key(40);assert.equal(await page.locator('#safe').getAttribute('data-view'),'apps');
  assert.equal(await page.locator('#view .page-head,#view h1,#view h2,.library-tools').count(),0);
@@ -2038,4 +2038,42 @@ test("Audio adicional aplica nivel antes de cargar y vuelve a aplicarlo tras emp
  await page.waitForFunction(()=>Alma.hubStatus().background_audio.indexOf('nivel 85 %')!==-1);
  assert.match(await page.evaluate(()=>Alma.hubStatus().background_audio),/Sonido pendiente/);
  assert.equal(await main.evaluate(()=>testYoutube.muted),true);assert.deepEqual(errors,[]);
+});
+
+test('MP3 sobre YouTube decodifica audio real y alterna sonido sin cambiar el fondo',async()=>{
+ await officialYouTubeFixture(0,'explicit');await savedYouTube();await click('youtube-play');await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
+ const audio=fs.readFileSync(path.join(ROOT,'app/assets/media/prueba-sonido.mp3'));
+ await page.route('http://192.168.1.30:8088/hub/file/abcdef12',r=>r.fulfill({status:200,contentType:'audio/mpeg',body:audio}));
+ const frame=await(await page.$('#youtube-frame')).contentFrame(),src=await page.locator('#youtube-frame').getAttribute('src');
+ await page.evaluate(()=>Alma.hubMusic({kind:'audio',name:'Mi música',path:'/hub/file/abcdef12'}));
+ await page.waitForFunction(()=>AlmaMusic.snapshot().playing&&document.getElementById('background-music').readyState>=2);await frame.waitForFunction(()=>testYoutube.muted);
+ assert.equal(await page.locator('#youtube-frame').getAttribute('src'),src);assert.equal(await frame.evaluate(()=>testYoutube.pause),0);assert.equal(await page.locator('#youtube-audio-frame').count(),0);
+ await page.evaluate(()=>{Alma.hubControl('music-play');Alma.hubControl('background-stop');});
+ assert.equal(await page.evaluate(()=>AlmaMusic.snapshot().playing),true);await frame.waitForFunction(()=>testYoutube.muted);
+ await page.evaluate(()=>Alma.hubControl('music-mute'));await frame.waitForFunction(()=>!testYoutube.muted);
+ assert.equal(await page.evaluate(()=>document.getElementById('background-music').muted),true);assert.equal(await page.evaluate(()=>AlmaMusic.snapshot().playing),true);
+ await page.evaluate(()=>Alma.hubControl('music-mute'));await frame.waitForFunction(()=>testYoutube.muted);assert.equal(await page.evaluate(()=>document.getElementById('background-music').muted),false);
+ await page.evaluate(()=>Alma.hubControl('music-pause'));await frame.waitForFunction(()=>!testYoutube.muted);
+ await page.evaluate(()=>Alma.hubControl('music-play'));await frame.waitForFunction(()=>testYoutube.muted);
+ await page.evaluate(()=>Alma.hubControl('volume',85));assert.equal(await page.evaluate(()=>document.getElementById('background-music').volume),0.85);
+ for(const view of ['apps','saver','home'])await go(view);
+ assert.equal(await page.locator('#youtube-frame').getAttribute('src'),src);assert.equal(await frame.evaluate(()=>testYoutube.pause),0);
+ await page.evaluate(()=>Alma.hubControl('music-stop'));await frame.waitForFunction(()=>!testYoutube.muted);assert.equal(await page.locator('#background-music').count(),0);
+ assert.equal(await page.evaluate(()=>Alma.hubStatus().music_active),false);assert.deepEqual(errors,[]);
+});
+
+test('MP3 respeta silencio general, errores, fin y cierre de la sesión principal',async()=>{
+ await officialYouTubeFixture(0,'explicit');await savedYouTube();await click('youtube-play');await page.waitForFunction(()=>AlmaYouTube.snapshot().state===1);
+ const audio=fs.readFileSync(path.join(ROOT,'app/assets/media/prueba-sonido.mp3'));
+ await page.route('http://192.168.1.30:8088/hub/file/abcdef12',r=>r.fulfill({status:200,contentType:'audio/mpeg',body:audio}));
+ const frame=await(await page.$('#youtube-frame')).contentFrame();
+ const open=()=>page.evaluate(()=>Alma.hubMusic({kind:'audio',name:'MP3',path:'/hub/file/abcdef12'}));
+ await open();await page.waitForFunction(()=>AlmaMusic.snapshot().playing);await page.evaluate(()=>Alma.hubControl('mute'));await page.evaluate(()=>Alma.hubControl('music-mute'));
+ assert.equal(await page.evaluate(()=>document.getElementById('background-music').muted),true);await frame.waitForFunction(()=>testYoutube.muted);
+ await page.evaluate(()=>Alma.hubControl('music-stop'));assert.equal(await frame.evaluate(()=>testYoutube.muted),true);
+ await page.evaluate(()=>Alma.hubControl('mute'));await frame.waitForFunction(()=>!testYoutube.muted);
+ await open();await page.waitForFunction(()=>AlmaMusic.snapshot().playing);await page.evaluate(()=>document.getElementById('background-music').dispatchEvent(new Event('error')));await frame.waitForFunction(()=>!testYoutube.muted);assert.ok(await page.evaluate(()=>AlmaMusic.snapshot().error));
+ await open();await page.waitForFunction(()=>AlmaMusic.snapshot().playing);await page.evaluate(()=>document.getElementById('background-music').dispatchEvent(new Event('ended')));await frame.waitForFunction(()=>!testYoutube.muted);assert.equal(await page.evaluate(()=>AlmaMusic.snapshot().state),'Finalizada');
+ await open();await page.waitForFunction(()=>AlmaMusic.snapshot().playing);await page.evaluate(()=>Alma.hubControl('stop'));assert.equal(await page.locator('#background-music,#youtube-frame').count(),0);
+ await assert.rejects(()=>page.evaluate(()=>Alma.hubMusic({kind:'audio',path:'https://evil.example/secret'})),/Primero|válido/);assert.deepEqual(errors,[]);
 });

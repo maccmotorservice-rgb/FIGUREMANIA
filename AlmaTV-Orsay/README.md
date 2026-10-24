@@ -1,3 +1,19 @@
+# Alma TV 11.1.6 · MP3 sobre el video de fondo
+
+Biblioteca permite cargar archivos desde la laptop y añade «Reproducir música sobre el fondo» a los audios locales. La Mac sirve el archivo a un elemento HTML audio independiente; no se crea otro reproductor de YouTube. El video existente conserva su iframe, reproducción y posición. La música requiere un video abierto y no sustituye la selección principal ni modifica su cola.
+
+Control incorpora Reproducir música, Pausar música, Silenciar música y Detener música. Mientras la música suena, el video queda silenciado. Al silenciar la música, pausarla, detenerla, terminar o fallar se restaura el sonido del video respetando Silencio general. Reactivar el sonido de la música vuelve a silenciar el video. El volumen web regula el nivel de reproducción; las teclas físicas siguen sin consumir eventos ni abrir módulos nativos. Cerrar o cambiar el video principal también cierra la música para evitar sesiones huérfanas.
+
+Se admite música local cargada al puente o encontrada en Music/AlmaTV. La acción independiente solo la puede enviar el propietario; no admite enlaces arbitrarios, videos ni streams remotos. Los invitados conservan sus permisos de cola. La Mac debe permanecer encendida y conectada. La música adicional no entra automáticamente en repetición ni en la cola principal; se elige otro archivo desde Biblioteca.
+
+El navegador de prueba decodifica un MP3 real y verifica alternancia de sonido, pausa/reanudación, navegación, salvapantallas, silencio general, error, fin y limpieza. Una prueba con el puente real carga el archivo desde el panel, lo reproduce con el video existente y comprueba los botones independientes. Las APIs del video están simuladas: el sonido y la combinación de decodificadores en el Samsung físico aún requieren validación.
+
+Validación: 111 pruebas de navegador y 72 Python correctas; tras los últimos ajustes se repitieron seis pruebas de música/audio y la prueba de carga y control desde la laptop, todas correctas. ES5, build e integridad del widget/instalador verificados.
+
+Instalador: `instaladores/AlmaTV-11.1.6-instalador.zip`. Actualizar Mac y TV, confirmar 11.1.6 y recargar el controlador. Reproducir primero un video como fondo; luego Biblioteca → cargar MP3 → Reproducir música sobre el fondo. Los controles separados están en Control → Música sobre el video de fondo. El respaldo estable 11.0.3 permanece intacto.
+
+---
+
 # Alma TV 11.1.5 · Retirar llamadas nativas compartidas por volumen y audio adicional
 
 En 11.1.4 ambos desencadenantes reportados de salida llegan a releaseVolumeKeys: las teclas físicas lo llaman directamente; el inicio del segundo audio lo llama mediante scheduleVolumeRelease. Esa ruta abre AppCommon, desregistra teclas y cierra el objeto SEF, y se repite a los 500 ms. Es una causa candidata común para la regresión de cierre; no hay registro fatal del Samsung que confirme la llamada exacta que falla. Un fallo del plugin nativo no necesariamente produce una excepción JavaScript capturable.

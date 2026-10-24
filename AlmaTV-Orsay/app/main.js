@@ -671,7 +671,7 @@ var Alma = (function () {
           "PREFERENCIAS",
           "A tu medida",
           "Los ajustes no cambian Smart Hub, las aplicaciones de Samsung ni el firmware."
-        ) + '<div class="settings-brand">alma<span>tv 11.1.5 experimental</span></div><div class="grid settings">',
+        ) + '<div class="settings-brand">alma<span>tv 11.1.6 experimental</span></div><div class="grid settings">',
       ids = [];
     for (var i = 0; i < items.length; i++) {
       h += button(items[i][0], items[i][1], items[i][2], items[i][3]);
@@ -1036,10 +1036,22 @@ var Alma = (function () {
     updateYoutube();
   }
   var backgroundAudio=null,backgroundAudioTimer=null,backgroundAudioStatus="Desactivado",lastBackgroundAudioId="";
+  function syncMusic(){
+    var music=AlmaMusic.snapshot();
+    AlmaYouTube.level(prefs.appVolume,!!backgroundAudio||AlmaMusic.audible()||prefs.appMuted);
+    if(music.error)notice(music.error);
+  }
+  A.hubMusic=function(item){
+    var video=AlmaYouTube.snapshot();
+    if(!youtubeLoaded||youtubeAudioOnly||!video.ready||video.failed)throw new Error("Primero abre un video como fondo.");
+    if(!item||item.kind!=="audio"||!/^\/(?:hub\/file\/|media\/file\/)[A-Za-z0-9]+$/.test(item.path))throw new Error("Elige un archivo de música local válido.");
+    stopBackgroundAudio(true);AlmaMusic.setLevel(prefs.appVolume/100,prefs.appMuted);
+    AlmaMusic.open("http://"+prefs.macIp+":8088"+item.path,item.name);go("home");
+  };
   function stopBackgroundAudio(restore,message){
     backgroundAudio=null;clearTimeout(backgroundAudioTimer);backgroundAudioTimer=null;
     AlmaBackgroundAudio.close();
-    AlmaYouTube.level(prefs.appVolume,prefs.appMuted,restore===false);
+    AlmaYouTube.level(prefs.appVolume,prefs.appMuted||AlmaMusic.audible(),restore===false);
     backgroundAudioStatus=message||"Desactivado";
     htmlIfChanged(el("background-audio-status"),esc(backgroundAudioStatus));
     if(message)notice(message);
@@ -1058,6 +1070,7 @@ var Alma = (function () {
     if(value.state===1&&!backgroundAudio.levelApplied){backgroundAudio.levelApplied=true;AlmaBackgroundAudio.level(prefs.appVolume,prefs.appMuted);}
   }
   function startBackgroundAudio(id){
+    if(AlmaMusic.snapshot().active)throw new Error("Detén la música MP3 antes de probar otro audio de YouTube.");
     var principal=AlmaYouTube.snapshot();
     if(!/^[A-Za-z0-9_-]{11}$/.test(id))throw new Error("Enlace de YouTube no válido.");
     if(!youtubeLoaded||youtubeAudioOnly||!youtubeSelection||youtubeSelection.provider==="dailymotion"||principal.state!==1||principal.failed)throw new Error("Primero reproduce un video de YouTube como fondo. Esta prueba necesita ese video activo.");
@@ -1094,6 +1107,7 @@ var Alma = (function () {
     }
   }
   function closeYoutube() {
+    AlmaMusic.stop();
     stopBackgroundAudio(false);
     AlmaYouTube.close();
     youtubeLoaded = "";
@@ -1229,6 +1243,7 @@ var Alma = (function () {
     return h + "</div>";
   }
   function openYoutube(item, audioOnly, autoplay) {
+    AlmaMusic.stop();
     if(backgroundAudio)stopBackgroundAudio(true);
     youtubeAudioOnly = audioOnly === true;
     if (typeof audioOnly === "undefined") livePending = null;
@@ -2605,6 +2620,7 @@ var Alma = (function () {
     document.body.appendChild(el("youtube-host"));
     document.body.appendChild(el("media-video"));
     document.body.appendChild(el("video-help"));
+    AlmaMusic.init(syncMusic);
     AlmaYouTube.init();
     AlmaBackgroundAudio.init();
     document.addEventListener("visibilitychange", youtubeHidden, false);
@@ -2678,6 +2694,7 @@ var Alma = (function () {
   };
   A.destroy = function () {
     AlmaHub.stop();
+    AlmaMusic.stop();
     AlmaTVAudio.close();
     window.onresize = null;
     stopBackgroundAudio(false);
@@ -2706,11 +2723,17 @@ var Alma = (function () {
     if (toggleMute) prefs.appMuted = !prefs.appMuted;
     else { prefs.appVolume = clamp(prefs.appVolume + delta,0,100); if(delta>0) prefs.appMuted=false; }
     save();
+    AlmaMusic.setLevel(prefs.appVolume/100,prefs.appMuted);
     // Do not touch the inactive hardware decoder when adjusting online audio.
-    if(youtubeLoaded){AlmaPlayer.setLevel(prefs.appVolume/100,prefs.appMuted,true);AlmaYouTube.level(prefs.appVolume,backgroundAudio?true:prefs.appMuted);if(backgroundAudio)AlmaBackgroundAudio.level(prefs.appVolume,prefs.appMuted);}
+    if(youtubeLoaded){AlmaPlayer.setLevel(prefs.appVolume/100,prefs.appMuted,true);AlmaYouTube.level(prefs.appVolume,(backgroundAudio||AlmaMusic.audible())?true:prefs.appMuted);if(backgroundAudio)AlmaBackgroundAudio.level(prefs.appVolume,prefs.appMuted);}
     else{AlmaPlayer.setLevel(prefs.appVolume/100,prefs.appMuted);AlmaYouTube.level(prefs.appVolume,prefs.appMuted,true);}
   }
   A.hubControl = function(action,seconds,view) {
+    if(action==="music-play"){AlmaMusic.play();return;}
+    if(action==="music-pause"){AlmaMusic.pause();return;}
+    if(action==="music-stop"){AlmaMusic.stop();return;}
+    if(action==="music-mute"){AlmaMusic.toggleMute();return;}
+
     if(action==="background-audio"){startBackgroundAudio(view);return;}
     if(action==="background-stop"){stopBackgroundAudio(true);return;}
     if(action==="background-play"||action==="background-pause"){controlBackgroundAudio(action==="background-play");return;}
@@ -2753,9 +2776,14 @@ var Alma = (function () {
     for(i=0;i<children.length;i++)if(/^(STRONG|SMALL|H2|H3)$/.test(children[i].tagName))parts.push(children[i].textContent);
     return {view:state.view,focus:node?String(parts.length?parts.join(" · "):node.textContent||"").replace(/\s+/g," ").slice(0,160):"",focus_id:id||""};
   };
-  A.hubStatus = function(){
+  function primaryHubStatus(){
     if(youtubeLoaded){var value=AlmaYouTube.snapshot();return {title:value.title||(youtubeSelection&&youtubeSelection.name)||"Vídeo",kind:(youtubeSelection&&youtubeSelection.provider)||"youtube",engine:(youtubeSelection&&youtubeSelection.provider)||"youtube",state:value.failed?"Error":(value.state===1?"Reproduciendo":(value.state===2?"En pausa":"Preparado")),seconds:value.seconds||0,duration:value.duration||0,volume:prefs.appVolume,muted:prefs.appMuted,observed_volume:backgroundAudio?AlmaBackgroundAudio.snapshot().volume:value.volume,observed_muted:backgroundAudio?AlmaBackgroundAudio.snapshot().muted:value.muted,background_audio:backgroundAudioStatus,finished:value.finished,error:value.failed?value.status:""};}
     var current=AlmaPlayer.snapshot();return {title:current.index>=0?current.title:"Sin reproducción",kind:current.kind,state:current.status,seconds:current.time,duration:current.duration,error:current.error,engine:current.native?"samsung-hls":"html5",volume:prefs.appVolume,muted:prefs.appMuted,observed_volume:current.native?null:Math.round(current.volume*100),observed_muted:current.muted};
+  };
+  A.hubStatus=function(){
+    var status=primaryHubStatus(),music=AlmaMusic.snapshot();
+    status.music=music.title;status.music_active=music.active;status.music_muted=music.muted;
+    status.music_state=music.state;status.music_seconds=music.seconds;status.music_error=music.error;return status;
   };
   A.key = key;
   A.go = go;

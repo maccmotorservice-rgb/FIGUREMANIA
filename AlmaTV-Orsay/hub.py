@@ -17,7 +17,7 @@ import time
 from urllib.parse import urlsplit
 from xml.etree import ElementTree as ET
 
-ACTIONS = {'play','pause','toggle','stop','seek','home','media','saver','volume-up','volume-down','volume','mute','live-channel','navigate','up','down','left','right','ok','back','fullscreen','background-stop','background-play','background-pause','play-home','live-channel-home'}
+ACTIONS = {'music-play','music-pause','music-stop','music-mute','play','pause','toggle','stop','seek','home','media','saver','volume-up','volume-down','volume','mute','live-channel','navigate','up','down','left','right','ok','back','fullscreen','background-stop','background-play','background-pause','play-home','live-channel-home'}
 VIEWS={'home','search','apps','media','hub','clock','weather','calendar','timer','settings','saver','livetv'}
 EXTENSIONS = {'.mp3':'audio','.m4a':'audio','.wav':'audio','.mp4':'video','.m4v':'video','.jpg':'photo','.jpeg':'photo','.png':'photo','.mov':'convert','.mkv':'convert'}
 
@@ -153,7 +153,7 @@ class Hub:
                         repeated=dict(channel['current'],play_id=secrets.token_hex(16));channel['queue'].append(repeated)
                     self.advance(target)
                 telemetry=event.get('telemetry')
-                if isinstance(telemetry,dict):channel['telemetry']={k:v for k,v in telemetry.items() if k in ('background_audio','title','state','seconds','duration','kind','error','volume','muted','observed_volume','observed_muted','engine','view','focus','focus_id') and isinstance(v,(str,int,float,bool)) and len(str(v))<=300}
+                if isinstance(telemetry,dict):channel['telemetry']={k:v for k,v in telemetry.items() if k in ('music','music_active','music_muted','music_state','music_seconds','music_error','background_audio','title','state','seconds','duration','kind','error','volume','muted','observed_volume','observed_muted','engine','view','focus','focus_id') and isinstance(v,(str,int,float,bool)) and len(str(v))<=300}
             result={'commands':[dict(command) for command in self.commands if command['target']==target and command['expires']>self.clock()], 'pin':self.pin,'guest_pin':self.guest_pin,'poll_ms':250 if self.remote_until.get(target,0)>self.clock() else 2000}
             result['live_edit_ack']=live_ack
             if live_error:result['live_edit_error']=live_error
@@ -192,6 +192,11 @@ class Hub:
                     channel=self.channel(target)
                     if len(channel['queue'])>=100:raise ValueError('La cola admite hasta 100 elementos.')
                     channel['queue'].append(item);self.save()
+            elif action=='music':
+                item=self.item(data)
+                if item['kind']!='audio' or not item.get('path','').startswith(('/hub/file/','/media/file/')):
+                    raise ValueError('Elige un archivo de música local de tu biblioteca.')
+                self.emit(target,{'kind':'music','item':item})
             elif action=='background-audio':
                 from youtube_library import parse_video
                 parsed=parse_video(data.get('youtube',''))

@@ -51,6 +51,8 @@ var AlmaHub = (function () {
         clear();active=command.item;ended="";
         if(active.kind==="photo"||active.kind==="card"){slide={items:[active],interval:86400};slideIndex=0;lastSlide=new Date().getTime();Alma.hubPhoto();show(active);}
         else Alma.hubPlay(active);
+      }else if(command.kind==="music"){
+        Alma.hubMusic(command.item);
       }else if(command.kind==="control"){
         if(command.action==="stop")clear();
         Alma.hubControl(command.action,command.seconds,command.view);
