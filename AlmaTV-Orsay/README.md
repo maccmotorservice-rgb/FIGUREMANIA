@@ -1,3 +1,9 @@
+## Control web 11.1.12 · Comentarios antes de M3U
+
+El importador acepta líneas de comentario y espacios antes de `#EXTM3U` o de las entradas de canales reconocidas. Sigue rechazando páginas HTML y señales HLS individuales. Verificado con el archivo SamsungTVPlus-All.m3u compartido: 2 352 canales aceptados y cero entradas omitidas; esto comprueba la lectura de la lista, no la disponibilidad de cada señal.
+
+Actualización exclusiva del puente/control Mac mediante `AlmaTV-Control-11.1.12.zip`; no requiere sincronizar ni cambiar el widget Samsung. Conserva Lista de agregados, listas M3U y favoritos.
+
 ## Control web 11.1.11 · Lista de agregados
 
 Actualización exclusiva del puente/control de la Mac. La TV conserva la versión 11.1.10: **no se reinstala ni sincroniza el widget**. En Importar canales → Agregar canal manualmente introduce nombre, URL HTTP/HTTPS directa y categoría descriptiva opcional. La lista **Lista de agregados** aparece en la Guía de TV después de agregar el primer canal. Permite reproducir en TV o en Inicio, guardar favoritos, editar nombre/enlace/categoría y eliminar/restaurar canales.

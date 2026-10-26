@@ -225,3 +225,14 @@ class ManualChannelTests(unittest.TestCase):
                 with self.assertRaises(ValueError):lib.mutate(dict(good,**update),opener)
                 self.assertEqual(lib.path.read_bytes(),before)
             self.assertEqual(len(lib.data['manual']),1);opener.assert_not_called()
+
+class LeadingCommentTests(unittest.TestCase):
+    def test_comment_preamble_before_header_or_channel_entries(self):
+        for newline in ('\n','\r\n'):
+            for header in ('#EXTM3U\n',''):
+                text='\ufeff#================\n# 🖥 Créditos del autor\n\n# Actualización de la lista\n'+header+'#EXTINF:-1,Canal de prueba\nhttps://streams.example.org/test.m3u8\n'
+                channels,skipped=parse_m3u(text.replace('\n',newline).encode('utf-8'),'https://lists.example.org/test.m3u')
+                self.assertEqual(len(channels),1);self.assertEqual(channels[0]['name'],'Canal de prueba');self.assertEqual(skipped,0)
+    def test_preamble_does_not_accept_html_or_single_hls_signal(self):
+        for text in ['# Comentario\n<html>Error</html>\n#EXTM3U\n#EXTINF:-1,Canal\nhttps://streams.example.org/test.m3u8', '# Comentario\n#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXTINF:6,\nsegment.ts','# Comentario\n#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=500000\nstream.m3u8', '# Solo comentarios\n\n','#EXTM3UX\n#EXTINF:-1,Canal\nhttps://streams.example.org/test.m3u8']:
+            with self.assertRaises(ValueError):parse_m3u(text.encode(),'https://lists.example.org/test.m3u')

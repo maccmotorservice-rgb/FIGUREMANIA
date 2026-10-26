@@ -28,8 +28,12 @@ def parse_m3u(raw, base):
     try:text=raw.decode('utf-8-sig')
     except UnicodeDecodeError:text=raw.decode('cp1252',errors='replace')
     if re.search(r'^\s*#EXT-X-(?:TARGETDURATION|STREAM-INF|MEDIA-SEQUENCE|PLAYLIST-TYPE|ENDLIST)(?::|\s*$)',text,re.MULTILINE):raise ValueError('Usa una lista M3U de canales, no el enlace de una sola señal HLS.')
-    first=text.lstrip().splitlines()[0] if text.strip() else ''
-    if not first.startswith('#EXTM3U') and not re.match(r'^#EXTINF:\s*(?:-1|0)(?=[,\s])',first):raise ValueError('El archivo no contiene una cabecera M3U ni entradas de canales reconocibles.')
+    first=''
+    for line in text.splitlines():
+        line=line.strip()
+        if not line or (line.startswith('#') and not line.startswith('#EXT')):continue
+        first=line;break
+    if not re.match(r'^#EXTM3U(?:\s|$)',first) and not re.match(r'^#EXTINF:\s*(?:-1|0)(?=[,\s])',first):raise ValueError('El archivo no contiene una cabecera M3U ni entradas de canales reconocibles.')
     channels=[];seen=set();meta=None;skipped=0
     for line in text.splitlines():
         line=line.strip()
