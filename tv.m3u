@@ -1,0 +1,47 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="alma-01" tvg-name="tudn" group-title="Alma TV",tudn
+http://45.5.118.152:8000/play/a08n/index.m3u8
+#EXTINF:-1 tvg-id="alma-02" tvg-name="Fox One" group-title="Alma TV",Fox One
+https://cc324.streamingtv339.com/foxone1/index.m3u8
+#EXTINF:-1 tvg-id="alma-03" tvg-name="TNT AR" group-title="Alma TV",TNT AR
+http://205.235.6.29:8000/play/a0xa/index.m3u8
+#EXTINF:-1 tvg-id="alma-04" tvg-name="Distrito Comedia" group-title="Alma TV",Distrito Comedia
+http://138.121.15.230:9002/DISTRITO-COMEDIA/index.m3u8
+#EXTINF:-1 tvg-id="alma-05" tvg-name="ESPN MÉXICO" group-title="Alma TV",ESPN MÉXICO
+http://168.228.44.241:9997/play/a06p/index.m3u8
+#EXTINF:-1 tvg-id="alma-06" tvg-name="ESPN MX 1" group-title="Alma TV",ESPN MX 1
+http://167.249.23.102:8000/play/ESPN-HD/index.m3u8
+#EXTINF:-1 tvg-id="alma-07" tvg-name="ESPN MX 3" group-title="Alma TV",ESPN MX 3
+http://201.216.147.90:8729/play/a0p0
+#EXTINF:-1 tvg-id="alma-08" tvg-name="TUDN" group-title="Alma TV",TUDN
+http://201.216.147.90:8729/play/a00u
+#EXTINF:-1 tvg-id="alma-09" tvg-name="ESPN DOS MX" group-title="Alma TV",ESPN DOS MX
+http://201.216.147.90:8729/play/a0p2
+#EXTINF:-1 tvg-id="alma-10" tvg-name="ESPN 4TRO MX" group-title="Alma TV",ESPN 4TRO MX
+http://201.216.147.90:8729/play/a0gb
+#EXTINF:-1 tvg-id="alma-11" tvg-name="Azteca Deportes" group-title="Alma TV",Azteca Deportes
+http://201.216.147.90:8729/play/a01t
+#EXTINF:-1 tvg-id="alma-12" tvg-name="Distrito Comedia 2" group-title="Alma TV",Distrito Comedia 2
+http://190.61.47.54:8000/play/a028/index.m3u8
+#EXTINF:-1 tvg-id="alma-13" tvg-name="FOX SPORTS CENTROAMÉRICA" group-title="Alma TV",FOX SPORTS CENTROAMÉRICA
+http://45.171.64.30:6060/play/a03g/index.m3u8
+#EXTINF:-1 tvg-id="alma-14" tvg-name="sony hd" group-title="Alma TV",sony hd
+http://209.61.12.77:9000/play/a09n/index.m3u8
+#EXTINF:-1 tvg-id="alma-15" tvg-name="ESPN PREMIUM" group-title="Alma TV",ESPN PREMIUM
+http://209.61.12.77:9000/play/a09d/index.m3u8
+#EXTINF:-1 tvg-id="alma-16" tvg-name="ESPN 2" group-title="Alma TV",ESPN 2
+http://209.61.12.77:9000/play/a08p/index.m3u8
+#EXTINF:-1 tvg-id="alma-17" tvg-name="a&e" group-title="Alma TV",a&e
+http://209.61.12.77:9000/play/a08l/index.m3u8
+#EXTINF:-1 tvg-id="alma-18" tvg-name="TNT Telenovelas" group-title="Alma TV",TNT Telenovelas
+http://209.61.12.77:9000/play/a08w/index.m3u8
+#EXTINF:-1 tvg-id="alma-19" tvg-name="E!" group-title="Alma TV",E!
+http://209.61.12.77:9000/play/a088/index.m3u8
+#EXTINF:-1 tvg-id="alma-20" tvg-name="DISNEY" group-title="Alma TV",DISNEY
+http://209.61.12.77:9000/play/a09s/index.m3u8
+#EXTINF:-1 tvg-id="alma-21" tvg-name="Nick" group-title="Alma TV",Nick
+http://209.61.12.77:9000/play/a09a/index.m3u8
+#EXTINF:-1 tvg-id="alma-22" tvg-name="Discovery H&H" group-title="Alma TV",Discovery H&H
+http://209.61.12.77:9000/play/a091/index.m3u8
+#EXTINF:-1 tvg-id="alma-23" tvg-name="History" group-title="Alma TV",History
+http://209.61.12.77:9000/play/a075/index.m3u8
