@@ -3,6 +3,7 @@ import hashlib
 import ipaddress
 import json
 import re
+import secrets
 import threading
 import time
 from urllib.parse import urljoin, urlsplit
@@ -59,7 +60,7 @@ class IPTV:
         self.data={'sources':[],'country':'mx','search':'','published':[]}
         if path.exists():self.data=json.loads(path.read_text(encoding='utf-8'))
         self.data.setdefault('edit_receipts',[]);self.data.setdefault('favorites',{});self.data.setdefault('deleted',{});self.data.setdefault('categories',['Deportes','Entretenimiento','Películas','Series','Documentales','Noticias','Streaming'])
-        self.data.setdefault('recent_channels',[])
+        self.data.setdefault('recent_channels',[]);self.data.setdefault('manual',[])
         for source in self.data['sources']:source.setdefault('enabled',True)
         self.reindex();self.rebuild()
     def reindex(self):
@@ -74,13 +75,17 @@ class IPTV:
             for channel in source['channels']:
                 key=channel['id'];self.channel_index[key]=channel;self.memberships.setdefault(key,[]).append(ident)
                 digest.update(json.dumps(channel,sort_keys=True).encode())
+        if self.data['manual']:self.list_info.insert(0,{'id':'manual','name':'Lista de agregados'})
+        for channel in self.data['manual']:
+            self.channel_index[channel['id']]=channel;self.memberships.setdefault(channel['id'],[]).append('manual')
+            digest.update(json.dumps(channel,sort_keys=True).encode())
         self.source_revision=digest.hexdigest()[:24]
     def rebuild(self):
         recent=[]
         for previous in self.data['recent_channels']:
             current=self.channel_index.get(previous['id']) or self.data['favorites'].get(previous['id'],{}).get('channel')
             if current:recent.append(current)
-        candidates=self.builtins+recent+[v['channel'] for v in self.data['favorites'].values()]+self.data['published']
+        candidates=self.builtins+recent+[v['channel'] for v in self.data['favorites'].values()]+self.data['manual']+self.data['published']
         self.catalog=[];seen=set()
         for channel in candidates:
             ident=channel['id']
@@ -97,7 +102,7 @@ class IPTV:
         return sum(c["id"] not in builtin_ids for c in self.catalog)
     def info(self):
         with self.lock:
-            return {'sources':[{k:v for k,v in s.items() if k!='channels'} for s in self.data['sources']], 'country':self.data['country'],'search':self.data['search'],'published':self.published_count(),'matched':self.data.get('matched',len(self.data['published'])),'limit':LIMIT,'revision':self.revision,'guide_revision':self.guide_revision,'categories':self.data['categories'],'deleted':[{'id':k,'name':v['name']} for k,v in self.data['deleted'].items()]}
+            return {'sources':[{k:v for k,v in s.items() if k!='channels'} for s in self.data['sources']], 'manual':[c for c in self.data['manual'] if c['id'] not in self.data['deleted']], 'country':self.data['country'],'search':self.data['search'],'published':self.published_count(),'matched':self.data.get('matched',len(self.data['published'])),'limit':LIMIT,'revision':self.revision,'guide_revision':self.guide_revision,'categories':self.data['categories'],'deleted':[{'id':k,'name':v['name']} for k,v in self.data['deleted'].items()]}
     def publish(self,country,search):
         country=str(country).lower()[:8];search=str(search)[:100];found=[];seen=set()
         for source in self.data['sources']:
@@ -166,7 +171,7 @@ class IPTV:
                 if ident not in self.data['deleted']:raise ValueError('Canal eliminado no disponible.')
                 del self.data['deleted'][ident]
             else:
-                channel=next((c for c in self.builtins+self.data['published']+[v['channel'] for v in self.data['favorites'].values()] if c['id']==ident),None)
+                channel=next((c for c in self.builtins+self.data['manual']+self.data['published']+[v['channel'] for v in self.data['favorites'].values()] if c['id']==ident),None)
                 if not channel:
                     channel=next((c for source in self.data['sources'] for c in source['channels'] if c['id']==ident),None)
                 if not channel or ident in self.data['deleted']:raise ValueError('Canal no disponible.')
@@ -182,8 +187,27 @@ class IPTV:
             if isinstance(op,str) and len(op)<=80:self.data['edit_receipts']=(self.data['edit_receipts']+[op])[-200:]
             self.save()
             return {'matched':self.data.get('matched',len(self.data['published'])),'published':self.published_count(),'available':sum(s['count'] for s in self.data['sources'] if s.get('enabled',True))}
+    def manual_edit(self,data):
+        with self.lock:
+            name=data.get('name','');url=data.get('url','');group=data.get('category','')
+            if not isinstance(name,str) or not 1<=len(name.strip())<=120 or any(ord(c)<32 for c in name):raise ValueError('Escribe un nombre de canal de hasta 120 caracteres.')
+            if not isinstance(url,str) or not stream_url(url.strip()):raise ValueError('Usa el enlace directo HTTP/HTTPS de una señal pública, no una página web.')
+            if not isinstance(group,str) or len(group)>80 or any(ord(c)<32 for c in group):raise ValueError('Categoría no válida; usa hasta 80 caracteres.')
+            name=name.strip();url=url.strip();group=group.strip()
+            current=next((c for c in self.data['manual'] if c['id']==data.get('id')),None) if data['action']=='manual-update' else None
+            if data['action']=='manual-update' and (not current or current['id'] in self.data['deleted']):raise ValueError('Canal agregado no disponible.')
+            if any(c['url']==url and c is not current for c in self.data['manual']):raise ValueError('Ese enlace ya está en Lista de agregados. Puedes editar el canal existente o restaurarlo en Canales eliminados.')
+            if current is None and len(self.data['manual'])>=500:raise ValueError('Puedes guardar hasta 500 canales individuales.')
+            ident=current['id'] if current else 'manual-'+secrets.token_hex(10)
+            channel={'id':ident,'name':name,'url':url,'country':'','group':group,'region':group or 'Agregado manualmente','note':'Canal agregado manualmente; disponibilidad según el proveedor.'}
+            if current:self.data['manual'][self.data['manual'].index(current)]=channel
+            else:self.data['manual'].append(channel)
+            if ident in self.data['favorites']:self.data['favorites'][ident]['channel']=channel
+            self.reindex();self.save()
+            return {'id':ident,'published':self.published_count(),'matched':self.data.get('matched',0),'available':len(self.channel_index)}
     def mutate(self,data,opener):
         action=data.get('action')
+        if action in ('manual-add','manual-update'):return self.manual_edit(data)
         if action in ('favorite','delete-channel','restore','category'):return self.edit(data)
         if action in ('import','refresh'):
             url=str(data.get('url','')).strip()

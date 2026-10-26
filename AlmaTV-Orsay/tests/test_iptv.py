@@ -197,3 +197,31 @@ class DisabledListTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'cabeceras'):
                 lib.mutate({'action':'refresh','url':url},opener)
             self.assertEqual(path.read_bytes(),before);self.assertEqual(opener.call_args.kwargs['timeout'],60)
+
+class ManualChannelTests(unittest.TestCase):
+    def test_manual_channels_are_persistent_independent_of_filters_and_lists(self):
+        with tempfile.TemporaryDirectory() as folder:
+            file=Path(folder)/'iptv.json';lib=IPTV(file,[])
+            no_network=Mock(side_effect=AssertionError('No debe descargar la señal'))
+            ident=lib.mutate({'action':'manual-add','name':'Mi canal','url':'https://streams.example.org/one.m3u8','category':'Noticias'},no_network)['id']
+            self.assertEqual(lib.guide(source='manual')['lists'][0]['name'],'Lista de agregados')
+            self.assertEqual(lib.guide(source='manual')['channels'][0]['id'],ident)
+            self.assertEqual(lib.catalog[0]['region'],'Noticias');self.assertNotIn('url',lib.guide(source='manual')['channels'][0])
+            lib.publish('mx','no coincide');self.assertEqual(lib.catalog[0]['id'],ident)
+            lib=IPTV(file,[]);self.assertEqual(lib.info()['manual'][0]['id'],ident)
+            lib.edit({'action':'favorite','id':ident,'enabled':True,'category':'Noticias'})
+            lib.mutate({'action':'manual-update','id':ident,'name':'Nombre nuevo','url':'https://streams.example.org/new.m3u8','category':'Cultura'},no_network)
+            self.assertEqual(lib.catalog[0]['name'],'Nombre nuevo');self.assertTrue(lib.catalog[0]['favorite'])
+            self.assertEqual(lib.catalog[0]['category'],'Noticias');self.assertEqual(lib.resolve_channel(ident)['url'],'https://streams.example.org/new.m3u8')
+            lib.edit({'action':'delete-channel','id':ident});self.assertEqual(lib.guide(source='manual')['total'],0)
+            lib.edit({'action':'restore','id':ident});self.assertEqual(lib.guide(source='manual')['total'],1)
+            self.assertTrue(lib.catalog[0]['favorite']);no_network.assert_not_called()
+    def test_invalid_and_duplicate_manual_input_preserves_existing_catalogue(self):
+        with tempfile.TemporaryDirectory() as folder:
+            lib=IPTV(Path(folder)/'iptv.json',[]);opener=Mock()
+            good={'action':'manual-add','name':'Canal','url':'https://streams.example.org/a.m3u8'}
+            lib.mutate(good,opener);before=lib.path.read_bytes()
+            for update in [{},{'name':''},{'name':'a\nb'},{'url':'http://127.0.0.1/test.m3u8'},{'url':'javascript:alert(1)'},{'url':'file:///tmp/test'},{'category':'x'*81},{'action':'manual-update','id':'inexistente'}]:
+                with self.assertRaises(ValueError):lib.mutate(dict(good,**update),opener)
+                self.assertEqual(lib.path.read_bytes(),before)
+            self.assertEqual(len(lib.data['manual']),1);opener.assert_not_called()

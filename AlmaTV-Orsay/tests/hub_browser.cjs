@@ -310,3 +310,14 @@ test('Vista previa de YouTube se activa aparte, queda silenciada y no cambia la 
  assert.equal(await p.locator('#youtube-frame').getAttribute('src'),src);assert.equal(await p.evaluate(()=>AlmaYouTube.snapshot().state),1);
  await panel.locator('#mode-remote').click();assert.equal(await panel.locator('#touch-preview').isVisible(),false);assert.equal(await p.locator('#youtube-frame').getAttribute('src'),src);
 });
+
+test('Canal manual: agregar, editar, reproducir en Inicio y guardar en Lista de agregados sin cambiar widget',{timeout:25000},async t=>{
+ const screen=await tv(t),context=await browser.newContext({viewport:{width:390,height:844}});t.after(()=>context.close());const panel=await context.newPage();await panel.goto(base+'/control');await panel.locator('#tab-live-tv').click();
+ await panel.locator('#manual-name').fill('Mi canal individual');await panel.locator('#manual-url').fill('https://streams.example.org/manual.m3u8');await panel.locator('#manual-category').fill('Noticias');await panel.locator('#manual-save').click();
+ await panel.locator('#manual-channels .item').filter({hasText:'Mi canal individual'}).waitFor();
+ await panel.locator('#manual-channels .item').filter({hasText:'Mi canal individual'}).getByRole('button',{name:'Editar',exact:true}).click();await panel.locator('#manual-name').fill('Mi canal editado');await panel.locator('#manual-save').click();await panel.locator('#manual-channels .item').filter({hasText:'Mi canal editado'}).waitFor();
+ await panel.reload();await panel.locator('#tab-tv-guide').click();await panel.locator('#guide-list').selectOption('manual');await panel.waitForFunction(()=>document.querySelector('#guide-channels').textContent.includes('Mi canal editado'));
+ await screen.evaluate(()=>{HTMLObjectElement.prototype.Open=function(){return 1;};HTMLObjectElement.prototype.Close=function(){return 1;};HTMLObjectElement.prototype.Execute=function(command){if(command==='GetSource')return 18;if(command==='StartPlayback')this.OnEvent(7,0);return 1;};});
+ const row=panel.locator('#guide-channels .guide-channel').filter({hasText:'Mi canal editado'});await row.getByRole('button',{name:/Reproducir en Inicio/i}).click();await screen.waitForFunction(()=>AlmaPlayer.snapshot().playing&&AlmaPlayer.snapshot().title==='Mi canal editado');assert.equal(await screen.locator('#safe').getAttribute('data-view'),'home');
+ await panel.locator('#tab-live-tv').click();panel.once('dialog',d=>d.accept());await panel.locator('#manual-channels .item').filter({hasText:'Mi canal editado'}).getByRole('button',{name:'Eliminar',exact:true}).click();await panel.waitForFunction(()=>!document.querySelector('#manual-channels').textContent.includes('Mi canal editado'));
+});

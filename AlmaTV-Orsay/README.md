@@ -1,3 +1,11 @@
+## Control web 11.1.11 · Lista de agregados
+
+Actualización exclusiva del puente/control de la Mac. La TV conserva la versión 11.1.10: **no se reinstala ni sincroniza el widget**. En Importar canales → Agregar canal manualmente introduce nombre, URL HTTP/HTTPS directa y categoría descriptiva opcional. La lista **Lista de agregados** aparece en la Guía de TV después de agregar el primer canal. Permite reproducir en TV o en Inicio, guardar favoritos, editar nombre/enlace/categoría y eliminar/restaurar canales.
+
+Los individuales se guardan en `iptv.json`, separados de las listas importadas; no dependen del filtro de país/búsqueda, no consumen uno de los ocho espacios de listas M3U y no requieren descargar una lista. Los favoritos conservan su categoría al editar el enlace. La categoría descriptiva del canal y la organización de favoritos se administran por separado. Se conserva el límite existente de 504 entradas en el catálogo local de la TV; la guía web permite elegir los canales que queden fuera y enviarlos al reproducir. Hasta 500 canales individuales, con detección de enlaces duplicados. Solo el propietario puede modificarlos.
+
+Instala `instaladores/AlmaTV-Control-11.1.11.zip` ejecutando `python3 actualizar_control_mac.py`, sin sudo. Reinicia únicamente el puente y conserva datos/listas/favoritos y el widget. Después recarga `/control`. Las versiones de control web y widget se actualizan de manera independiente.
+
 ## 11.1.10 · Formato de imagen por canal
 
 Validación 11.1.10: 74 pruebas Python aprobadas; de 121 pruebas de navegador, 120 aprobaron inicialmente y la restante aprobó tras actualizar su expectativa del número de versión. Comprobación ES5, compilación e integridad de ambos ZIP verificadas.
