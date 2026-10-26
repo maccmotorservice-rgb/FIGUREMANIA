@@ -45,7 +45,7 @@ before(async () => {
     try {
       const response = await fetch("http://127.0.0.1:8765");
       const html = await response.text();
-      if (!html.includes('name="alma-build" content="11.1.10"'))
+      if (!html.includes('name="alma-build" content="11.1.13"'))
         throw new Error("Puerto 8765 ocupado por otro proyecto");
       return true;
     } catch (error) {
@@ -130,7 +130,7 @@ beforeEach(async (t) => {
   await page.goto("http://127.0.0.1:8765");
 });
 test("Inicio 11: dock de logos, abajo abre biblioteca y Atrás restaura Inicio", async () => {
-  assert.equal(await page.locator('meta[name="alma-build"]').getAttribute("content"),"11.1.10");
+  assert.equal(await page.locator('meta[name="alma-build"]').getAttribute("content"),"11.1.13");
   assert.deepEqual(await page.evaluate(() => platformCalls), ["ready"]);
   assert.equal(await page.locator(".home-apps .app").count(),17);
   assert.equal(await page.locator(".focus").getAttribute("id"),"app-0");
@@ -1923,7 +1923,7 @@ test('11.1.9: selector azul tenue sin marco blanco y marca solo en Ajustes',asyn
  const focus=await page.locator('.focus').evaluate(n=>{const s=getComputedStyle(n);return {outline:s.outlineStyle,shadow:s.boxShadow,color:s.backgroundColor};});
  assert.equal(focus.outline,'none');assert.match(focus.shadow,/38, 62, 190/);assert.match(focus.shadow,/0\.28/);
  await key(38);assert.equal(await page.locator('.focus').evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(28, 35, 45, 0.68)');
- await go('settings');assert.match(await page.locator('.settings-brand').innerText(),/alma.*tv 11\.1\.10/);
+ await go('settings');assert.match(await page.locator('.settings-brand').innerText(),/alma.*tv 11\.1\.13/);
  await go('home');await shot('alma11-experimental-inicio');assert.deepEqual(errors,[]);
 });
 
@@ -2174,4 +2174,24 @@ test('Formato HTML5: Zoom, estirar y original cambian la imagen sin reemplazar e
   await click('live-home');assert.equal(await page.locator('#media-video').getAttribute('data-aspect'),'same');assert.equal(await page.locator('#media-video').evaluate(n=>getComputedStyle(n).objectFit),fit);await page.evaluate(()=>Alma.go('livetv'));
  }
  assert.deepEqual(errors,[]);
+});
+
+test('SAP nativo cambia una sola pista sin reiniciar video ni salir de Inicio y rechaza selecciones viejas',async()=>{
+ await samsungLiveFixture();await go('livetv');await click('live-capital21');
+ await page.evaluate(()=>{const p=document.getElementById('alma-live-player'),old=p.Execute;p.Execute=function(command,...args){if(command==='GetTotalNumOfStream')return 2;if(command==='GetStreamLanguageInfo')return args[1]===0?6647399:7565409;return old.call(this,command,...args);};p.OnEvent(9,0);});
+ const info=await page.evaluate(()=>AlmaNativeLive.audioInfo());assert.match(info.tracks[0].label,/Inglés/);assert.match(info.tracks[1].label,/Español/);assert.equal(info.selected,-1);
+ await click('live-home');const starts=await page.evaluate(()=>liveCalls.filter(c=>c[1]==='StartPlayback').length);
+ await page.evaluate(token=>Alma.hubControl('audio-track',1,token),info.source);
+ assert.equal(await page.evaluate(()=>AlmaNativeLive.audioInfo().selected),1);assert.equal(await page.locator('#safe').getAttribute('data-view'),'home');assert.equal(await page.evaluate(()=>liveCalls.filter(c=>c[1]==='StartPlayback').length),starts);
+ assert.deepEqual(await page.evaluate(()=>liveCalls.filter(c=>c[1]==='SetStreamID').at(-1).slice(1)),['SetStreamID',1,1]);
+ await go('livetv');await click('live-canalonce');await assert.rejects(page.evaluate(token=>Alma.hubControl('audio-track',1,token),info.source),/pistas cambiaron/);assert.deepEqual(errors,[]);
+});
+
+test('SAP: APIs ausentes o cambio rechazado mantienen el canal y no inventan idiomas',async()=>{
+ await samsungLiveFixture();await go('livetv');await click('live-capital21');
+ await page.evaluate(()=>{const p=document.getElementById('alma-live-player'),old=p.Execute;p.Execute=function(command,...args){if(command==='GetTotalNumOfStream')throw new Error('No API');if(command==='GetStreamLanguageInfo')return -1;return old.call(this,command,...args);};p.OnEvent(9,0);});
+ assert.equal(await page.evaluate(()=>AlmaNativeLive.audioInfo().tracks.length),0);assert.equal(await page.evaluate(()=>AlmaPlayer.snapshot().playing),true);
+ await page.evaluate(()=>{const p=document.getElementById('alma-live-player'),old=p.Execute;p.Execute=function(command,...args){if(command==='GetStreamLanguageInfo')return args[1]<2?(args[1]===0?6647399:7565409):-1;if(command==='SetStreamID')return -1;return old.call(this,command,...args);};AlmaNativeLive.refreshAudio(true);});
+ const source=await page.evaluate(()=>AlmaNativeLive.audioInfo().source);assert.equal(await page.evaluate(()=>AlmaNativeLive.audioInfo().tracks.length),2);
+ await assert.rejects(page.evaluate(token=>Alma.hubControl('audio-track',1,token),source),/Samsung no aceptó/);assert.equal(await page.evaluate(()=>AlmaPlayer.snapshot().playing),true);assert.equal(await page.evaluate(()=>AlmaNativeLive.audioInfo().selected),-1);assert.deepEqual(errors,[]);
 });

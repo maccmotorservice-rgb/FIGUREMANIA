@@ -1,3 +1,15 @@
+## 11.1.13 · Selector de audio / SAP desde el mando
+
+Validación: 125 pruebas de navegador y 79 pruebas Python aprobadas; ES5, compilación e integridad de los paquetes verificadas. SAP probado con simulación Samsung, no en la TV física.
+
+Requiere actualizar el puente de la Mac **y sincronizar el widget Samsung 11.1.13**. En Control → Idioma / SAP del canal aparecen las pistas que expone la TV. Se consulta el reproductor Orsay existente (`GetTotalNumOfStream` y/o `GetStreamLanguageInfo`, tipo audio 1) y se solicita el cambio con `SetStreamID(1, índice)`. No se inicia una segunda reproducción, no se reinicia el canal y no se abre ningún selector adicional en la TV. Funciona también al reproducir en Inicio. **Actualizar pistas** repite la consulta si los metadatos llegaron tarde.
+
+Se muestran los idiomas reportados, con número de pista para distinguir idiomas repetidos; si no hay identificación se muestra Audio. La pista inicial se indica como predeterminada porque no se inventa su índice. Una sola pista, APIs ausentes o error al cambiar se informan sin detener el canal. Las órdenes incluyen un identificador de sesión, validado en el puente y otra vez en la TV para no aplicarlas a otro canal. Solo el propietario puede cambiar audio; la telemetría admite hasta 16 pistas y etiquetas de 80 caracteres.
+
+Referencia del cambio de audio Orsay: [Samsung TOAST, issue 59](https://github.com/Samsung/cordova-plugin-toast/issues/59#issuecomment-321730548). Consulta de idioma por stream: [mediaProxy de Orsay](https://github.com/Samsung/cordova-plugin-toast/blob/master/src/sectv-orsay/mediaProxy.js). La disponibilidad de esas llamadas en el firmware concreto y la audición de la pista elegida requieren prueba física; las pruebas de navegador usan una API Samsung simulada. Esta versión ofrece SAP para Samsung HLS, no cambia pistas de YouTube ni implementa selección HTML5.
+
+**Volumen:** el mando mantiene el volumen propio de HTML5/YouTube y no modifica el volumen general de Samsung. Para Samsung HLS no se encontró una API documentada de volumen independiente; los controles web se mantienen deshabilitados y lo explican. Esto sigue pendiente: no se afirma que SAP resuelva el volumen. No se activa el módulo global Audio/AppCommon ni se capturan teclas físicas de volumen. Procesar la señal en la Mac para regular su ganancia sería otra función, con dependencia de la Mac, que esta versión no incorpora. Se investigó una prueba dinámica viable en Linux: [resultado y límites](docs/investigacion/volumen-hls-procesado.md); falta comprobar dependencias de FFmpeg en la Mac y la reproducción física.
+
 ## Control web 11.1.12 · Comentarios antes de M3U
 
 El importador acepta líneas de comentario y espacios antes de `#EXTM3U` o de las entradas de canales reconocidas. Sigue rechazando páginas HTML y señales HLS individuales. Verificado con el archivo SamsungTVPlus-All.m3u compartido: 2 352 canales aceptados y cero entradas omitidas; esto comprueba la lectura de la lista, no la disponibilidad de cada señal.

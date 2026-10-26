@@ -20,7 +20,7 @@ import time
 from urllib.parse import urlsplit
 from xml.etree import ElementTree as ET
 
-ACTIONS = {'touch','music-play','music-pause','music-stop','music-mute','play','pause','toggle','stop','seek','home','media','saver','volume-up','volume-down','volume','mute','live-channel','navigate','up','down','left','right','ok','back','fullscreen','background-stop','background-play','background-pause','play-home','live-channel-home'}
+ACTIONS = {'audio-track','audio-refresh','touch','music-play','music-pause','music-stop','music-mute','play','pause','toggle','stop','seek','home','media','saver','volume-up','volume-down','volume','mute','live-channel','navigate','up','down','left','right','ok','back','fullscreen','background-stop','background-play','background-pause','play-home','live-channel-home'}
 VIEWS={'home','search','apps','media','hub','clock','weather','calendar','timer','settings','saver','livetv'}
 EXTENSIONS = {'.mp3':'audio','.m4a':'audio','.wav':'audio','.mp4':'video','.m4v':'video','.jpg':'photo','.jpeg':'photo','.png':'photo','.mov':'convert','.mkv':'convert'}
 
@@ -186,8 +186,11 @@ class Hub:
                     self.advance(target)
                 telemetry=event.get('telemetry')
                 old_screen=channel['telemetry'].get('screen')
-                if isinstance(telemetry,dict):channel['telemetry']={k:v for k,v in telemetry.items() if k in ('music','music_active','music_muted','music_state','music_seconds','music_error','background_audio','title','state','seconds','duration','kind','error','volume','muted','observed_volume','observed_muted','engine','view','focus','focus_id') and isinstance(v,(str,int,float,bool)) and len(str(v))<=300}
+                if isinstance(telemetry,dict):channel['telemetry']={k:v for k,v in telemetry.items() if k in ('audio_source','audio_selected','audio_status','music','music_active','music_muted','music_state','music_seconds','music_error','background_audio','title','state','seconds','duration','kind','error','volume','muted','observed_volume','observed_muted','engine','view','focus','focus_id') and isinstance(v,(str,int,float,bool)) and len(str(v))<=300}
                 if isinstance(telemetry,dict):
+                    tracks=telemetry.get('audio_tracks')
+                    if isinstance(tracks,list):
+                        channel['telemetry']['audio_tracks']=[{'id':t['id'],'label':t['label']} for t in tracks[:16] if isinstance(t,dict) and type(t.get('id')) is int and 0<=t['id']<16 and isinstance(t.get('label'),str) and 0<len(t['label'])<=80]
                     screen=telemetry.get('screen')
                     screen=clean_screen(screen)
                     if screen is not None:channel['telemetry']['screen']=screen
@@ -254,6 +257,10 @@ class Hub:
                 if command not in ACTIONS:raise ValueError('Control no disponible.')
                 seconds=data.get('seconds',10)
                 if command=='touch' and (not isinstance(data.get('view'),str) or not re.fullmatch(r'[a-z-]{1,24}:[A-Za-z0-9_-]{1,80}',data['view'])):raise ValueError('Selección de pantalla no válida.')
+                if command in ('audio-track','audio-refresh'):
+                    status=self.channel(target)['telemetry'];token=data.get('view')
+                    if not isinstance(token,str) or not 1<=len(token)<=80 or token!=status.get('audio_source'):raise ValueError('El canal cambió; espera la actualización de las pistas.')
+                    if command=='audio-track' and (type(seconds) is not int or seconds not in {t['id'] for t in status.get('audio_tracks',[])}):raise ValueError('Pista de audio no disponible.')
                 if command=='volume' and (type(seconds) is not int or not 0<=seconds<=100):raise ValueError('Volumen no válido.')
                 if command=='seek' and seconds not in (-30,-10,-5,5,10,30):raise ValueError('Salto no válido.')
                 view=data.get('view','')

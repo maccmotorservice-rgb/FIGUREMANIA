@@ -686,7 +686,7 @@ var Alma = (function () {
           "PREFERENCIAS",
           "A tu medida",
           "Los ajustes no cambian Smart Hub, las aplicaciones de Samsung ni el firmware."
-        ) + '<div class="settings-brand">alma<span>tv 11.1.10 experimental</span></div><div class="grid settings">',
+        ) + '<div class="settings-brand">alma<span>tv 11.1.13 experimental</span></div><div class="grid settings">',
       ids = [];
     for (var i = 0; i < items.length; i++) {
       h += button(items[i][0], items[i][1], items[i][2], items[i][3]);
@@ -2769,6 +2769,8 @@ var Alma = (function () {
       throw new Error("Esta opción ya no está disponible en la TV.");
     }
 
+    if(action==="audio-track"){AlmaNativeLive.selectAudio(seconds,view);return;}
+    if(action==="audio-refresh"){var audio=AlmaNativeLive.audioInfo();if(view!==audio.source||!audio.source)throw new Error("El canal cambió. Espera el estado actual.");AlmaNativeLive.refreshAudio(true);return;}
     if(action==="music-play"){AlmaMusic.play();return;}
     if(action==="music-pause"){AlmaMusic.pause();return;}
     if(action==="music-stop"){AlmaMusic.stop();return;}
@@ -2799,7 +2801,7 @@ var Alma = (function () {
       else throw new Error("No hay un vídeo abierto para ampliar");return;
     }
     if(action==="home"||action==="media"||action==="saver"){go(action);return;}
-    if(!youtubeLoaded&&AlmaPlayer.snapshot().native&&["volume","volume-up","volume-down","mute"].indexOf(action)>=0){notice("Esta señal utiliza el volumen del control Samsung.");return;}
+    if(!youtubeLoaded&&AlmaPlayer.snapshot().native&&["volume","volume-up","volume-down","mute"].indexOf(action)>=0){notice("Esta señal Samsung HLS no ofrece volumen independiente. No se ha modificado el volumen de la TV.");return;}
     if(action==="volume"){
       if(typeof seconds!=="number"||!isFinite(seconds)||seconds<0||seconds>100)throw new Error("Volumen no válido");
       prefs.appMuted=false;setAppAudio(Math.round(seconds)-prefs.appVolume,false);return;
@@ -2826,10 +2828,12 @@ var Alma = (function () {
   };
   function primaryHubStatus(){
     if(youtubeLoaded){var value=AlmaYouTube.snapshot();return {title:value.title||(youtubeSelection&&youtubeSelection.name)||"Vídeo",kind:(youtubeSelection&&youtubeSelection.provider)||"youtube",engine:(youtubeSelection&&youtubeSelection.provider)||"youtube",state:value.failed?"Error":(value.state===1?"Reproduciendo":(value.state===2?"En pausa":"Preparado")),seconds:value.seconds||0,duration:value.duration||0,volume:prefs.appVolume,muted:prefs.appMuted,observed_volume:backgroundAudio?AlmaBackgroundAudio.snapshot().volume:value.volume,observed_muted:backgroundAudio?AlmaBackgroundAudio.snapshot().muted:value.muted,background_audio:backgroundAudioStatus,finished:value.finished,error:value.failed?value.status:""};}
-    var current=AlmaPlayer.snapshot();return {title:current.index>=0?current.title:"Sin reproducción",kind:current.kind,state:current.status,seconds:current.time,duration:current.duration,error:current.error,engine:current.native?"samsung-hls":"html5",volume:prefs.appVolume,muted:prefs.appMuted,observed_volume:current.native?null:Math.round(current.volume*100),observed_muted:current.muted};
+    var current=AlmaPlayer.snapshot();return {title:current.index>=0?current.title:"Sin reproducción",kind:current.kind,state:current.status,seconds:current.time,duration:current.duration,error:current.error,engine:current.native?"samsung-hls":"html5",volume:prefs.appVolume,muted:prefs.appMuted,observed_volume:current.native?null:Math.round(current.volume*100),observed_muted:current.native?null:current.muted};
   };
   A.hubStatus=function(){
     var status=primaryHubStatus(),music=AlmaMusic.snapshot();
+    var nativeAudio=AlmaPlayer.snapshot().native&&!youtubeLoaded?AlmaNativeLive.audioInfo():{source:"",tracks:[],selected:-1,status:"Las pistas de audio están disponibles para canales Samsung HLS que las expongan."};
+    status.audio_source=nativeAudio.source;status.audio_tracks=nativeAudio.tracks;status.audio_selected=nativeAudio.selected;status.audio_status=nativeAudio.status;
     status.music=music.title;status.music_active=music.active;status.music_muted=music.muted;
     status.music_state=music.state;status.music_seconds=music.seconds;status.music_error=music.error||music.warning;return status;
   };

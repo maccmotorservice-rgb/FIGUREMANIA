@@ -7,7 +7,7 @@ import subprocess
 import sys
 import tempfile
 
-VERSION = '11.1.12'
+VERSION = '11.1.13'
 CORE = ('hub_panel.html','hub.py','hub_http.py','iptv.py')
 FILES = CORE + ('app/style.css',) + tuple(str(p.relative_to(Path(__file__).resolve().parent)) for p in sorted((Path(__file__).resolve().parent/'app/assets/logos').glob('*.png')))
 

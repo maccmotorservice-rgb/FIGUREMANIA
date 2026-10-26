@@ -1,0 +1,31 @@
+{
+  "events": [
+    {
+      "at": 2.02,
+      "level": 0.25,
+      "response": "0 Success",
+      "same_process": true
+    },
+    {
+      "at": 4.02,
+      "level": 0,
+      "response": "0 Success",
+      "same_process": true
+    },
+    {
+      "at": 6.03,
+      "level": 1,
+      "response": "0 Success",
+      "same_process": true
+    }
+  ],
+  "rms_dbfs_original_quarter_mute_restored": [
+    -21.08,
+    -33.12,
+    -290.31,
+    -21.08
+  ],
+  "video": "h264 copy, sin recodificar",
+  "hls_segments": 3,
+  "scope": "Prueba local Linux con video fixture y tono sintetico; no TV ni Mac fisica"
+}

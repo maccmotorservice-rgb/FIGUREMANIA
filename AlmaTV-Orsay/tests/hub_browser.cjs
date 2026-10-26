@@ -321,3 +321,12 @@ test('Canal manual: agregar, editar, reproducir en Inicio y guardar en Lista de 
  const row=panel.locator('#guide-channels .guide-channel').filter({hasText:'Mi canal editado'});await row.getByRole('button',{name:/Reproducir en Inicio/i}).click();await screen.waitForFunction(()=>AlmaPlayer.snapshot().playing&&AlmaPlayer.snapshot().title==='Mi canal editado');assert.equal(await screen.locator('#safe').getAttribute('data-view'),'home');
  await panel.locator('#tab-live-tv').click();panel.once('dialog',d=>d.accept());await panel.locator('#manual-channels .item').filter({hasText:'Mi canal editado'}).getByRole('button',{name:'Eliminar',exact:true}).click();await panel.waitForFunction(()=>!document.querySelector('#manual-channels').textContent.includes('Mi canal editado'));
 });
+
+test('Mando SAP recibe idiomas de la TV y selecciona Español sin reiniciar la sesión',{timeout:20000},async t=>{
+ const screen=await tv(t);await screen.evaluate(()=>{window.sapCalls=[];HTMLObjectElement.prototype.Open=function(){return 1;};HTMLObjectElement.prototype.Close=function(){return 1;};HTMLObjectElement.prototype.Execute=function(command,...args){sapCalls.push([command,...args]);if(command==='GetSource')return 18;if(command==='GetTotalNumOfStream')return 2;if(command==='GetStreamLanguageInfo')return args[1]===0?6647399:7565409;if(command==='StartPlayback')this.OnEvent(7,0);return 1;};Alma.go('livetv');});
+ await screen.locator('#live-section-0').click();await screen.locator('#live-capital21').click();await screen.locator('#live-home').click();
+ const context=await browser.newContext();t.after(()=>context.close());const panel=await context.newPage();await panel.goto(base+'/control');await panel.locator('#mode-remote').click();
+ await panel.waitForFunction(()=>Array.from(document.querySelector('#audio-track').options).some(o=>o.text.includes('Español')));await panel.locator('#audio-track').selectOption('1');
+ await screen.waitForFunction(()=>AlmaNativeLive.audioInfo().selected===1);await panel.waitForFunction(()=>document.querySelector('#audio-track-info').textContent.includes('Pista seleccionada: Español'));
+ assert.equal(await screen.locator('#safe').getAttribute('data-view'),'home');assert.equal(await screen.evaluate(()=>sapCalls.filter(c=>c[0]==='StartPlayback').length),1);assert.deepEqual(await screen.evaluate(()=>sapCalls.filter(c=>c[0]==='SetStreamID').at(-1)),['SetStreamID',1,1]);
+});
